@@ -39,7 +39,6 @@
         <dependency>
             <groupId>com.github.davidmoten</groupId>
             <artifactId>flatbuffers-java</artifactId>
-            <version>1.7.0.1</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/redis.clients/jedis -->

@@ -9,7 +9,6 @@ import org.ray.api.RayObject;
 import org.ray.api.UniqueID;
 import org.ray.api.WaitResult;
 import org.ray.core.Serializer;
-import org.ray.core.WorkerContext;
 import org.ray.util.exception.TaskExecutionException;
 
 /**
@@ -34,7 +33,7 @@ public class ObjectStoreProxy {
       throws TaskExecutionException {
     byte[] obj = store.get(id.getBytes(), timeoutMs, isMetadata);
     if (obj != null) {
-      T t = Serializer.decode(obj, WorkerContext.currentClassLoader());
+      T t = Serializer.deserialize(obj, T.class);
       store.release(id.getBytes());
       if (t instanceof TaskExecutionException) {
         throw (TaskExecutionException) t;
@@ -57,7 +56,7 @@ public class ObjectStoreProxy {
     for (int i = 0; i < objs.size(); i++) {
       byte[] obj = objs.get(i);
       if (obj != null) {
-        T t = Serializer.decode(obj, WorkerContext.currentClassLoader());
+        T t = Serializer.deserialize(obj);
         store.release(ids.get(i).getBytes());
         if (t instanceof TaskExecutionException) {
           throw (TaskExecutionException) t;
@@ -80,7 +79,7 @@ public class ObjectStoreProxy {
   }
 
   public void put(UniqueID id, Object obj, Object metadata) {
-    store.put(id.getBytes(), Serializer.encode(obj), Serializer.encode(metadata));
+    store.put(id.getBytes(), Serializer.serialize(obj), Serializer.serialize(metadata));
   }
 
   public <T> WaitResult<T> wait(RayList<T> waitfor, int numReturns, int timeout) {

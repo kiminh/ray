@@ -78,7 +78,7 @@ public class InvocationExecutor {
       hasMultiReturn = UniqueIdHelper.hasMultipleReturnOrNotFromReturnObjectId(task.returnIds[0]);
     }
 
-    Pair<Object, Object[]> realArgs = ArgumentsBuilder.unwrap(task, m, pr.getLeft());
+    Pair<Object, Object[]> realArgs = ArgumentsBuilder.unwrap(task, m);
     if (hasMultiReturn && returnType.equals(Map.class)) {
       //first arg is Map<user_return_id,ray_return_id>
       userRayReturnIdMap = (Map<?, UniqueID>) realArgs.getRight()[0];
