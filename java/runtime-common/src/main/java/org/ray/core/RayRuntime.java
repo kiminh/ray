@@ -449,6 +449,7 @@ public abstract class RayRuntime implements RayApi {
       ContextT context) {
     UniqueID taskId = UniqueIdHelper.getBatchRootTaskId(batchId);
     RayObject<Boolean> ret = null;
+  
     if (completionHandler != null) {
       RayObject<ResultT> result = UniqueIdHelper.batchResultObject(batchId);
       UniqueID endTaskId = UniqueIdHelper.getBatchEndTaskId(taskId, batchId);
@@ -471,6 +472,7 @@ public abstract class RayRuntime implements RayApi {
       ContextT context) {
     UniqueID taskId = UniqueIdHelper.getBatchRootTaskId(batchId);
     RayObject<Boolean> ret = null;
+  
     if (completionHandler != null) {
       RayObject<ResultT> result = UniqueIdHelper.batchResultObject(batchId);
       UniqueID endTaskId = UniqueIdHelper.getBatchEndTaskId(taskId, batchId);
