@@ -244,7 +244,6 @@ class Worker(object):
         # When the worker is constructed. Record the original value of the
         # CUDA_VISIBLE_DEVICES environment variable.
         self.original_gpu_ids = ray.utils.get_cuda_visible_devices()
-<<<<<<< HEAD
         self.profiler = profiling.Profiler(self)
         self.state_lock = threading.Lock()
         # A dictionary that maps from driver id to SerializationContext
@@ -266,20 +265,6 @@ class Worker(object):
         if driver_id not in self.serialization_context_map:
             _initialize_serialization(driver_id)
         return self.serialization_context_map[driver_id]
-=======
-        # A dictionary that maps from driver id to SerializationContext
-        # TODO: clean up the SerializationContext once the job finished.
-        self.serialization_context_map = dict()
-        # Identity of the driver that this worker is processing.
-        self.task_driver_id = None
-
-    def get_serialization_context(self):
-        """Get the SerializationContext of the driver that this worker is processing
-        """
-        if self.task_driver_id not in self.serialization_context_map:
-            _initialize_serialization()
-        return self.serialization_context_map[self.task_driver_id]
->>>>>>> [issue 2165] ray.tune blocks if running an experiment for more than 2 times in cluster mode
 
     def check_connected(self):
         """Check if the worker is connected.
@@ -343,12 +328,8 @@ class Worker(object):
                     value,
                     object_id=pyarrow.plasma.ObjectID(object_id.id()),
                     memcopy_threads=self.memcopy_threads,
-<<<<<<< HEAD
                     serialization_context=self.get_serialization_context(
                         self.task_driver_id))
-=======
-                    serialization_context=self.get_serialization_context())
->>>>>>> [issue 2165] ray.tune blocks if running an experiment for more than 2 times in cluster mode
                 break
             except pyarrow.SerializationCallbackError as e:
                 try:
@@ -440,12 +421,8 @@ class Worker(object):
                     results += self.plasma_client.get(
                         object_ids[i:(
                             i + ray._config.worker_get_request_size())],
-<<<<<<< HEAD
                         timeout,
                         self.get_serialization_context(self.task_driver_id))
-=======
-                        timeout, self.get_serialization_context())
->>>>>>> [issue 2165] ray.tune blocks if running an experiment for more than 2 times in cluster mode
                 return results
             except pyarrow.lib.ArrowInvalid:
                 # TODO(ekl): the local scheduler could include relevant
@@ -755,6 +732,7 @@ class Worker(object):
                 run this funtion on other drivers. One case is we may need to
                 share objects across drivers.
         """
+        check_main_thread()
         # If ray.init has not been called yet, then cache the function and
         # export it when connect is called. Otherwise, run the function on all
         # workers.
@@ -768,6 +746,12 @@ class Worker(object):
 
             function_to_run_id = hashlib.sha1(pickled_function).digest()
             key = b"FunctionsToRun:" + function_to_run_id
+            # Here we provide an option to suppot different keys among differnt drivers.
+            # One case that we need this is serialization/deserialization callback register.
+            # Since we keep one context for one driver, we need to let the register function 
+            # execute for other drivers even if the function already exists in redis.
+            if per_driver:
+                key = key + self.task_driver_id.id()
             # First run the function on the driver.
             # We always run the task locally.
             function({"worker": self})
@@ -1268,19 +1252,11 @@ def _initialize_serialization(driver_id, worker=global_worker):
     This defines a custom serializer for object IDs and also tells ray to
     serialize several exception classes that we define for error handling.
     """
-<<<<<<< HEAD
     serialization_context = pyarrow.default_serialization_context()
     # Tell the serialization context to use the cloudpickle version that we
     # ship with Ray.
     serialization_context.set_pickle(pickle.dumps, pickle.loads)
     pyarrow.register_torch_serialization_handlers(serialization_context)
-=======
-    worker.serialization_context_map[worker.task_driver_id] = pyarrow.default_serialization_context()
-    # Tell the serialization context to use the cloudpickle version that we
-    # ship with Ray.
-    worker.serialization_context_map[worker.task_driver_id].set_pickle(pickle.dumps, pickle.loads)
-    pyarrow.register_torch_serialization_handlers(worker.serialization_context_map[worker.task_driver_id])
->>>>>>> [issue 2165] ray.tune blocks if running an experiment for more than 2 times in cluster mode
 
     # Define a custom serializer and deserializer for handling Object IDs.
     def object_id_custom_serializer(obj):
@@ -1292,11 +1268,7 @@ def _initialize_serialization(driver_id, worker=global_worker):
     # We register this serializer on each worker instead of calling
     # register_custom_serializer from the driver so that isinstance still
     # works.
-<<<<<<< HEAD
     serialization_context.register_type(
-=======
-    worker.serialization_context_map[worker.task_driver_id].register_type(
->>>>>>> [issue 2165] ray.tune blocks if running an experiment for more than 2 times in cluster mode
         ray.ObjectID,
         "ray.ObjectID",
         pickle=False,
@@ -1314,11 +1286,7 @@ def _initialize_serialization(driver_id, worker=global_worker):
     # We register this serializer on each worker instead of calling
     # register_custom_serializer from the driver so that isinstance still
     # works.
-<<<<<<< HEAD
     serialization_context.register_type(
-=======
-    worker.serialization_context_map[worker.task_driver_id].register_type(
->>>>>>> [issue 2165] ray.tune blocks if running an experiment for more than 2 times in cluster mode
         ray.actor.ActorHandle,
         "ray.ActorHandle",
         pickle=False,
@@ -2341,11 +2309,7 @@ def disconnect(worker=global_worker):
     worker.connected = False
     worker.cached_functions_to_run = []
     worker.cached_remote_functions_and_actors = []
-<<<<<<< HEAD
     worker.serialization_context_map.clear()
-=======
-    worker.serialization_context_map[worker.task_driver_id] = pyarrow.SerializationContext()
->>>>>>> [issue 2165] ray.tune blocks if running an experiment for more than 2 times in cluster mode
 
 
 def _try_to_compute_deterministic_class_id(cls, depth=5):
@@ -2473,14 +2437,9 @@ def register_custom_serializer(cls,
         # we may want to use the last user-defined serializers and ignore
         # subsequent calls to register_custom_serializer that were made by the
         # system.
-<<<<<<< HEAD
-
         serialization_context = worker_info[
             "worker"].get_serialization_context(ray.ObjectID(driver_id_bytes))
         serialization_context.register_type(
-=======
-        worker_info["worker"].get_serialization_context().register_type(
->>>>>>> [issue 2165] ray.tune blocks if running an experiment for more than 2 times in cluster mode
             cls,
             class_id,
             pickle=use_pickle,
@@ -2488,7 +2447,7 @@ def register_custom_serializer(cls,
             custom_deserializer=deserializer)
 
     if not local:
-        worker.run_function_on_all_workers(register_class_for_serialization)
+        worker.run_function_on_all_workers(register_class_for_serialization, per_driver=True)
     else:
         # Since we are pickling objects of this class, we don't actually need
         # to ship the class definition.
