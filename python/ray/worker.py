@@ -715,6 +715,7 @@ class Worker(object):
             })
         self.redis_client.rpush("Exports", key)
 
+
     def run_function_on_all_workers(self, function,
                                     run_on_other_drivers=False):
         """Run arbitrary code on all of the workers.
@@ -746,12 +747,6 @@ class Worker(object):
 
             function_to_run_id = hashlib.sha1(pickled_function).digest()
             key = b"FunctionsToRun:" + function_to_run_id
-            # Here we provide an option to suppot different keys among differnt drivers.
-            # One case that we need this is serialization/deserialization callback register.
-            # Since we keep one context for one driver, we need to let the register function 
-            # execute for other drivers even if the function already exists in redis.
-            if per_driver:
-                key = key + self.task_driver_id.id()
             # First run the function on the driver.
             # We always run the task locally.
             function({"worker": self})
@@ -916,6 +911,10 @@ class Worker(object):
             self.task_driver_id.id()][function_id.id()].function
         function_name = self.function_execution_info[self.task_driver_id.id()][
             function_id.id()].function_name
+
+        if not self.serialization_context_map.has_key(self.task_driver_id):
+            _initialize_serialization()
+        register_existing_class()
 
         # Get task arguments from the object store.
         try:
@@ -2065,6 +2064,7 @@ def connect(info,
     # the correct driver.
     if mode != WORKER_MODE:
         worker.task_driver_id = ray.ObjectID(worker.worker_id)
+        _initialize_serialization()
 
     # All workers start out as non-actors. A worker can be turned into an actor
     # after it is created.
@@ -2365,7 +2365,7 @@ def register_custom_serializer(cls,
                                worker=global_worker):
     """Enable serialization and deserialization for a particular class.
 
-    This method runs the register_class function defined below on every worker,
+    This method runs the register_type function defined below on every worker,
     which will enable ray to properly serialize and deserialize objects of
     this class.
 
@@ -2447,7 +2447,7 @@ def register_custom_serializer(cls,
             custom_deserializer=deserializer)
 
     if not local:
-        worker.run_function_on_all_workers(register_class_for_serialization, per_driver=True)
+        worker.register_class_on_all_workers(register_class_for_serialization)
     else:
         # Since we are pickling objects of this class, we don't actually need
         # to ship the class definition.
