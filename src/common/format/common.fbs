@@ -113,6 +113,9 @@ table TaskReply {
   // A boolean representing whether the update was successful. This field
   // should only be used for test-and-set operations.
   updated: bool;
+  // The reaming time of the task's call, and the unit is millis.
+  // Under 0 means no timeout and being equal to 0 means timeout.
+  timeout_budget:long = -1;
 }
 
 root_type TaskReply;

@@ -95,7 +95,8 @@ void local_scheduler_submit_raylet(
 }
 
 TaskSpec *local_scheduler_get_task(LocalSchedulerConnection *conn,
-                                   int64_t *task_size) {
+                                   int64_t *task_size,
+                                   int64_t *timeout_budget) {
   write_message(conn->conn, static_cast<int64_t>(MessageType::GetTask), 0,
                 NULL);
   int64_t type;
@@ -114,6 +115,7 @@ TaskSpec *local_scheduler_get_task(LocalSchedulerConnection *conn,
   auto reply_message =
       flatbuffers::GetRoot<ray::local_scheduler::protocol::GetTaskReply>(reply);
 
+  timeout_budget = reply_message->timeout_budget();
   /* Create a copy of the task spec so we can free the reply. */
   *task_size = reply_message->task_spec()->size();
   TaskSpec *data = (TaskSpec *) reply_message->task_spec()->data();
@@ -138,7 +140,8 @@ TaskSpec *local_scheduler_get_task(LocalSchedulerConnection *conn,
 // This is temporarily duplicated from local_scheduler_get_task while we have
 // the raylet and non-raylet code paths.
 TaskSpec *local_scheduler_get_task_raylet(LocalSchedulerConnection *conn,
-                                          int64_t *task_size) {
+                                          int64_t *task_size,
+                                          int64_t *timeout_budget) {
   write_message(conn->conn, static_cast<int64_t>(MessageType::GetTask), 0,
                 NULL);
   int64_t type;
@@ -155,6 +158,7 @@ TaskSpec *local_scheduler_get_task_raylet(LocalSchedulerConnection *conn,
 
   // Parse the flatbuffer object.
   auto reply_message = flatbuffers::GetRoot<ray::protocol::GetTaskReply>(reply);
+  *timeout_budget = reply_message->timeout_budget();
 
   // Create a copy of the task spec so we can free the reply.
   *task_size = reply_message->task_spec()->size();

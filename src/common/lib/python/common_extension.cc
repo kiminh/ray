@@ -329,15 +329,18 @@ static int PyTask_init(PyTask *self, PyObject *args, PyObject *kwds) {
   PyObject *resource_map = nullptr;
   // True if we should use the raylet code path and false otherwise.
   PyObject *use_raylet_object = nullptr;
+  //The task's timeout millis. -1 means no timeout.
+  int64_t timeout_millis = -1;
+
   if (!PyArg_ParseTuple(
-          args, "O&O&OiO&i|O&O&O&O&iOOOO", &PyObjectToUniqueID, &driver_id,
+          args, "O&O&OiO&i|O&O&O&O&iOOOOl", &PyObjectToUniqueID, &driver_id,
           &PyObjectToUniqueID, &function_id, &arguments, &num_returns,
           &PyObjectToUniqueID, &parent_task_id, &parent_counter,
           &PyObjectToUniqueID, &actor_creation_id, &PyObjectToUniqueID,
           &actor_creation_dummy_object_id, &PyObjectToUniqueID, &actor_id,
           &PyObjectToUniqueID, &actor_handle_id, &actor_counter,
           &is_actor_checkpoint_method_object, &execution_arguments,
-          &resource_map, &use_raylet_object)) {
+          &resource_map, &use_raylet_object, &timeout_millis)) {
     return -1;
   }
 
@@ -462,7 +465,8 @@ static int PyTask_init(PyTask *self, PyObject *args, PyObject *kwds) {
     self->task_spec = new ray::raylet::TaskSpecification(
         driver_id, parent_task_id, parent_counter, actor_creation_id,
         actor_creation_dummy_object_id, actor_id, actor_handle_id,
-        actor_counter, function_id, args, num_returns, required_resources);
+        actor_counter, function_id, args, num_returns, required_resources,
+        timeout_millis);
   }
 
   /* Set the task's execution dependencies. */
@@ -724,6 +728,10 @@ static PyObject *PyTask_to_serialized_flatbuf(PyTask *self) {
       reinterpret_cast<char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 
+static PyObject *PyTask_timeout_budget(PyTask *self) {
+  return PyLong_FromLongLong(self->timeout_budget);
+}
+
 static PyMethodDef PyTask_methods[] = {
     {"function_id", (PyCFunction) PyTask_function_id, METH_NOARGS,
      "Return the function ID for this task."},
@@ -758,6 +766,8 @@ static PyMethodDef PyTask_methods[] = {
      "This is a hack used to create a serialized flatbuffer object for the "
      "driver task. We're doing this because creating the flatbuffer object in "
      "Python didn't seem to work."},
+    {"timeout_budget", (PyFunction) PyTask_timeout_budget, METH_NOARGS,
+    "Return the timeout budget millis of this task."},
     {NULL} /* Sentinel */
 };
 
@@ -804,11 +814,13 @@ PyTypeObject PyTaskType = {
 
 /* Create a PyTask from a C struct. The resulting PyTask takes ownership of the
  * TaskSpec and will deallocate the TaskSpec in the PyTask destructor. */
-PyObject *PyTask_make(TaskSpec *task_spec, int64_t task_size) {
+PyObject *PyTask_make(TaskSpec *task_spec, int64_t task_size,
+                      int64_t timeout_budget) {
   PyTask *result = PyObject_New(PyTask, &PyTaskType);
   result = (PyTask *) PyObject_Init((PyObject *) result, &PyTaskType);
   result->spec = task_spec;
   result->size = task_size;
+  result->timeout_budget = timeout_budget;
   /* The created task does not include any execution dependencies. */
   result->execution_dependencies = new std::vector<ObjectID>();
   return (PyObject *) result;
