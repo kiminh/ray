@@ -116,6 +116,12 @@ class RemoteFunction(object):
         worker.check_connected()
         ray.worker.check_main_thread()
         kwargs = {} if kwargs is None else kwargs
+
+        timeout_budget = -1
+        if 'timeout_budget' in kwargs:
+            timeout_budget = kwargs['timeout_budget']
+            kwargs.pop('timeout_budget')
+
         args = ray.signature.extend_args(self._function_signature, args,
                                          kwargs)
 
@@ -136,7 +142,9 @@ class RemoteFunction(object):
             ray.ObjectID(self._function_id),
             args,
             num_return_vals=num_return_vals,
-            resources=resources)
+            resources=resources,
+            timeout_budget=timeout_budget)
+
         if len(object_ids) == 1:
             return object_ids[0]
         elif len(object_ids) > 1:

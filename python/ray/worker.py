@@ -528,7 +528,8 @@ class Worker(object):
                     execution_dependencies=None,
                     num_return_vals=None,
                     resources=None,
-                    driver_id=None):
+                    driver_id=None,
+                    timeout_budget=-1):
         """Submit a remote task to the scheduler.
 
         Tell the scheduler to schedule the execution of the function with ID
@@ -558,6 +559,10 @@ class Worker(object):
                 the exceptional case that an actor task is being dispatched to
                 an actor created by a different driver, this should be the
                 driver ID of the driver that created the actor.
+            timeout_budget: The task's timeout budget, and the unit is millisecond.
+                If it equals -1, it means never timeout.
+                If it equals 0, it means timeout now.
+                If it's Greater than 0, it represents the millisecond of the task's timeout budget.
 
         Returns:
             The return object IDs for this task.
@@ -614,7 +619,7 @@ class Worker(object):
                 num_return_vals, self.current_task_id, self.task_index,
                 actor_creation_id, actor_creation_dummy_object_id, actor_id,
                 actor_handle_id, actor_counter, is_actor_checkpoint_method,
-                execution_dependencies, resources, self.use_raylet)
+                execution_dependencies, resources, self.use_raylet, timeout_budget)
             # Increment the worker's task index to track how many tasks have
             # been submitted by the current task so far.
             self.task_index += 1
@@ -870,7 +875,7 @@ class Worker(object):
 
         # Check if it is timeout.
         def timeout_callback():
-            # Write a timeout exception into object store.
+            # Write a timeout exception into the returns_object in object store.
             e = Exception()
             return_object_ids = task_returns()
             self._handle_process_task_failure(function_id, return_object_ids, e, "Task is timeout.")

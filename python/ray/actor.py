@@ -762,6 +762,12 @@ class ActorHandle(object):
             args = []
         if kwargs is None:
             kwargs = {}
+
+        timeout_budget = -1
+        if 'timeout_budget' in kwargs:
+            timeout_budget = kwargs['timeout_budget']
+            kwargs.pop('timeout_budget')
+
         args = signature.extend_args(function_signature, args, kwargs)
 
         # Execute functions locally if Ray is run in PYTHON_MODE
@@ -800,7 +806,8 @@ class ActorHandle(object):
             # We add one for the dummy return ID.
             num_return_vals=num_return_vals + 1,
             resources={"CPU": self._ray_actor_method_cpus},
-            driver_id=self._ray_actor_driver_id)
+            driver_id=self._ray_actor_driver_id,
+            timeout_budget=timeout_budget)
         # Update the actor counter and cursor to reflect the most recent
         # invocation.
         self._ray_actor_counter += 1
