@@ -50,6 +50,7 @@ typedef UniqueID FunctionID;
 typedef UniqueID ClassID;
 typedef UniqueID ActorID;
 typedef UniqueID ActorHandleID;
+typedef UniqueID BatchID;
 typedef UniqueID WorkerID;
 typedef UniqueID DriverID;
 typedef UniqueID ConfigID;

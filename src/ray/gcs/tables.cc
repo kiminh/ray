@@ -435,6 +435,11 @@ const ClientTableDataT &ClientTable::GetClient(const ClientID &client_id) const 
 
 const std::unordered_map<ClientID, ClientTableDataT> &ClientTable::GetAllClients() const {
   return client_cache_;
+
+Status BatchObjectTable::CleanBatchObjects(const BatchID &batch_id) {
+  std::vector<uint8_t> nil;
+  return context_->RunAsync("RAY.BATCH_CLEAN", batch_id, nil.data(), nil.size(), prefix_,
+                            pubsub_channel_, nullptr);
 }
 
 template class Log<ObjectID, ObjectTableData>;
@@ -449,6 +454,8 @@ template class Log<JobID, ErrorTableData>;
 template class Log<UniqueID, ClientTableData>;
 template class Log<JobID, DriverTableData>;
 template class Log<UniqueID, ProfileTableData>;
+template class Log<BatchID, BatchObjectData>;
+template class Table<BatchID, BatchInfoData>;
 
 }  // namespace gcs
 

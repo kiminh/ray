@@ -117,6 +117,8 @@ AsyncGcsClient::AsyncGcsClient(const std::string &address, int port,
   task_lease_table_.reset(new TaskLeaseTable(shard_contexts_, this));
   heartbeat_table_.reset(new HeartbeatTable(shard_contexts_, this));
   profile_table_.reset(new ProfileTable(shard_contexts_, this));
+  batch_info_table_.reset(new BatchInfoTable(shard_contexts_, this));
+  batch_object_table_.reset(new BatchObjectTable(shard_contexts_, this));
   command_type_ = command_type;
 
   // TODO(swang): Call the client table's Connect() method here. To do this,
@@ -206,6 +208,10 @@ ErrorTable &AsyncGcsClient::error_table() { return *error_table_; }
 DriverTable &AsyncGcsClient::driver_table() { return *driver_table_; }
 
 ProfileTable &AsyncGcsClient::profile_table() { return *profile_table_; }
+
+BatchInfoTable &AsyncGcsClient::batch_info_table() { return *batch_info_table_; }
+
+BatchObjectTable &AsyncGcsClient::batch_object_table() { return *batch_object_table_; }
 
 }  // namespace gcs
 
