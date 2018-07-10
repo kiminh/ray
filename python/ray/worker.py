@@ -876,7 +876,7 @@ class Worker(object):
         def timeout_callback():
             # Write a timeout exception into the returns_object in object store.
             e = Exception()
-            return_object_ids = task_returns()
+            return_object_ids = task.returns()
             self._handle_process_task_failure(function_id, return_object_ids, e, "Task is timeout.")
 
             # Kill this worker process.
