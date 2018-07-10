@@ -272,7 +272,7 @@ Lineage LineageCache::GetUncommittedLineage(const TaskID &task_id) const {
   return uncommitted_lineage;
 }
 
-bool LineageCache::FlushTask(const TaskID &task_id) {
+bool LineageCache::FlushTask(const TaskID &task_id, int64_t timeout_budget) {
   auto entry = lineage_.GetEntry(task_id);
   RAY_CHECK(entry);
   RAY_CHECK(entry->GetStatus() == GcsStatus::UNCOMMITTED_READY);
@@ -313,6 +313,7 @@ bool LineageCache::FlushTask(const TaskID &task_id) {
     auto &mutable_entry = const_cast<LineageEntry &>(*task);
     auto &mutable_task = mutable_entry.TaskDataMutable();
     // TODO(wangqing): Add timeout_budget field into flatbuffer.
+    RAY_IGNORE_EXPR(mutable_task);
 
     // TODO(swang): Make this better...
     flatbuffers::FlatBufferBuilder fbb;
@@ -337,7 +338,9 @@ void LineageCache::Flush() {
   // Iterate through all tasks that are PLACEABLE.
   for (auto it = uncommitted_ready_tasks_.begin();
        it != uncommitted_ready_tasks_.end();) {
-    bool flushed = FlushTask(*it);
+    // TODO(wangqing): The 2nd argument is not correct.
+    bool flushed = FlushTask(*it, -1);
+
     // Erase the task from the cache of uncommitted ready tasks.
     if (flushed) {
       it = uncommitted_ready_tasks_.erase(it);
@@ -432,7 +435,7 @@ void LineageCache::HandleEntryCommitted(const UniqueID &task_id) {
     // Try to flush the children.  If all of the child's parents are committed,
     // then the child will be flushed here.
     for (const auto &child_id : children) {
-      bool flushed = FlushTask(child_id);
+      bool flushed = FlushTask(child_id, -1);
       // Erase the child task from the cache of uncommitted ready tasks.
       if (flushed) {
         auto erased = uncommitted_ready_tasks_.erase(child_id);

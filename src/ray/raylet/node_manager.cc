@@ -310,7 +310,7 @@ void NodeManager::HandleActorCreation(const ActorID &actor_id,
       // The task's uncommitted lineage was already added to the local lineage
       // cache upon the initial submission, so it's okay to resubmit it with an
       // empty lineage this time.
-      auto timeout_budget = method.TimeoutMillis();
+      auto timeout_budget = method.GetTaskSpecification().TimeoutMillis();
       SubmitTask(method, Lineage(), timeout_budget);
     }
   }
@@ -754,7 +754,7 @@ void NodeManager::AssignTask(Task &task) {
 
   auto current_time = current_time_ms();
   timeout_manager_.UpdateTimeoutBudget(spec.TaskId(), spec.TimeoutMillis(), current_time);
-  auto timeout_budget = timeout_manager_.TimeoutBudgetMillis(spec.TaskID());
+  auto timeout_budget = timeout_manager_.TimeoutBudgetMillis(spec.TaskId());
 
   // Try to get an idle worker that can execute this task.
   std::shared_ptr<Worker> worker = worker_pool_.PopWorker(spec.ActorId());
@@ -948,9 +948,9 @@ ray::Status NodeManager::ForwardTask(const Task &task, const ClientID &node_id) 
   //Update timeout budget.
   auto current_time = current_time_ms();
   if (!timeout_manager_.TimeoutEntryExists(task_id)) {
-    timeout_manager_.AddTimeoutEntry(task_id, task.TimeoutMillis(), current_time);
+    timeout_manager_.AddTimeoutEntry(task_id, task.GetTaskSpecification().TimeoutMillis(), current_time);
   } else {
-    timeout_manager_.UpdateTimeoutBudget(task_id, task.TimeoutMillis(), current_time);
+    timeout_manager_.UpdateTimeoutBudget(task_id, task.GetTaskSpecification().TimeoutMillis(), current_time);
   }
 
   auto timeout_budget = timeout_manager_.TimeoutBudgetMillis(task_id);

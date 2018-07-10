@@ -6,8 +6,8 @@ namespace ray {
   namespace raylet {
     void TimeoutManager::AddTimeoutEntry(const TaskID &task_id,
                                          int64_t timeout_budget,
-                                         int64_t last_updated_millis) {
-      TimeoutEntry entry(timeout_budget, last_updated_millis);
+                                         int64_t last_updated) {
+      TimeoutEntry entry(timeout_budget, last_updated);
       task_timeout_info_.insert({task_id, entry});
     }
 
@@ -32,7 +32,7 @@ namespace ray {
         return ;
       }
 
-      auto past_time = now_millis - it->second.last_updated_millis;
+      auto past_time = now_millis - it->second.last_updated;
       auto reaming_time = it->second.timeout_budget - past_time;
 
       if (reaming_time <= 0) {
@@ -43,7 +43,7 @@ namespace ray {
         it->second.timeout_budget = reaming_time;
       }
 
-      it->second.last_updated_millis = now_millis;
+      it->second.last_updated = now_millis;
     }
 
     bool TimeoutManager::Timeout(const TaskID &task_id) const {
@@ -64,7 +64,7 @@ namespace ray {
       auto it = task_timeout_info_.find(task_id);
       RAY_CHECK(it != task_timeout_info_.end());
 
-      return it->second.last_updated_millis;
+      return it->second.last_updated;
     }
 
     bool TimeoutManager::TimeoutEntryExists(const TaskID &task_id) const {

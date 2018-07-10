@@ -179,14 +179,14 @@ class LineageCache {
   /// mutable fields in the execution specification.
   ///
   /// \param task The task to set as ready.
-  void AddReadyTask(const Task &task);
+  /// \param timeout_budget The task's timeout budget.
+  void AddReadyTask(const Task &task, int64_t timeout_budget);
 
   /// Remove a task that was waiting for execution. Its uncommitted lineage
   /// will remain unchanged.
   ///
   /// \param task_id The ID of the waiting task to remove.
-  /// \param timeout_budget The task's timeout budget.
-  void RemoveWaitingTask(const TaskID &task_id, int64_t timeout_budget);
+  void RemoveWaitingTask(const TaskID &task_id);
 
   /// Get the uncommitted lineage of a task. The uncommitted lineage consists
   /// of all tasks in the given task's lineage that have not been committed in
