@@ -115,7 +115,10 @@ TaskSpec *local_scheduler_get_task(LocalSchedulerConnection *conn,
   auto reply_message =
       flatbuffers::GetRoot<ray::local_scheduler::protocol::GetTaskReply>(reply);
 
-  timeout_budget = reply_message->timeout_budget();
+  if (nullptr != timeout_budget) {
+    *timeout_budget = reply_message->timeout_budget();
+  }
+
   /* Create a copy of the task spec so we can free the reply. */
   *task_size = reply_message->task_spec()->size();
   TaskSpec *data = (TaskSpec *) reply_message->task_spec()->data();
@@ -158,7 +161,10 @@ TaskSpec *local_scheduler_get_task_raylet(LocalSchedulerConnection *conn,
 
   // Parse the flatbuffer object.
   auto reply_message = flatbuffers::GetRoot<ray::protocol::GetTaskReply>(reply);
-  *timeout_budget = reply_message->timeout_budget();
+
+  if (nullptr != timeout_budget) {
+    *timeout_budget = reply_message->timeout_budget();
+  }
 
   // Create a copy of the task spec so we can free the reply.
   *task_size = reply_message->task_spec()->size();

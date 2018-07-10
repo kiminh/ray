@@ -108,7 +108,9 @@ const std::unordered_map<const UniqueID, LineageEntry> &Lineage::GetEntries() co
 }
 
 flatbuffers::Offset<protocol::ForwardTaskRequest> Lineage::ToFlatbuffer(
-    flatbuffers::FlatBufferBuilder &fbb, const TaskID &task_id) const {
+    flatbuffers::FlatBufferBuilder &fbb,
+    const TaskID &task_id,
+    int64_t timeout_budget) const {
   RAY_CHECK(GetEntry(task_id));
   // Serialize the task and object entries.
   std::vector<flatbuffers::Offset<protocol::Task>> uncommitted_tasks;
@@ -117,7 +119,8 @@ flatbuffers::Offset<protocol::ForwardTaskRequest> Lineage::ToFlatbuffer(
   }
 
   auto request = protocol::CreateForwardTaskRequest(fbb, to_flatbuf(fbb, task_id),
-                                                    fbb.CreateVector(uncommitted_tasks));
+                                                    fbb.CreateVector(uncommitted_tasks),
+                                                    timeout_budget);
   return request;
 }
 
@@ -196,7 +199,7 @@ void LineageCache::AddWaitingTask(const Task &task, const Lineage &uncommitted_l
   RAY_CHECK(lineage_.SetEntry(std::move(task_entry)));
 }
 
-void LineageCache::AddReadyTask(const Task &task) {
+void LineageCache::AddReadyTask(const Task &task, int64_t timeout_budget) {
   const TaskID task_id = task.GetTaskSpecification().TaskId();
 
   // Tasks can only become READY if they were in WAITING.
@@ -207,7 +210,7 @@ void LineageCache::AddReadyTask(const Task &task) {
   auto new_entry = LineageEntry(task, GcsStatus::UNCOMMITTED_READY);
   RAY_CHECK(lineage_.SetEntry(std::move(new_entry)));
   // Attempt to flush the task.
-  bool flushed = FlushTask(task_id);
+  bool flushed = FlushTask(task_id, timeout_budget);
   if (!flushed) {
     // If we fail to flush the task here, due to uncommitted parents, then add
     // the task to a cache to be flushed in the future.
@@ -306,6 +309,11 @@ bool LineageCache::FlushTask(const TaskID &task_id) {
       HandleEntryCommitted(id);
     };
     auto task = lineage_.GetEntry(task_id);
+
+    auto &mutable_entry = const_cast<LineageEntry &>(*task);
+    auto &mutable_task = mutable_entry.TaskDataMutable();
+    // TODO(wangqing): Add timeout_budget field into flatbuffer.
+
     // TODO(swang): Make this better...
     flatbuffers::FlatBufferBuilder fbb;
     auto message = task->TaskData().ToFlatbuffer(fbb);

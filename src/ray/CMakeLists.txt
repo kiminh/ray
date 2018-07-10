@@ -58,6 +58,7 @@ set(RAY_SRCS
   raylet/reconstruction_policy.cc
   raylet/node_manager.cc
   raylet/lineage_cache.cc
+  raylet/timeout_manager.cc
   raylet/raylet.cc
 )
 
