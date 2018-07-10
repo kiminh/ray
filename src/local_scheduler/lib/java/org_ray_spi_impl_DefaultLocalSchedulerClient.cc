@@ -98,7 +98,7 @@ Java_org_ray_spi_impl_DefaultLocalSchedulerClient__1getTaskTodo(JNIEnv *env,
   int64_t task_size = 0;
 
   // TODO: handle actor failure later
-  TaskSpec *spec = local_scheduler_get_task(client, &task_size);
+  TaskSpec *spec = local_scheduler_get_task(client, &task_size, nullptr);
 
   jbyteArray result;
   result = env->NewByteArray(task_size);
