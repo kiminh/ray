@@ -108,6 +108,8 @@ table GetTaskReply {
   task_spec: string;
   // A list of the resources reserved for this worker.
   fractional_resource_ids: [ResourceIdSetInfo];
+  // The timeout budget of this task.
+  timeout_budget: long = -1;
 }
 
 // This struct is used to register a new worker with the local scheduler.
@@ -137,6 +139,8 @@ table ForwardTaskRequest {
   // The tasks in the uncommitted lineage of the forwarded task. This
   // should include task_id.
   uncommitted_tasks: [Task];
+  // The timeout budget of this task.
+  timeout_budget: long = -1;
 }
 
 table ReconstructObjects {

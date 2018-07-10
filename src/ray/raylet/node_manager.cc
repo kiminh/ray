@@ -98,7 +98,8 @@ NodeManager::NodeManager(boost::asio::io_service &io_service,
                      config.max_lineage_size),
       remote_clients_(),
       remote_server_connections_(),
-      actor_registry_() {
+      actor_registry_(),
+      timeout_manager_(){
   RAY_CHECK(heartbeat_period_ms_ > 0);
   // Initialize the resource map with own cluster resource configuration.
   ClientID local_client_id = gcs_client_->client_table().GetLocalClientId();
@@ -309,7 +310,8 @@ void NodeManager::HandleActorCreation(const ActorID &actor_id,
       // The task's uncommitted lineage was already added to the local lineage
       // cache upon the initial submission, so it's okay to resubmit it with an
       // empty lineage this time.
-      SubmitTask(method, Lineage());
+      auto timeout_budget = method.TimeoutMillis();
+      SubmitTask(method, Lineage(), timeout_budget);
     }
   }
 }
@@ -427,7 +429,7 @@ void NodeManager::ProcessClientMessage(
     Task task(task_execution_spec, task_spec);
     // Submit the task to the local scheduler. Since the task was submitted
     // locally, there is no uncommitted lineage.
-    SubmitTask(task, Lineage());
+    SubmitTask(task, Lineage(), task_spec.TimeoutMillis());
   } break;
   case protocol::MessageType::ReconstructObjects: {
     // TODO(hme): handle multiple object ids.
@@ -583,7 +585,8 @@ void NodeManager::ProcessNodeManagerMessage(TcpClientConnection &node_manager_cl
     const Task &task = uncommitted_lineage.GetEntry(task_id)->TaskData();
     RAY_LOG(DEBUG) << "got task " << task.GetTaskSpecification().TaskId()
                    << " spillback=" << task.GetTaskExecutionSpecReadonly().NumForwards();
-    SubmitTask(task, uncommitted_lineage, /* forwarded = */ true);
+    auto timeout_budget = message->timeout_budget();
+    SubmitTask(task, uncommitted_lineage, timeout_budget, /* forwarded = */ true);
   } break;
   case protocol::MessageType::DisconnectClient: {
     // TODO(rkn): We need to do some cleanup here.
@@ -636,7 +639,9 @@ void NodeManager::ScheduleTasks() {
   }
 }
 
-void NodeManager::SubmitTask(const Task &task, const Lineage &uncommitted_lineage,
+void NodeManager::SubmitTask(const Task &task,
+                             const Lineage &uncommitted_lineage,
+                             int64_t timeout_budget,
                              bool forwarded) {
   // Add the task and its uncommitted lineage to the lineage cache.
   lineage_cache_.AddWaitingTask(task, uncommitted_lineage);
@@ -646,6 +651,15 @@ void NodeManager::SubmitTask(const Task &task, const Lineage &uncommitted_lineag
   task_dependency_manager_.TaskPending(task);
 
   const TaskSpecification &spec = task.GetTaskSpecification();
+
+  // Check timeout.
+  auto current_time = current_time_ms();
+  if (!timeout_manager_.TimeoutEntryExists(spec.TaskId())) {
+    timeout_manager_.AddTimeoutEntry(spec.TaskId(), timeout_budget, current_time);
+  } else {
+    timeout_manager_.UpdateTimeoutBudget(spec.TaskId(), timeout_budget, current_time);
+  }
+
   if (spec.IsActorTask()) {
     // Check whether we know the location of the actor.
     const auto actor_entry = actor_registry_.find(spec.ActorId());
@@ -738,6 +752,10 @@ void NodeManager::AssignTask(Task &task) {
     }
   }
 
+  auto current_time = current_time_ms();
+  timeout_manager_.UpdateTimeoutBudget(spec.TaskId(), spec.TimeoutMillis(), current_time);
+  auto timeout_budget = timeout_manager_.TimeoutBudgetMillis(spec.TaskID());
+
   // Try to get an idle worker that can execute this task.
   std::shared_ptr<Worker> worker = worker_pool_.PopWorker(spec.ActorId());
   if (worker == nullptr) {
@@ -775,7 +793,8 @@ void NodeManager::AssignTask(Task &task) {
   auto resource_id_set_flatbuf = resource_id_set.ToFlatbuf(fbb);
 
   auto message = protocol::CreateGetTaskReply(fbb, spec.ToFlatbuffer(fbb),
-                                              fbb.CreateVector(resource_id_set_flatbuf));
+                                              fbb.CreateVector(resource_id_set_flatbuf),
+                                              timeout_budget);
   fbb.Finish(message);
   auto status = worker->Connection()->WriteMessage(
       static_cast<int64_t>(protocol::MessageType::ExecuteTask), fbb.GetSize(),
@@ -806,9 +825,12 @@ void NodeManager::AssignTask(Task &task) {
       actor_entry->second.ExtendFrontier(spec.ActorHandleId(), spec.ActorDummyObject());
     }
     // We started running the task, so the task is ready to write to GCS.
-    lineage_cache_.AddReadyTask(task);
+    lineage_cache_.AddReadyTask(task, timeout_budget);
     // Mark the task as running.
     local_queues_.QueueRunningTasks(std::vector<Task>({task}));
+    // Remove timeout entry from timeout manager.
+    timeout_manager_.RemoveTimeoutEntry(spec.TaskId());
+
     // Notify the task dependency manager that we no longer need this task's
     // object dependencies.
     task_dependency_manager_.UnsubscribeDependencies(spec.TaskId());
@@ -923,8 +945,18 @@ ray::Status NodeManager::ForwardTask(const Task &task, const ClientID &node_id) 
   // Increment forward count for the forwarded task.
   lineage_cache_entry_task.GetTaskExecutionSpec().IncrementNumForwards();
 
+  //Update timeout budget.
+  auto current_time = current_time_ms();
+  if (!timeout_manager_.TimeoutEntryExists(task_id)) {
+    timeout_manager_.AddTimeoutEntry(task_id, task.TimeoutMillis(), current_time);
+  } else {
+    timeout_manager_.UpdateTimeoutBudget(task_id, task.TimeoutMillis(), current_time);
+  }
+
+  auto timeout_budget = timeout_manager_.TimeoutBudgetMillis(task_id);
+
   flatbuffers::FlatBufferBuilder fbb;
-  auto request = uncommitted_lineage.ToFlatbuffer(fbb, task_id);
+  auto request = uncommitted_lineage.ToFlatbuffer(fbb, task_id, timeout_budget);
   fbb.Finish(request);
 
   RAY_LOG(DEBUG) << "Forwarding task " << task_id << " to " << node_id << " spillback="
@@ -945,6 +977,9 @@ ray::Status NodeManager::ForwardTask(const Task &task, const ClientID &node_id) 
       static_cast<int64_t>(protocol::MessageType::ForwardTaskRequest), fbb.GetSize(),
       fbb.GetBufferPointer());
   if (status.ok()) {
+    // Remove the timeout entry from timeout manager.
+    timeout_manager_.RemoveTimeoutEntry(task_id);
+
     // If we were able to forward the task, remove the forwarded task from the
     // lineage cache since the receiving node is now responsible for writing
     // the task to the GCS.

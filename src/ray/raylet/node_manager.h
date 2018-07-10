@@ -13,6 +13,8 @@
 #include "ray/raylet/reconstruction_policy.h"
 #include "ray/raylet/task_dependency_manager.h"
 #include "ray/raylet/worker_pool.h"
+#include "timeout_manager.h"
+
 // clang-format on
 
 namespace ray {
@@ -72,7 +74,9 @@ class NodeManager {
   /// Enqueue a placeable task to wait on object dependencies or be ready for dispatch.
   void EnqueuePlaceableTask(const Task &task);
   /// Handle specified task's submission to the local node manager.
-  void SubmitTask(const Task &task, const Lineage &uncommitted_lineage,
+  void SubmitTask(const Task &task,
+                  const Lineage &uncommitted_lineage,
+                  int64_t timeout_budget,
                   bool forwarded = false);
   /// Assign a task. The task is assumed to not be queued in local_queues_.
   void AssignTask(Task &task);
@@ -135,6 +139,7 @@ class NodeManager {
   std::vector<ClientID> remote_clients_;
   std::unordered_map<ClientID, TcpServerConnection> remote_server_connections_;
   std::unordered_map<ActorID, ActorRegistration> actor_registry_;
+  TimeoutManager timeout_manager_;
 };
 
 }  // namespace raylet
