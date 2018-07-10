@@ -766,7 +766,7 @@ static PyMethodDef PyTask_methods[] = {
      "This is a hack used to create a serialized flatbuffer object for the "
      "driver task. We're doing this because creating the flatbuffer object in "
      "Python didn't seem to work."},
-    {"timeout_budget", (PyFunction) PyTask_timeout_budget, METH_NOARGS,
+    {"timeout_budget", (PyCFunction) PyTask_timeout_budget, METH_NOARGS,
     "Return the timeout budget millis of this task."},
     {NULL} /* Sentinel */
 };
