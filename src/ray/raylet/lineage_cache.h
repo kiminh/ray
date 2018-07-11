@@ -9,6 +9,8 @@
 #include "ray/gcs/tables.h"
 #include "ray/id.h"
 #include "ray/status.h"
+#include "timeout_manager.h"
+
 // clang-format on
 
 namespace ray {
@@ -179,8 +181,7 @@ class LineageCache {
   /// mutable fields in the execution specification.
   ///
   /// \param task The task to set as ready.
-  /// \param timeout_budget The task's timeout budget.
-  void AddReadyTask(const Task &task, int64_t timeout_budget);
+  void AddReadyTask(const Task &task);
 
   /// Remove a task that was waiting for execution. Its uncommitted lineage
   /// will remain unchanged.
@@ -210,6 +211,11 @@ class LineageCache {
   /// \param task_id The ID of the task entry that was committed.
   void HandleEntryCommitted(const TaskID &task_id);
 
+  /// Get timeout the reference to the timeout manager.
+  ///
+  /// \return The reference to the timeout manager.
+  TimeoutManager &TimeoutManagerRef();
+
  private:
   /// Try to flush a task that is in UNCOMMITTED_READY state. If the task has
   /// parents that are not committed yet, then the child will be flushed once
@@ -218,7 +224,7 @@ class LineageCache {
   /// \param task_id The ID of the task that will be flushed.
   /// \param timeout_budget The task's timeout budget.
   /// \return
-  bool FlushTask(const TaskID &task_id, int64_t timeout_budget);
+  bool FlushTask(const TaskID &task_id);
   /// Evict a remote task and its lineage. This should only be called if we
   /// are sure that the remote task and its lineage are committed.
   void EvictRemoteLineage(const UniqueID &task_id);
@@ -262,6 +268,8 @@ class LineageCache {
   /// The tasks that we've subscribed to notifications for from the pubsub
   /// storage system. We will receive a notification for these tasks on commit.
   std::unordered_set<TaskID> subscribed_tasks_;
+  /// We can query that if a task is timeout, and update task's budget time.
+  TimeoutManager timeout_manager_;
 };
 
 }  // namespace raylet

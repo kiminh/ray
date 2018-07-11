@@ -215,7 +215,7 @@ TEST_F(LineageCacheTest, TestWritebackReady) {
       InsertTaskChain(lineage_cache_, tasks, 3, std::vector<ObjectID>(), 1);
 
   // Check that after marking the first task as ready, we flush only that task.
-  lineage_cache_.AddReadyTask(tasks.front(), -1);
+  lineage_cache_.AddReadyTask(tasks.front());
   num_tasks_flushed++;
   CheckFlush(lineage_cache_, mock_gcs_, num_tasks_flushed);
 }
@@ -230,7 +230,7 @@ TEST_F(LineageCacheTest, TestWritebackOrder) {
   // Mark all tasks as ready. The first task, which has no dependencies, should
   // be flushed.
   for (const auto &task : tasks) {
-    lineage_cache_.AddReadyTask(task, -1);
+    lineage_cache_.AddReadyTask(task);
   }
   // Check that we write back the tasks in order of data dependencies.
   for (size_t i = 0; i < tasks.size(); i++) {
@@ -263,15 +263,15 @@ TEST_F(LineageCacheTest, TestWritebackPartiallyReady) {
   lineage_cache_.AddWaitingTask(dependent_task, Lineage());
 
   // Flush one of the independent tasks.
-  lineage_cache_.AddReadyTask(task1, -1);
+  lineage_cache_.AddReadyTask(task1);
   num_tasks_flushed++;
   CheckFlush(lineage_cache_, mock_gcs_, num_tasks_flushed);
   // Flush acknowledgements. The lineage cache should receive the commit for
   // the first task.
   mock_gcs_.Flush();
   // Mark the other independent task and the dependent as ready.
-  lineage_cache_.AddReadyTask(task2, -1);
-  lineage_cache_.AddReadyTask(dependent_task, -1);
+  lineage_cache_.AddReadyTask(task2);
+  lineage_cache_.AddReadyTask(dependent_task);
   // Two tasks are ready, but only the independent task should be flushed. The
   // dependent task should only be flushed once commits for both independent
   // tasks are received.
@@ -325,7 +325,7 @@ TEST_F(LineageCacheTest, TestForwardTask) {
 
   // Simulate executing the remaining tasks.
   for (const auto &task : tasks) {
-    lineage_cache_.AddReadyTask(task, -1);
+    lineage_cache_.AddReadyTask(task);
   }
   // Check that the first task, which has no dependencies can be flushed. The
   // last task cannot be flushed since one of its dependencies has not been

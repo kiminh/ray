@@ -139,7 +139,6 @@ class NodeManager {
   std::vector<ClientID> remote_clients_;
   std::unordered_map<ClientID, TcpServerConnection> remote_server_connections_;
   std::unordered_map<ActorID, ActorRegistration> actor_registry_;
-  TimeoutManager timeout_manager_;
 };
 
 }  // namespace raylet

@@ -199,7 +199,7 @@ void LineageCache::AddWaitingTask(const Task &task, const Lineage &uncommitted_l
   RAY_CHECK(lineage_.SetEntry(std::move(task_entry)));
 }
 
-void LineageCache::AddReadyTask(const Task &task, int64_t timeout_budget) {
+void LineageCache::AddReadyTask(const Task &task) {
   const TaskID task_id = task.GetTaskSpecification().TaskId();
 
   // Tasks can only become READY if they were in WAITING.
@@ -210,7 +210,7 @@ void LineageCache::AddReadyTask(const Task &task, int64_t timeout_budget) {
   auto new_entry = LineageEntry(task, GcsStatus::UNCOMMITTED_READY);
   RAY_CHECK(lineage_.SetEntry(std::move(new_entry)));
   // Attempt to flush the task.
-  bool flushed = FlushTask(task_id, timeout_budget);
+  bool flushed = FlushTask(task_id);
   if (!flushed) {
     // If we fail to flush the task here, due to uncommitted parents, then add
     // the task to a cache to be flushed in the future.
@@ -272,7 +272,7 @@ Lineage LineageCache::GetUncommittedLineage(const TaskID &task_id) const {
   return uncommitted_lineage;
 }
 
-bool LineageCache::FlushTask(const TaskID &task_id, int64_t timeout_budget) {
+bool LineageCache::FlushTask(const TaskID &task_id) {
   auto entry = lineage_.GetEntry(task_id);
   RAY_CHECK(entry);
   RAY_CHECK(entry->GetStatus() == GcsStatus::UNCOMMITTED_READY);
@@ -312,8 +312,9 @@ bool LineageCache::FlushTask(const TaskID &task_id, int64_t timeout_budget) {
 
     auto &mutable_entry = const_cast<LineageEntry &>(*task);
     auto &mutable_task = mutable_entry.TaskDataMutable();
-    // TODO(wangqing): Add timeout_budget field into flatbuffer.
-    RAY_IGNORE_EXPR(mutable_task);
+    auto timeout_budget = timeout_manager_.TimeoutBudgetMillis(mutable_task.GetTaskSpecification().TaskId());
+        // TODO(wangqing): Add timeout_budget field into flatbuffer.
+    RAY_IGNORE_EXPR(timeout_budget);
 
     // TODO(swang): Make this better...
     flatbuffers::FlatBufferBuilder fbb;
@@ -338,8 +339,7 @@ void LineageCache::Flush() {
   // Iterate through all tasks that are PLACEABLE.
   for (auto it = uncommitted_ready_tasks_.begin();
        it != uncommitted_ready_tasks_.end();) {
-    // TODO(wangqing): The 2nd argument is not correct.
-    bool flushed = FlushTask(*it, -1);
+    bool flushed = FlushTask(*it);
 
     // Erase the task from the cache of uncommitted ready tasks.
     if (flushed) {
@@ -435,7 +435,7 @@ void LineageCache::HandleEntryCommitted(const UniqueID &task_id) {
     // Try to flush the children.  If all of the child's parents are committed,
     // then the child will be flushed here.
     for (const auto &child_id : children) {
-      bool flushed = FlushTask(child_id, -1);
+      bool flushed = FlushTask(child_id);
       // Erase the child task from the cache of uncommitted ready tasks.
       if (flushed) {
         auto erased = uncommitted_ready_tasks_.erase(child_id);
@@ -443,6 +443,10 @@ void LineageCache::HandleEntryCommitted(const UniqueID &task_id) {
       }
     }
   }
+}
+
+TimeoutManager &LineageCache::TimeoutManagerRef() {
+  return timeout_manager_;
 }
 
 }  // namespace raylet
