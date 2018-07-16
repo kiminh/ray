@@ -106,13 +106,6 @@ public final class Ray extends Rpc {
   }
 
   /**
-   * for ray's app's log.
-   */
-  public static DynamicLog getRappLogger() {
-    return RayLog.rapp;
-  }
-
-  /**
    * start a batch, see RayAPI.java for details.
    */
   public static <ContextT, ResultT> RayObject<Boolean> startBatch(
