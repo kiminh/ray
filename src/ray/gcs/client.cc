@@ -117,8 +117,9 @@ AsyncGcsClient::AsyncGcsClient(const std::string &address, int port,
   task_lease_table_.reset(new TaskLeaseTable(shard_contexts_, this));
   heartbeat_table_.reset(new HeartbeatTable(shard_contexts_, this));
   profile_table_.reset(new ProfileTable(shard_contexts_, this));
-  batch_info_table_.reset(new BatchInfoTable(shard_contexts_, this));
-  batch_object_table_.reset(new BatchObjectTable(shard_contexts_, this));
+  batch_parent_table_.reset(new BatchParentTable(shard_contexts_, this));
+  batch_child_table_.reset(new BatchChildTable(shard_contexts_, this));
+  batch_resource_table_.reset(new BatchResourceTable(shard_contexts_, this));
   command_type_ = command_type;
 
   // TODO(swang): Call the client table's Connect() method here. To do this,
@@ -209,9 +210,13 @@ DriverTable &AsyncGcsClient::driver_table() { return *driver_table_; }
 
 ProfileTable &AsyncGcsClient::profile_table() { return *profile_table_; }
 
-BatchInfoTable &AsyncGcsClient::batch_info_table() { return *batch_info_table_; }
+BatchParentTable &AsyncGcsClient::batch_parent_table() { return *batch_parent_table_; }
 
-BatchObjectTable &AsyncGcsClient::batch_object_table() { return *batch_object_table_; }
+BatchChildTable &AsyncGcsClient::batch_child_table() { return *batch_child_table_; }
+
+BatchResourceTable &AsyncGcsClient::batch_resource_table() {
+  return *batch_resource_table_;
+}
 
 }  // namespace gcs
 

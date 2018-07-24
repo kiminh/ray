@@ -204,6 +204,24 @@ ray::Status NodeManager::RegisterGcs() {
   };
   RAY_RETURN_NOT_OK(gcs_client_->driver_table().Subscribe(JobID::nil(), UniqueID::nil(),
                                                           driver_table_handler, nullptr));
+  // Subscribe to Batch Clean.
+  auto batchCleanCallback = [this](gcs::AsyncGcsClient *client, const BatchID &id,
+                                   const std::vector<BatchResourceDataT> &data) {
+    std::vector<UniqueID> resource_ids;
+    resource_ids.reserve(data.size());
+    for (const auto &resource : data) {
+      resource_ids.push_back(UniqueID::from_binary(resource.object_id));
+    }
+    // After mergiing https://github.com/ant-tech-alliance/ray/pull/52,
+    // we can call following function.
+    // The spread flag should be false, since each node manager will subscribe this.
+    // object_manager_.FreeObjects(object_ids, false);
+
+    // The following statements is only for compilation check (occupy this pointer).
+    std::cout << gcs_client_->client_table().GetLocalClientId() << std::endl;
+  };
+  RAY_RETURN_NOT_OK(gcs_client_->batch_resource_table().SubscribeBatchClean(
+      UniqueID::nil(), batchCleanCallback, nullptr));
 
   // Start sending heartbeats to the GCS.
   last_heartbeat_at_ms_ = current_time_ms();
