@@ -94,6 +94,6 @@ correspondent calls executed on remote machines.
 More information
 ============
 
-- `API document<https://github.com/ray-project/ray/tree/master/java/api_doc.rst>`_
-- `Tutorial<https://github.com/ray-project/ray/tree/master/java/tutorial>`_
+- `API document <https://github.com/ray-project/ray/tree/master/java/api_doc.rst>`_
+- `Tutorial <https://github.com/ray-project/ray/tree/master/java/tutorial>`_
 

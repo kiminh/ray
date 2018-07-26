@@ -26,7 +26,7 @@ Setup
 
 Introduction of API
 ---------
-Please reference the `API document<https://github.com/ray-project/ray/tree/master/java#ray-java-api>`_
+Please reference the `API document <https://github.com/ray-project/ray/tree/master/java#ray-java-api>`_
 
 Exercises
 ---------
