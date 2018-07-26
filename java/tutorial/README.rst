@@ -20,20 +20,19 @@ Setup
     mvn clean install -Dmaven.test.skip
 
     # set config file and test
-    # The RAY_CONFIG please set the absolute path of the ray.config.ini in your disk
-    export RAY_CONFIG=/rootpath/ray/java/ray.config.ini
+    # set RAY_CONFIG to your absolute path of ray.config.ini
+    export RAY_CONFIG=/absolute/path/to/ray/java/ray.config.ini
     mvn test
 
-Introduction of Api
+Introduction of API
 ---------
-Please reference the java `README.rst`_
+Please reference the `API document<https://github.com/ray-project/ray/tree/master/java#ray-java-api>`_
 
 Exercises
 ---------
 
 Each file ``java/example/src/main/java/org/ray/exercise/Exercise*.java`` is a separate exercise.
-Before we run the exercise case, we have to run the command of setup step especially set RAY_CONFIG,
-and entry to the java root package. And we could run the Exercise01 with the command below.
+To run a exercise case, set the RAY_CONFIG env variable and run the following command in ``ray/java/`` directory.
 
 .. code-block:: shell
 
@@ -54,6 +53,3 @@ and entry to the java root package. And we could run the Exercise01 with the com
 **Exercise 7:** Usage of ``RayMap<L, T>``.
 
 **Exercise 8:** Actor Support of create Actor and call Actor method.
-
-.. _`README.rst`: https://github.com/ray-project/ray/tree/master/java
-
