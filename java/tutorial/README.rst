@@ -36,7 +36,7 @@ To run a exercise case, set the RAY_CONFIG env variable and run the following co
 
 .. code-block:: shell
 
-    java -Djava.library.path=../build/src/plasma/:../build/src/local_scheduler/ -classpath "example/target/ray-example-1.0.jar:test/lib/*" org.ray.exercise.Exercise01
+    java -Djava.library.path=../build/src/plasma/:../build/src/local_scheduler/ -classpath "tutorial/target/ray-tutorial-1.0.jar:test/lib/*" org.ray.exercise.Exercise01
 
 **Exercise 1:** Define a remote function, and execute multiple remote functions in parallel.
 
@@ -46,7 +46,7 @@ To run a exercise case, set the RAY_CONFIG env variable and run the following co
 
 **Exercise 4:** Use ``Ray.wait`` to ignore stragglers.
 
-**Exercise 5:** Enable multiple heterogeneous return values.
+**Exercise 5:** Use multiple heterogeneous return values.
 
 **Exercise 6:** Usage of ``RayList<T>``.
 
