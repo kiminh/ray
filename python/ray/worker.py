@@ -30,6 +30,7 @@ import ray.signature
 import ray.local_scheduler
 import ray.plasma
 import ray.ray_constants as ray_constants
+from ray import job_updater
 from ray import import_thread
 from ray import profiling
 from ray.utils import (
@@ -2036,51 +2037,6 @@ def print_error_messages(worker):
         pass
 
 
-def update_job_info(worker=global_worker):
-    # Only update job info for driver mode.
-    if worker.mode not in [SCRIPT_MODE, SILENT_MODE]:
-        return
-
-    # Worker_id is also used as job id, so we only
-    # update job info if it is not none.
-    if worker.worker_id is None:
-        return
-
-    # Get job.
-    job_id = ray.ObjectID(worker.worker_id)
-    message = global_state._execute_command(
-            job_id, "RAY.TABLE_LOOKUP",
-            ray.gcs_utils.TablePrefix.JOB, "", job_id.id())
-
-    if message is None:
-        # Job doesn't exist, let's create a new one.
-        # We are launching this driver inside Ray cluster.
-        time_now = time.time()
-        job = ray.local_scheduler.Job(
-            job_id, "None", "None", services.get_node_ip_address(),
-            ray.ObjectID(NIL_ID), ray.gcs_utils.JobState.Started,
-            time_now, time_now, 0)
-    else:
-        # Job already exist
-        # We are launching this driver from proxy server.
-        gcs_entries = ray.gcs_utils.GcsTableEntry.GetRootAsGcsTableEntry(
-            message, 0)
-        old_job = ray.gcs_utils.Job.GetRootAsJob(gcs_entries.Entries(0), 0)
-        job = ray.local_scheduler.Job(
-            old_job.Id(), old_job.Owner(), old_job.Name(),
-            old_job.HostServer(), old_job.ExecutableId(),
-            ray.gcs_utils.JobState.Started, old_job.CreateTime(),
-            time.time(), old_job.end_time())
-
-    # Set job into Redis, this will update the record if it already exists.
-    global_state._execute_command(
-        job.id(), "RAY.TABLE_ADD",
-        ray.gcs_utils.TablePrefix.JOB,
-        ray.gcs_utils.TablePubsub.JOB,
-        job.id().id(),
-        job.to_serialized_flatbuf())
-
-
 def connect(info,
             object_id_seed=None,
             mode=WORKER_MODE,
@@ -2217,8 +2173,8 @@ def connect(info,
     else:
         raise Exception("This code should be unreachable.")
 
-    # Here is the temporary solution.
-    update_job_info()
+    worker.job_updater = job_updater.JobUpdater(worker)
+    worker.job_updater.set_job_state(ray.gcs_utils.JobState.Started)
 
     # Create an object store client.
     if not worker.use_raylet:
