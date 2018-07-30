@@ -9,6 +9,7 @@
 
 #include "common.h"
 #include "ray/raylet/task_spec.h"
+#include "ray/raylet/job.h"
 
 typedef char TaskSpec;
 class TaskBuilder;
@@ -30,11 +31,18 @@ typedef struct {
   ray::raylet::TaskSpecification *task_spec;
   std::vector<ray::ObjectID> *execution_dependencies;
 } PyTask;
+
+typedef struct {
+  PyObject_HEAD
+  ray::raylet::Job *job;
+} PyJob;
 // clang-format on
 
 extern PyTypeObject PyObjectIDType;
 
 extern PyTypeObject PyTaskType;
+
+extern PyTypeObject PyJobType;
 
 bool use_raylet(PyTask *task);
 

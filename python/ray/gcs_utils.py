@@ -26,6 +26,8 @@ from ray.core.generated.ProfileTableData import ProfileTableData
 from ray.core.generated.HeartbeatTableData import HeartbeatTableData
 from ray.core.generated.ObjectTableData import ObjectTableData
 from ray.core.generated.ray.protocol.Task import Task
+from ray.core.generated.ray.protocol.Job import Job
+from ray.core.generated.ray.protocol.JobState import JobState
 
 from ray.core.generated.TablePrefix import TablePrefix
 from ray.core.generated.TablePubsub import TablePubsub
@@ -35,8 +37,8 @@ __all__ = [
     "TaskExecutionDependencies", "TaskReply", "DriverTableMessage",
     "LocalSchedulerInfoMessage", "SubscribeToDBClientTableReply", "TaskInfo",
     "GcsTableEntry", "ClientTableData", "ErrorTableData", "ProfileTableData",
-    "HeartbeatTableData", "ObjectTableData", "Task", "TablePrefix",
-    "TablePubsub", "construct_error_message"
+    "HeartbeatTableData", "ObjectTableData", "Task", "TablePrefix", "Job",
+    "JobState", "TablePubsub", "construct_error_message"
 ]
 
 # These prefixes must be kept up-to-date with the definitions in

@@ -90,6 +90,42 @@ table SubmitTaskRequest {
   task_spec: string;
 }
 
+enum JobState:int {
+  NONE = 0,
+  // Job was created but not started.
+  Created,
+  // Job is running.
+  Started,
+  // Job completed successfully.
+  Completed,
+  // Job timed out.
+  Timeout,
+  // Job failed.
+  Failed,
+}
+
+table Job {
+  // Currently the concept of "job" and "driver" are equal, so here the id
+  // equals to driver id.
+  id: string;
+  // A human readable string to indicate the owner of this job.
+  owner: string;
+  // A human readable name of this job which doesn't have to be unique.
+  name: string;
+  // Name of the server that host this job.
+  host_server: string;
+  // Identity of the executable object (jar or .py) stored in plasma.
+  executable_id: string;
+  // Current state of the job.
+  state: JobState;
+  // Job create time.
+  create_time: double;
+  // Job start time.
+  start_time: double;
+  // Job end time.
+  end_time: double;
+}
+
 // This message describes a given resource that is reserved for a worker.
 table ResourceIdSetInfo {
   // The name of the resource.

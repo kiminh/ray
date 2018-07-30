@@ -48,6 +48,7 @@ set(RAY_SRCS
   raylet/task.cc
   raylet/task_execution_spec.cc
   raylet/task_spec.cc
+  raylet/job.cc
   raylet/worker.cc
   raylet/worker_pool.cc
   raylet/scheduling_resources.cc

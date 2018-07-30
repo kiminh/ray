@@ -413,6 +413,7 @@ template class Log<ObjectID, ObjectTableData>;
 template class Log<TaskID, ray::protocol::Task>;
 template class Table<TaskID, ray::protocol::Task>;
 template class Table<TaskID, TaskTableData>;
+template class Table<JobID, ray::protocol::Job>;
 template class Log<ActorID, ActorTableData>;
 template class Log<TaskID, TaskReconstructionData>;
 template class Table<ClientID, HeartbeatTableData>;

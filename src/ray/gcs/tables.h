@@ -386,17 +386,12 @@ class TaskTable : public Table<TaskID, TaskTableData> {
       std::function<void(std::shared_ptr<TaskTableDataT> task)>;
   /// Update a task's scheduling information in the task table, if the current
   /// value matches the given test value. If the update succeeds, it also
-  /// updates
-  /// the task entry's local scheduler ID with the ID of the client who called
-  /// this function. This assumes that the task spec already exists in the task
-  /// table entry.
+  /// updates the task entry's local scheduler ID with the ID of the client who
+  /// called this function. This assumes that the task spec already exists in the
+  /// task table entry.
   ///
-  /// \param task_id The task ID of the task entry to update.
-  /// \param test_state_bitmask The bitmask to apply to the task entry's current
-  /// scheduling state.  The update happens if and only if the current
-  /// scheduling state AND-ed with the bitmask is greater than 0.
-  /// \param update_state The value to update the task entry's scheduling state
-  /// with, if the current state matches test_state_bitmask.
+  /// \param id The task ID of the task entry to update.
+  /// \param data The TaskTableTestAndUpdateT that used to perform the update.
   /// \param callback Function to be called when database returns result.
   /// \return Status
   Status TestAndUpdate(const JobID &job_id, const TaskID &id,
@@ -426,10 +421,12 @@ class TaskTable : public Table<TaskID, TaskTableData> {
   /// \param local_scheduler_id The db_client_id of the local scheduler whose
   /// events we want to listen to. If you want to subscribe to updates from
   /// all local schedulers, pass in NIL_ID.
-  /// \param subscribe_callback Callback that will be called when the task table
-  /// is updated.
   /// \param state_filter Events we want to listen to. Can have values from the
   /// enum "scheduling_state" in task.h.
+  /// \param callback Callback that will be called when the task table is updated.
+  /// \param done Callback that is called when subscription is complete and we
+  /// are ready to receive messages.
+
   /// TODO(pcm): Make it possible to combine these using flags like
   /// TASK_STATUS_WAITING | TASK_STATUS_SCHEDULED.
   /// \param callback Function to be called when database returns result.
@@ -446,6 +443,21 @@ Status TaskTableTestAndUpdate(AsyncGcsClient *gcs_client, const TaskID &task_id,
                               SchedulingState test_state_bitmask,
                               SchedulingState update_state,
                               const TaskTable::TestAndUpdateCallback &callback);
+
+class JobTable: public Table<JobID, ray::protocol::Job> {
+ public:
+  JobTable(const std::shared_ptr<RedisContext> &context, AsyncGcsClient *client)
+      : Table(context, client) {
+    pubsub_channel_ = TablePubsub::JOB;
+    prefix_ = TablePrefix::JOB;
+  };
+
+  JobTable(const std::shared_ptr<RedisContext> &context, AsyncGcsClient *client,
+            gcs::CommandType command_type)
+      : JobTable(context, client) {
+    command_type_ = command_type;
+  };
+};
 
 class ErrorTable : private Log<JobID, ErrorTableData> {
  public:

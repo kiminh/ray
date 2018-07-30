@@ -13,6 +13,7 @@ AsyncGcsClient::AsyncGcsClient(const ClientID &client_id, CommandType command_ty
   object_table_.reset(new ObjectTable(context_, this, command_type));
   actor_table_.reset(new ActorTable(context_, this));
   task_table_.reset(new TaskTable(context_, this, command_type));
+  job_table_.reset(new JobTable(context_, this, command_type));
   raylet_task_table_.reset(new raylet::TaskTable(context_, this, command_type));
   task_reconstruction_log_.reset(new TaskReconstructionLog(context_, this));
   heartbeat_table_.reset(new HeartbeatTable(context_, this));
@@ -66,6 +67,8 @@ Status AsyncGcsClient::Attach(boost::asio::io_service &io_service) {
 ObjectTable &AsyncGcsClient::object_table() { return *object_table_; }
 
 TaskTable &AsyncGcsClient::task_table() { return *task_table_; }
+
+JobTable &AsyncGcsClient::job_table() { return *job_table_; }
 
 raylet::TaskTable &AsyncGcsClient::raylet_task_table() { return *raylet_task_table_; }
 

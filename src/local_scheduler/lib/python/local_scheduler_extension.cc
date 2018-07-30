@@ -534,6 +534,10 @@ MOD_INIT(liblocal_scheduler_library_python) {
     INITERROR;
   }
 
+  if (PyType_Ready(&PyJobType) < 0) {
+    INITERROR;
+  }
+
   if (PyType_Ready(&PyObjectIDType) < 0) {
     INITERROR;
   }
@@ -559,6 +563,9 @@ MOD_INIT(liblocal_scheduler_library_python) {
 
   Py_INCREF(&PyTaskType);
   PyModule_AddObject(m, "Task", (PyObject *) &PyTaskType);
+
+  Py_INCREF(&PyJobType);
+  PyModule_AddObject(m, "Job", (PyObject *) &PyJobType);
 
   Py_INCREF(&PyObjectIDType);
   PyModule_AddObject(m, "ObjectID", (PyObject *) &PyObjectIDType);

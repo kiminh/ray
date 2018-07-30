@@ -53,6 +53,7 @@ class RAY_EXPORT AsyncGcsClient {
   inline ConfigTable &config_table();
   ObjectTable &object_table();
   TaskTable &task_table();
+  JobTable &job_table();
   raylet::TaskTable &raylet_task_table();
   ActorTable &actor_table();
   TaskReconstructionLog &task_reconstruction_log();
@@ -77,6 +78,7 @@ class RAY_EXPORT AsyncGcsClient {
   std::unique_ptr<ClassTable> class_table_;
   std::unique_ptr<ObjectTable> object_table_;
   std::unique_ptr<TaskTable> task_table_;
+  std::unique_ptr<JobTable> job_table_;
   std::unique_ptr<raylet::TaskTable> raylet_task_table_;
   std::unique_ptr<ActorTable> actor_table_;
   std::unique_ptr<TaskReconstructionLog> task_reconstruction_log_;

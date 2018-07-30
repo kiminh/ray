@@ -1507,6 +1507,7 @@ def _init(address_info=None,
           plasma_directory=None,
           huge_pages=False,
           include_webui=True,
+          worker_id=None,
           use_raylet=None):
     """Helper method to connect to an existing Ray cluster or start a new one.
 
@@ -1562,6 +1563,8 @@ def _init(address_info=None,
             Store with hugetlbfs support. Requires plasma_directory.
         include_webui: Boolean flag indicating whether to start the web
             UI, which is a Jupyter notebook.
+        worker_id: ID of the worker, if it is not specified we will create a
+            random one.
         use_raylet: True if the new raylet code path should be used.
 
     Returns:
@@ -1699,6 +1702,7 @@ def _init(address_info=None,
         object_id_seed=object_id_seed,
         mode=driver_mode,
         worker=global_worker,
+        worker_id=worker_id,
         use_raylet=use_raylet)
     return address_info
 
@@ -1721,6 +1725,7 @@ def init(redis_address=None,
          plasma_directory=None,
          huge_pages=False,
          include_webui=True,
+         worker_id=None,
          use_raylet=None):
     """Connect to an existing Ray cluster or start one and connect to it.
 
@@ -1780,6 +1785,8 @@ def init(redis_address=None,
             Store with hugetlbfs support. Requires plasma_directory.
         include_webui: Boolean flag indicating whether to start the web
             UI, which is a Jupyter notebook.
+        worker_id: ID of the worker, if it is not specified we will create a
+            random one.
         use_raylet: True if the new raylet code path should be used.
 
     Returns:
@@ -1825,6 +1832,7 @@ def init(redis_address=None,
         huge_pages=huge_pages,
         include_webui=include_webui,
         object_store_memory=object_store_memory,
+        worker_id=worker_id,
         use_raylet=use_raylet)
     for hook in _post_init_hooks:
         hook()
@@ -2021,10 +2029,56 @@ def print_error_messages(worker):
         pass
 
 
+def update_job_info(worker=global_worker):
+    # Only update job info for driver mode.
+    if worker.mode not in [SCRIPT_MODE, SILENT_MODE]:
+        return
+
+    # Worker_id is also used as job id, so we only
+    # update job info if it is not none.
+    if worker.worker_id is None:
+        return
+
+    # Get job.
+    job_id = ray.ObjectID(worker.worker_id)
+    message = global_state._execute_command(
+            job_id, "RAY.TABLE_LOOKUP",
+            ray.gcs_utils.TablePrefix.JOB, "", job_id.id())
+
+    if message is None:
+        # Job doesn't exist, let's create a new one.
+        # We are launching this driver inside Ray cluster.
+        time_now = time.time()
+        job = ray.local_scheduler.Job(
+            job_id, "None", "None", services.get_node_ip_address(),
+            ray.ObjectID(NIL_ID), ray.gcs_utils.JobState.Started,
+            time_now, time_now, 0)
+    else:
+        # Job already exist
+        # We are launching this driver from proxy server.
+        gcs_entries = ray.gcs_utils.GcsTableEntry.GetRootAsGcsTableEntry(
+            message, 0)
+        old_job = ray.gcs_utils.Job.GetRootAsJob(gcs_entries.Entries(0), 0)
+        job = ray.local_scheduler.Job(
+            old_job.Id(), old_job.Owner(), old_job.Name(),
+            old_job.HostServer(), old_job.ExecutableId(),
+            ray.gcs_utils.JobState.Started, old_job.CreateTime(),
+            time.time(), old_job.end_time())
+
+    # Set job into Redis, this will update the record if it already exists.
+    global_state._execute_command(
+        job.id(), "RAY.TABLE_ADD",
+        ray.gcs_utils.TablePrefix.JOB,
+        ray.gcs_utils.TablePubsub.JOB,
+        job.id().id(),
+        job.to_serialized_flatbuf())
+
+
 def connect(info,
             object_id_seed=None,
             mode=WORKER_MODE,
             worker=global_worker,
+            worker_id=None,
             use_raylet=False):
     """Connect this worker to the local scheduler, to Plasma, and to Redis.
 
@@ -2035,6 +2089,11 @@ def connect(info,
             deterministic.
         mode: The mode of the worker. One of SCRIPT_MODE, WORKER_MODE,
             LOCAL_MODE, and SILENT_MODE.
+        worker_id: The id of the worker which will also be used as the driver
+            id for driver mode. It is used in this case: while proxy service
+            create a job, the job id is determined, later a driver process will
+            be launched with the job id passed in. For other cases, we don't
+            specify this parameter and let the program create a random one.
         use_raylet: True if the new raylet code path should be used.
     """
     # Do some basic checking to make sure we didn't call ray.init twice.
@@ -2043,7 +2102,10 @@ def connect(info,
     assert worker.cached_functions_to_run is not None, error_message
     assert worker.cached_remote_functions_and_actors is not None, error_message
     # Initialize some fields.
-    worker.worker_id = random_string()
+    if worker_id is None:
+        worker_id = random_string()
+
+    worker.worker_id = worker_id
 
     # When tasks are executed on remote workers in the context of multiple
     # drivers, the task driver ID is used to keep track of which driver is
@@ -2147,6 +2209,9 @@ def connect(info,
         is_worker = True
     else:
         raise Exception("This code should be unreachable.")
+
+    # Here is the temporary solution.
+    update_job_info()
 
     # Create an object store client.
     if not worker.use_raylet:

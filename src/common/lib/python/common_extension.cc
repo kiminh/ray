@@ -814,6 +814,154 @@ PyObject *PyTask_make(TaskSpec *task_spec, int64_t task_size) {
   return (PyObject *) result;
 }
 
+/* Define the PyJob class. */
+
+static int PyJob_init(PyJob *self, PyObject *args, PyObject *kwds) {
+  UniqueID job_id;
+  char *owner = nullptr;
+  char *name = nullptr;
+  char *host_server = nullptr;
+  UniqueID executable_id;
+  int state;
+  double create_time;
+  double start_time;
+  double end_time;
+
+  if (!PyArg_ParseTuple(
+          args, "O&sssO&iddd", &PyObjectToUniqueID, &job_id, &owner,
+          &name, &host_server, &PyObjectToUniqueID, &executable_id,
+          &state, &create_time, &start_time, &end_time)) {
+    return -1;
+  }
+
+  self->job = new ray::raylet::Job(
+        job_id, owner, name, host_server, executable_id,
+        static_cast<ray::protocol::JobState>(state), create_time, 
+        start_time, end_time);
+
+  return 0;
+}
+
+static void PyJob_dealloc(PyJob *self) {
+  delete self->job;
+  Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
+}
+
+static PyObject *PyJob_id(PyJob *self) {
+  return PyObjectID_make(self->job->Id());
+}
+
+static PyObject *PyJob_owner(PyJob *self) {
+  std::string owner = self->job->Owner();
+  return PyBytes_FromStringAndSize(owner.data(), owner.size());
+}
+
+static PyObject *PyJob_name(PyJob *self) {
+  std::string name = self->job->Name();
+  return PyBytes_FromStringAndSize(name.data(), name.size());
+}
+
+static PyObject *PyJob_host_server(PyJob *self) {
+  std::string host = self->job->HostServer();
+  return PyBytes_FromStringAndSize(host.data(), host.size());
+}
+
+static PyObject *PyJob_executable_id(PyJob *self) {
+  return PyObjectID_make(self->job->ExecutableId());
+}
+
+static PyObject *PyJob_state(PyJob *self) {
+  std::string state = std::string(EnumNameJobState(self->job->State()));
+  return PyBytes_FromStringAndSize(state.data(), state.size());
+}
+
+static PyObject *PyJob_create_time(PyJob *self) {
+  return PyFloat_FromDouble(self->job->CreateTime());
+}
+
+static PyObject *PyJob_start_time(PyJob *self) {
+  return PyFloat_FromDouble(self->job->StartTime());
+}
+
+static PyObject *PyJob_end_time(PyJob *self) {
+  return PyFloat_FromDouble(self->job->EndTime());
+}
+
+static PyObject *PyJob_to_serialized_flatbuf(PyJob *self) {
+  flatbuffers::FlatBufferBuilder fbb;
+  auto job_flatbuffer = self->job->ToFlatbuffer(fbb);
+  fbb.Finish(job_flatbuffer);
+
+  return PyBytes_FromStringAndSize(
+      reinterpret_cast<char *>(fbb.GetBufferPointer()), fbb.GetSize());
+}
+
+static PyMethodDef PyJob_methods[] = {
+    {"id", (PyCFunction) PyJob_id, METH_NOARGS,
+     "Return the ID of this job."},
+    {"owner", (PyCFunction) PyJob_owner, METH_NOARGS,
+     "Return the owner of this job."},
+    {"name", (PyCFunction) PyJob_name, METH_NOARGS,
+     "Return the name of this job."},
+    {"host_server", (PyCFunction) PyJob_host_server, METH_NOARGS,
+     "Return the host server of this job."},
+    {"executable_id", (PyCFunction) PyJob_executable_id, METH_NOARGS,
+     "Return the executable id of his job."},
+    {"state", (PyCFunction) PyJob_state, METH_NOARGS,
+     "Return the state of this job."},
+    {"create_time", (PyCFunction) PyJob_create_time, METH_NOARGS,
+     "Return the create time of this job."},
+    {"start_time", (PyCFunction) PyJob_start_time, METH_NOARGS,
+     "Return the start time of this job."},
+    {"end_time", (PyCFunction) PyJob_end_time, METH_NOARGS,
+     "Return the end time of this job."},
+    {"to_serialized_flatbuf",
+     (PyCFunction) PyJob_to_serialized_flatbuf, METH_NOARGS,
+     "Return the serialized job."},
+    {NULL} /* Sentinel */
+};
+
+PyTypeObject PyJobType = {
+    PyVarObject_HEAD_INIT(NULL, 0) /* ob_size */
+    "job.Job",                     /* tp_name */
+    sizeof(PyJob),                 /* tp_basicsize */
+    0,                             /* tp_itemsize */
+    (destructor) PyJob_dealloc,    /* tp_dealloc */
+    0,                             /* tp_print */
+    0,                             /* tp_getattr */
+    0,                             /* tp_setattr */
+    0,                             /* tp_compare */
+    0,                             /* tp_repr */
+    0,                             /* tp_as_number */
+    0,                             /* tp_as_sequence */
+    0,                             /* tp_as_mapping */
+    0,                             /* tp_hash */
+    0,                             /* tp_call */
+    0,                             /* tp_str */
+    0,                             /* tp_getattro */
+    0,                             /* tp_setattro */
+    0,                             /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,            /* tp_flags */
+    "Job object",                  /* tp_doc */
+    0,                             /* tp_traverse */
+    0,                             /* tp_clear */
+    0,                             /* tp_richcompare */
+    0,                             /* tp_weaklistoffset */
+    0,                             /* tp_iter */
+    0,                             /* tp_iternext */
+    PyJob_methods,                 /* tp_methods */
+    0,                             /* tp_members */
+    0,                             /* tp_getset */
+    0,                             /* tp_base */
+    0,                             /* tp_dict */
+    0,                             /* tp_descr_get */
+    0,                             /* tp_descr_set */
+    0,                             /* tp_dictoffset */
+    (initproc) PyJob_init,         /* tp_init */
+    0,                             /* tp_alloc */
+    PyType_GenericNew,             /* tp_new */
+};
+
 /* Define the methods for the module. */
 
 /**
