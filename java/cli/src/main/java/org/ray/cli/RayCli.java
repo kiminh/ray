@@ -6,26 +6,20 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import net.lingala.zip4j.core.ZipFile;
-import net.lingala.zip4j.exception.ZipException;
 import org.ray.api.UniqueID;
-import org.ray.cli.CommandStart;
-import org.ray.cli.CommandStop;
-import org.ray.core.RayRuntime;
 import org.ray.core.model.RayParameters;
 import org.ray.core.model.RunMode;
-import org.ray.runner.RunInfo;
 import org.ray.runner.RunManager;
 import org.ray.runner.worker.DefaultDriver;
 import org.ray.spi.KeyValueStoreLink;
 import org.ray.spi.PathConfig;
 import org.ray.spi.RemoteFunctionManager;
-import org.ray.spi.StateStoreProxy;
 import org.ray.spi.impl.NativeRemoteFunctionManager;
 import org.ray.spi.impl.RedisClient;
-import org.ray.spi.impl.StateStoreProxyImpl;
 import org.ray.util.FileUtil;
 import org.ray.util.config.ConfigReader;
 import org.ray.util.logger.RayLog;
+
 
 
 /**
@@ -70,6 +64,10 @@ public class RayCli {
   private static RunManager startProcess(CommandStart cmdStart, ConfigReader config) {
     PathConfig paths = new PathConfig(config);
     RayParameters params = new RayParameters(config);
+    if (params.driver_id.equals(UniqueID.nil)) {
+      // In this case, we are launching the driver inside Ray cluster
+      params.driver_id = UniqueID.randomId();
+    }
 
     // Init RayLog before using it.
     RayLog.init(params.working_directory);
@@ -145,15 +143,17 @@ public class RayCli {
     ConfigReader config = new ConfigReader(configPath, "ray.java.start.deploy=true");
     PathConfig paths = new PathConfig(config);
     RayParameters params = new RayParameters(config);
+    if (params.driver_id.equals(UniqueID.nil)) {
+      // In this case, we are launching the driver inside Ray cluster
+      params.driver_id = UniqueID.randomId();
+    }
 
     params.redis_address = cmdSubmit.redisAddress;
     params.run_mode = RunMode.CLUSTER;
 
-
     KeyValueStoreLink kvStore = new RedisClient();
     kvStore.setAddr(cmdSubmit.redisAddress);
-    StateStoreProxy stateStoreProxy = new StateStoreProxyImpl(kvStore);
-    stateStoreProxy.initializeGlobalState();
+    kvStore.checkConnected();
 
     RemoteFunctionManager functionManager = new NativeRemoteFunctionManager(kvStore);
 
@@ -175,9 +175,8 @@ public class RayCli {
     RayLog.rapp.debug(
         "registerResource " + resourceId + " for package " + packageName + " done");
 
-    UniqueID appId = params.driver_id;
-    functionManager.registerApp(appId, resourceId);
-    RayLog.rapp.debug("registerApp " + appId + " for resouorce " + resourceId + " done");
+    functionManager.registerApp(params.driver_id, resourceId);
+    RayLog.rapp.debug("registerApp " + params.driver_id + " for resouorce " + resourceId + " done");
   
     // Unzip the package file.
     String appDir = "/tmp/" + cmdSubmit.className;
@@ -214,7 +213,7 @@ public class RayCli {
     Process proc = runManager.startDriver(
         DefaultDriver.class.getName(),
         cmdSubmit.redisAddress,
-        appId,
+        params.driver_id,
         appDir,
         params.node_ip_address,
         cmdSubmit.className,

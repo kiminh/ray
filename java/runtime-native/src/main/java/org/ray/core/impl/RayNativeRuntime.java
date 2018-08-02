@@ -42,7 +42,7 @@ public class RayNativeRuntime extends RayRuntime {
     System.loadLibrary("plasma_java");
   }
 
-  private StateStoreProxy stateStoreProxy;
+  private StateStoreProxy stateStoreProxy = null;
   private KeyValueStoreLink kvStore = null;
   private RunManager manager = null;
   private Object actor = null;
@@ -66,7 +66,7 @@ public class RayNativeRuntime extends RayRuntime {
     } else {
       initStateStore(params.redis_address);
       if (!isWorker) {
-        List<AddressInfo> nodes = stateStoreProxy.getAddressInfo(params.node_ip_address, 5);
+        List<AddressInfo> nodes = this.stateStoreProxy.getAddressInfo(params.node_ip_address, 5);
         params.object_store_name = nodes.get(0).storeName;
         params.object_store_manager_name = nodes.get(0).managerName;
         params.local_scheduler_name = nodes.get(0).schedulerName;
@@ -75,7 +75,7 @@ public class RayNativeRuntime extends RayRuntime {
 
     // initialize remote function manager
     RemoteFunctionManager funcMgr = params.run_mode.isDevPathManager()
-        ? new NopRemoteFunctionManager(params.driver_id) : new NativeRemoteFunctionManager(kvStore);
+        ? new NopRemoteFunctionManager(params.driver_id) : new NativeRemoteFunctionManager(this.kvStore);
 
     // initialize worker context
     if (params.worker_mode == WorkerMode.DRIVER) {
@@ -156,11 +156,11 @@ public class RayNativeRuntime extends RayRuntime {
   }
 
   private void initStateStore(String redisAddress) throws Exception {
-    kvStore = new RedisClient();
-    kvStore.setAddr(redisAddress);
-    stateStoreProxy = new StateStoreProxyImpl(kvStore);
+    this.kvStore = new RedisClient();
+    this.kvStore.setAddr(redisAddress);
+    this.stateStoreProxy = new StateStoreProxyImpl(this.kvStore);
     //stateStoreProxy.setStore(kvStore);
-    stateStoreProxy.initializeGlobalState();
+    this.stateStoreProxy.initializeGlobalState();
   }
 
   private void registerWorker(boolean isWorker, String nodeIpAddress, String storeName,
@@ -176,14 +176,14 @@ public class RayNativeRuntime extends RayRuntime {
       workerInfo.put("local_scheduler_socket", schedulerName);
       workerInfo.put("name", System.getProperty("user.dir"));
       //TODO: worker.redis_client.hmset(b"Drivers:" + worker.workerId, driver_info)
-      kvStore.hmset("Drivers:" + workerId, workerInfo);
+      this.kvStore.hmset("Drivers:" + workerId, workerInfo);
     } else {
       workerInfo.put("node_ip_address", nodeIpAddress);
       workerInfo.put("plasma_store_socket", storeName);
       workerInfo.put("plasma_manager_socket", managerName);
       workerInfo.put("local_scheduler_socket", schedulerName);
       //TODO: b"Workers:" + worker.workerId,
-      kvStore.hmset("Workers:" + workerId, workerInfo);
+      this.kvStore.hmset("Workers:" + workerId, workerInfo);
     }
   }
 

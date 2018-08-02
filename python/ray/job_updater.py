@@ -53,26 +53,14 @@ class JobUpdater(object):
                     ray.ObjectID(existing_job.ExecutableId()),
                     ray.gcs_utils.JobState.Started, existing_job.CreateTime(),
                     time.time(), existing_job.end_time())
-            elif state is ray.gcs_utils.JobState.Completed:
+            elif (state is ray.gcs_utils.JobState.Completed
+                or state is ray.gcs_utils.JobState.Timeout
+                or state is ray.gcs_utils.JobState.Failed):
                 job = ray.local_scheduler.Job(
                     ray.ObjectID(existing_job.Id()), existing_job.Owner(),
                     existing_job.Name(), existing_job.HostServer(),
                     ray.ObjectID(existing_job.ExecutableId()),
-                    ray.gcs_utils.JobState.Completed, existing_job.CreateTime(),
-                    existing_job.StartTime(), time.time())
-            elif state is ray.gcs_utils.JobState.Failed:
-                job = ray.local_scheduler.Job(
-                    ray.ObjectID(existing_job.Id()), existing_job.Owner(),
-                    existing_job.Name(), existing_job.HostServer(),
-                    ray.ObjectID(existing_job.ExecutableId()),
-                    ray.gcs_utils.JobState.Failed, existing_job.CreateTime(),
-                    existing_job.StartTime(), time.time())
-            elif state is ray.gcs_utils.JobState.Timeout:
-                job = ray.local_scheduler.Job(
-                    ray.ObjectID(existing_job.Id()), existing_job.Owner(),
-                    existing_job.Name(), existing_job.HostServer(),
-                    ray.ObjectID(existing_job.ExecutableId()),
-                    ray.gcs_utils.JobState.Timeout, existing_job.CreateTime(),
+                    state, existing_job.CreateTime(),
                     existing_job.EndTime(), time.time())
             else:
                 raise Exception("This should never happen.")

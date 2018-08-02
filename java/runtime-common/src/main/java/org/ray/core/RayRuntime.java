@@ -78,6 +78,10 @@ public abstract class RayRuntime implements RayApi {
       }
       configReader = new ConfigReader(configPath, updateConfigStr);
       RayRuntime.params = new RayParameters(configReader);
+      if (params.driver_id.equals(UniqueID.nil)) {
+        // In this case, we are launching the driver inside Ray cluster
+        params.driver_id = UniqueID.randomId();
+      }
 
       RayLog.init(params.working_directory);
       assert RayLog.core != null;

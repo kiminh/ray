@@ -29,32 +29,30 @@ public class StateStoreProxyImpl implements StateStoreProxy {
   }
 
   public synchronized void initializeGlobalState() throws Exception {
-
-    String es;
-
     checkConnected();
 
     String s = rayKvStore.get("NumRedisShards", null);
     if (s == null) {
       throw new Exception("NumRedisShards not found in redis.");
     }
+
     int numRedisShards = Integer.parseInt(s);
     if (numRedisShards < 1) {
-      es = String.format("Expected at least one Redis shard, found %d", numRedisShards);
+      String es = String.format("Expected at least one Redis shard, found %d", numRedisShards);
       throw new Exception(es);
     }
+
     List<String> ipAddressPorts = rayKvStore.lrange("RedisShards", 0, -1);
     if (ipAddressPorts.size() != numRedisShards) {
-      es = String.format("Expected %d Redis shard addresses, found %d.", numRedisShards,
+      String es = String.format("Expected %d Redis shard addresses, found %d.", numRedisShards,
           ipAddressPorts.size());
       throw new Exception(es);
     }
 
-    shardStoreList.clear();
+    this.shardStoreList.clear();
     for (String ipPort : ipAddressPorts) {
-      shardStoreList.add(new RedisClient(ipPort));
+      this.shardStoreList.add(new RedisClient(ipPort));
     }
-
   }
 
   public void checkConnected() throws Exception {
