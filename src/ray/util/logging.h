@@ -33,15 +33,16 @@ namespace ray {
 #define RAY_ERROR 2
 #define RAY_FATAL 3
 
-#define RAY_LOG_INTERNAL(level) ::ray::RayLog(__FILE__, __LINE__, level)
+#define RAY_LOG_INTERNAL(level) ::ray::RayLog(__FILE__, __LINE__, __FUNCTION__, level)
 
 #define RAY_LOG(level) RAY_LOG_INTERNAL(RAY_##level)
 #define RAY_IGNORE_EXPR(expr) ((void)(expr))
 
 #define RAY_CHECK(condition)                                                          \
-  (condition) ? RAY_IGNORE_EXPR(0) : ::ray::Voidify() &                               \
-                                         ::ray::RayLog(__FILE__, __LINE__, RAY_FATAL) \
-                                             << " Check failed: " #condition " "
+  (condition)                                                                         \
+      ? RAY_IGNORE_EXPR(0)                                                            \
+      : ::ray::Voidify() & ::ray::RayLog(__FILE__, __LINE__, __FUNCTION__, RAY_FATAL) \
+                               << " Check failed: " #condition " "
 
 #ifdef NDEBUG
 
@@ -83,7 +84,7 @@ class RayLogBase {
 
 class RayLog : public RayLogBase {
  public:
-  RayLog(const char *file_name, int line_number, int severity);
+  RayLog(const char *file_name, int line_number, const char *funcname, int severity);
 
   virtual ~RayLog();
 

@@ -66,6 +66,7 @@ if(RAY_USE_GLOG)
   endif()
 
   set(GLOG_URL "https://github.com/google/glog/archive/v${GLOG_VERSION}.tar.gz")
+  set(GLOG_GIT "https://github.com/guoyuhong/glog")
   set(GLOG_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/glog_ep-prefix/src/glog_ep")
   set(GLOG_HOME "${GLOG_PREFIX}")
   set(GLOG_INCLUDE_DIR "${GLOG_PREFIX}/include")
@@ -81,7 +82,8 @@ if(RAY_USE_GLOG)
                         -DCMAKE_CXX_FLAGS=${GLOG_CMAKE_CXX_FLAGS})
 
   ExternalProject_Add(glog_ep
-    URL ${GLOG_URL}
+    #URL ${GLOG_URL}
+    GIT_REPOSITORY ${GLOG_GIT}
     ${EP_LOG_OPTIONS}
     BUILD_IN_SOURCE 1
     BUILD_BYPRODUCTS "${GLOG_STATIC_LIB}"

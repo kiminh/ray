@@ -124,13 +124,13 @@ void RayLog::InstallFailureSignalHandler() {
 
 bool RayLog::IsLevelEnabled(int log_level) { return log_level >= severity_threshold_; }
 
-RayLog::RayLog(const char *file_name, int line_number, int severity)
+RayLog::RayLog(const char *file_name, int line_number, const char *funcname, int severity)
     // glog does not have DEBUG level, we can handle it here.
     : is_enabled_(severity >= severity_threshold_) {
 #ifdef RAY_USE_GLOG
   if (is_enabled_) {
-    logging_provider_.reset(
-        new google::LogMessage(file_name, line_number, GetMappedSeverity(severity)));
+    logging_provider_.reset(new google::LogMessage(
+        file_name, line_number, GetMappedSeverity(severity), funcname));
   }
 #else
   logging_provider_.reset(new CerrLog(severity));
