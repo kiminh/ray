@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include "ray/gcs/format/gcs_generated.h"
+#include "ray/raylet/format/node_manager_generated.h"
 #include "ray/id.h"
 
 namespace ray {
@@ -74,6 +75,8 @@ class ActorRegistration {
   /// state. This is the execution dependency returned by the task.
   void ExtendFrontier(const ActorHandleID &handle_id,
                       const ObjectID &execution_dependency);
+
+  void RestoreFrontier(const ray::protocol::ActorFrontier &frontier);
 
   /// Return whether the actor is alive or not. This should only be called on
   /// local actors.

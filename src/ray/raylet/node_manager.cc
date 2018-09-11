@@ -792,6 +792,15 @@ void NodeManager::ProcessClientMessage(
     std::vector<ObjectID> object_ids = from_flatbuf(*message->object_ids());
     object_manager_.FreeObjects(object_ids, message->local_only());
   } break;
+  case protocol::MessageType::GetActorFrontierRequest: {
+    auto message = flatbuffers::GetRoot<ray::protocol::GetActorFrontierRequest>(message_data);
+    ActorID actor_id = from_flatbuf(*message->actor_id());
+    HandleGetActorFrontier(client, actor_id);
+  } break;
+  case protocol::MessageType::SetActorFrontier: {
+    auto frontier = flatbuffers::GetRoot<ray::protocol::ActorFrontier>(message_data);
+    HandleSetActorFrontier(*frontier);
+  } break;
 
   default:
     RAY_LOG(FATAL) << "Received unexpected message type " << message_type;
@@ -1523,6 +1532,37 @@ ray::Status NodeManager::ForwardTask(const Task &task, const ClientID &node_id) 
     }
   }
   return status;
+}
+
+void NodeManager::HandleGetActorFrontier(const std::shared_ptr<LocalClientConnection> &client, const ActorID &actor_id) const {
+  auto actor_entry = actor_registry_.find(actor_id);
+  RAY_CHECK(actor_entry != actor_registry_.end());
+  // Build the ActorFrontier flatbuffer.
+  std::vector<ActorHandleID> handle_vector;
+  std::vector<int64_t> task_counter_vector;
+  std::vector<ObjectID> frontier_vector;
+  for (const auto &entry : actor_entry->second.GetFrontier()) {
+    handle_vector.push_back(entry.first);
+    task_counter_vector.push_back(entry.second.task_counter);
+    frontier_vector.push_back(entry.second.execution_dependency);
+  }
+  flatbuffers::FlatBufferBuilder fbb;
+  auto reply = ray::protocol::CreateActorFrontier(
+      fbb, to_flatbuf(fbb, actor_id), to_flatbuf(fbb, handle_vector),
+      fbb.CreateVector(task_counter_vector), to_flatbuf(fbb, frontier_vector),
+      to_flatbuf(fbb, actor_entry->second.GetExecutionDependency()));
+  fbb.Finish(reply);
+  // Reply to the client.
+  RAY_CHECK_OK(
+      client->WriteMessage(static_cast<int64_t>(ray::protocol::MessageType::GetActorFrontierReply),
+                           fbb.GetSize(), fbb.GetBufferPointer()));
+}
+
+void NodeManager::HandleSetActorFrontier(const ray::protocol::ActorFrontier &frontier) {
+  ActorID actor_id = from_flatbuf(*frontier.actor_id());
+  auto actor_entry = actor_registry_.find(actor_id);
+  RAY_CHECK(actor_entry != actor_registry_.end());
+  actor_entry->second.RestoreFrontier(frontier);
 }
 
 }  // namespace raylet

@@ -249,6 +249,10 @@ class NodeManager {
   /// \return True if the invariants are satisfied and false otherwise.
   bool CheckDependencyManagerInvariant() const;
 
+  void HandleGetActorFrontier(const std::shared_ptr<LocalClientConnection> &client, const ActorID &actor_id) const;
+
+  void HandleSetActorFrontier(const ray::protocol::ActorFrontier &frontier);
+
   boost::asio::io_service &io_service_;
   ObjectManager &object_manager_;
   /// A Plasma object store client. This is used exclusively for creating new

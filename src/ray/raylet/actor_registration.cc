@@ -1,5 +1,6 @@
 #include "ray/raylet/actor_registration.h"
 
+#include "common_protocol.h"
 #include "ray/util/logging.h"
 
 namespace ray {
@@ -35,6 +36,16 @@ void ActorRegistration::ExtendFrontier(const ActorHandleID &handle_id,
   frontier_entry.task_counter++;
   frontier_entry.execution_dependency = execution_dependency;
   execution_dependency_ = execution_dependency;
+}
+
+void ActorRegistration::RestoreFrontier(const ray::protocol::ActorFrontier &frontier) {
+  execution_dependency_ = from_flatbuf(*frontier.execution_dependency());
+  for (size_t i = 0; i < frontier.handle_ids()->size(); ++i) {
+    ActorID handle_id = from_flatbuf(*frontier.handle_ids()->Get(i));
+    int64_t task_counter = frontier.task_counters()->Get(i);
+    ObjectID execution_dependency = from_flatbuf(*frontier.frontier_dependencies()->Get(i));
+    frontier_.emplace(std::make_pair(handle_id, FrontierLeaf{task_counter, execution_dependency}));
+  }
 }
 
 bool ActorRegistration::IsAlive() const { return alive_; }
