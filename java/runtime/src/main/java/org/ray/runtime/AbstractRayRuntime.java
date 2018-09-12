@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.arrow.plasma.ObjectStoreLink;
 import org.apache.commons.lang3.tuple.Pair;
-import org.ray.api.Ray;
 import org.ray.api.RayActor;
 import org.ray.api.RayObject;
 import org.ray.api.WaitResult;
@@ -39,8 +38,7 @@ public abstract class AbstractRayRuntime implements RayRuntime {
 
   public static ConfigReader configReader;
   protected static AbstractRayRuntime ins = null;
-  protected static RayParameters params = null;
-  private static boolean fromRayInit = false;
+  protected RayParameters params = null;
   protected Worker worker;
   protected RayletClient rayletClient;
   protected ObjectStoreProxy objectStoreProxy;
@@ -55,12 +53,10 @@ public abstract class AbstractRayRuntime implements RayRuntime {
 
   // app level Ray.init()
   // make it private so there is no direct usage but only from Ray.init
-  private static AbstractRayRuntime init() {
+  private AbstractRayRuntime init() {
     if (ins == null) {
       try {
-        fromRayInit = true;
-        AbstractRayRuntime.init(null, null);
-        fromRayInit = false;
+        init(null, null);
       } catch (Exception e) {
         e.printStackTrace();
         throw new RuntimeException("Ray.init failed", e);
@@ -71,7 +67,7 @@ public abstract class AbstractRayRuntime implements RayRuntime {
 
   // engine level AbstractRayRuntime.init(xx, xx)
   // updateConfigStr is sth like section1.k1=v1;section2.k2=v2
-  public static AbstractRayRuntime init(String configPath, String updateConfigStr)
+  public AbstractRayRuntime init(String configPath, String updateConfigStr)
       throws Exception {
     if (ins == null) {
       if (configPath == null) {
@@ -85,37 +81,15 @@ public abstract class AbstractRayRuntime implements RayRuntime {
         }
       }
       configReader = new ConfigReader(configPath, updateConfigStr);
-      AbstractRayRuntime.params = new RayParameters(configReader);
+      params = new RayParameters(configReader);
 
       RayLog.init(params.log_dir);
       assert RayLog.core != null;
 
       ins = instantiate(params);
       assert (ins != null);
-
-      if (!fromRayInit) {
-        Ray.init(); // assign Ray._impl
-      }
     }
     return ins;
-  }
-
-  // init with command line args
-  // --config=ray.config.ini --overwrite=updateConfigStr
-  public static AbstractRayRuntime init(String[] args) throws Exception {
-    String config = null;
-    String updateConfig = null;
-    for (String arg : args) {
-      if (arg.startsWith("--config=")) {
-        config = arg.substring("--config=".length());
-      } else if (arg.startsWith("--overwrite=")) {
-        updateConfig = arg.substring("--overwrite=".length());
-      } else {
-        throw new RuntimeException("Input argument " + arg
-            + " is not recognized, please use --overwrite to merge it into config file");
-      }
-    }
-    return init(config, updateConfig);
   }
 
   protected void init(
@@ -158,14 +132,6 @@ public abstract class AbstractRayRuntime implements RayRuntime {
    * start runtime.
    */
   public abstract void start(RayParameters params) throws Exception;
-
-  public static AbstractRayRuntime getInstance() {
-    return ins;
-  }
-
-  public static RayParameters getParams() {
-    return params;
-  }
 
   @Override
   public abstract void shutdown();

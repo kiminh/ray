@@ -9,7 +9,6 @@ import java.util.Map;
 import org.ray.api.RayObject;
 import org.ray.api.WaitResult;
 import org.ray.api.id.UniqueId;
-import org.ray.runtime.AbstractRayRuntime;
 import org.ray.runtime.generated.Arg;
 import org.ray.runtime.generated.ResourcePair;
 import org.ray.runtime.generated.TaskInfo;
@@ -20,14 +19,14 @@ import org.ray.runtime.util.UniqueIdHelper;
 import org.ray.runtime.util.logger.RayLog;
 
 public class RayletClientImpl implements RayletClient {
+  private long client = 0;
+  public static final int MAX_SUBMIT_TASK_BUFFER_SIZE = 2 * 1024 * 1024;
 
   private static ThreadLocal<ByteBuffer> _taskBuffer = ThreadLocal.withInitial(() -> {
-    ByteBuffer bb = ByteBuffer
-        .allocateDirect(AbstractRayRuntime.getParams().max_submit_task_buffer_size_bytes);
+    ByteBuffer bb = ByteBuffer.allocateDirect(MAX_SUBMIT_TASK_BUFFER_SIZE);
     bb.order(ByteOrder.LITTLE_ENDIAN);
     return bb;
   });
-  private long client = 0;
 
   public RayletClientImpl(String schedulerSockName, UniqueId clientId,
       boolean isWorker, UniqueId driverId) {
@@ -228,10 +227,10 @@ public class RayletClientImpl implements RayletClient {
     fbb.finish(root);
     ByteBuffer buffer = fbb.dataBuffer();
 
-    if (buffer.remaining() > AbstractRayRuntime.getParams().max_submit_task_buffer_size_bytes) {
+    if (buffer.remaining() > MAX_SUBMIT_TASK_BUFFER_SIZE) {
       RayLog.core.error(
-          "Allocated buffer is not enough to transfer the task specification: " + AbstractRayRuntime
-              .getParams().max_submit_task_buffer_size_bytes + " vs " + buffer.remaining());
+          "Allocated buffer is not enough to transfer the task specification: " +
+                  MAX_SUBMIT_TASK_BUFFER_SIZE + " vs " + buffer.remaining());
       assert (false);
     }
 

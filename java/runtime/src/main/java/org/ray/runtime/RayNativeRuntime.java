@@ -71,6 +71,8 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
       // recheck carefully
       WorkerContext.workerID = params.driver_id;
     }
+
+
     WorkerContext.init(params);
 
     if (params.onebox_delay_seconds_before_run_app_logic > 0) {
