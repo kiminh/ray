@@ -1,7 +1,7 @@
 package org.ray.api;
 
 import java.util.List;
-import org.ray.api.RayInitConfig;
+import org.ray.api.config.RayConfig;
 import org.ray.api.id.UniqueId;
 import org.ray.api.runtime.DefaultRayRuntimeFactory;
 import org.ray.api.runtime.RayRuntime;
@@ -18,10 +18,10 @@ public final class Ray extends RayCall {
    * Initialize Ray runtime with the default runtime implementation.
    */
   public static void init() {
-    init(new RayInitConfig());
+    init(new RayConfig().build());
   }
 
-  public static void init(RayInitConfig initConfig) {
+  public static void init(RayConfig initConfig) {
     init(new DefaultRayRuntimeFactory(), initConfig);
   }
 
@@ -31,7 +31,7 @@ public final class Ray extends RayCall {
    * @param factory A factory that produces the runtime instance.
    * @param initConfig TODO(qwang): fill this.
    */
-  public static synchronized void init(RayRuntimeFactory factory, RayInitConfig initConfig) {
+  public static synchronized void init(RayRuntimeFactory factory, RayConfig initConfig) {
     if (runtime == null) {
       runtime = factory.createRayRuntime(initConfig);
     }

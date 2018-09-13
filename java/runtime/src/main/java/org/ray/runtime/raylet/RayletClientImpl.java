@@ -19,6 +19,7 @@ import org.ray.runtime.util.UniqueIdHelper;
 import org.ray.runtime.util.logger.RayLog;
 
 public class RayletClientImpl implements RayletClient {
+
   private long client = 0;
   public static final int MAX_SUBMIT_TASK_BUFFER_SIZE = 2 * 1024 * 1024;
 
@@ -177,7 +178,7 @@ public class RayletClientImpl implements RayletClient {
       int objectIdOffset = 0;
       int dataOffset = 0;
       if (task.args[i].id != null) {
-        int[] idOffsets = new int[] {
+        int[] idOffsets = new int[]{
             fbb.createString(task.args[i].id.toByteBuffer())
         };
         objectIdOffset = fbb.createVectorOfTables(idOffsets);
@@ -229,8 +230,8 @@ public class RayletClientImpl implements RayletClient {
 
     if (buffer.remaining() > MAX_SUBMIT_TASK_BUFFER_SIZE) {
       RayLog.core.error(
-          "Allocated buffer is not enough to transfer the task specification: " +
-                  MAX_SUBMIT_TASK_BUFFER_SIZE + " vs " + buffer.remaining());
+          "Allocated buffer is not enough to transfer the task specification: "
+              + MAX_SUBMIT_TASK_BUFFER_SIZE + " vs " + buffer.remaining());
       assert (false);
     }
 
@@ -249,7 +250,6 @@ public class RayletClientImpl implements RayletClient {
   public void destroy() {
     nativeDestroy(client);
   }
-
 
   /// Native method declarations.
   ///
