@@ -231,6 +231,8 @@ public class RunManager {
     cmd.add(WORKER_CLASS);
     String command = Joiner.on(" ").join(cmd);
     LOGGER.debug("Worker command is: {}", command);
+    System.out.println(classpath);
+    System.out.println(command);
     return command;
   }
 

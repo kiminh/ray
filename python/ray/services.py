@@ -1033,6 +1033,7 @@ def start_raylet(redis_address,
                             "--redis-address={}".format(
                                 sys.executable, worker_path, node_ip_address,
                                 plasma_store_name, raylet_name, redis_address))
+    java_worker_command = build_java_worker_command(redis_address, plasma_store_name, raylet_name)
 
     command = [
         RAYLET_EXECUTABLE,
@@ -1045,7 +1046,8 @@ def start_raylet(redis_address,
         str(maximum_startup_concurrency),
         resource_argument,
         start_worker_command,
-        "",  # Worker command for Java, not needed for Python.
+        # "",  # Worker command for Java, not needed for Python.
+        java_worker_command,
     ]
 
     if use_valgrind:
@@ -1071,6 +1073,19 @@ def start_raylet(redis_address,
                               [stdout_file, stderr_file])
 
     return raylet_name
+
+
+def build_java_worker_command(redis_address, plasma_store_name, raylet_name):
+    classpath = "/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/charsets.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/deploy.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/ext/cldrdata.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/ext/dnsns.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/ext/jaccess.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/ext/jfxrt.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/ext/localedata.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/ext/nashorn.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/ext/sunec.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/ext/sunjce_provider.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/ext/sunpkcs11.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/ext/zipfs.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/javaws.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/jce.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/jfr.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/jfxswt.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/jsse.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/management-agent.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/plugin.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/resources.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/jre/lib/rt.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/lib/ant-javafx.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/lib/dt.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/lib/javafx-mx.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/lib/jconsole.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/lib/packager.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/lib/sa-jdi.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_172.jdk/Contents/Home/lib/tools.jar:/Users/haochen/code/ant_ray/java/tutorial/target/classes:/Users/haochen/code/ant_ray/java/api/target/classes:/Users/haochen/.m2/repository/org/slf4j/slf4j-log4j12/1.7.25/slf4j-log4j12-1.7.25.jar:/Users/haochen/.m2/repository/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar:/Users/haochen/.m2/repository/log4j/log4j/1.2.17/log4j-1.2.17.jar:/Users/haochen/code/ant_ray/java/runtime/target/classes:/Users/haochen/.m2/repository/com/typesafe/config/1.3.2/config-1.3.2.jar:/Users/haochen/.m2/repository/org/apache/commons/commons-lang3/3.4/commons-lang3-3.4.jar:/Users/haochen/.m2/repository/de/ruedigermoeller/fst/2.47/fst-2.47.jar:/Users/haochen/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.5.3/jackson-core-2.5.3.jar:/Users/haochen/.m2/repository/org/javassist/javassist/3.19.0-GA/javassist-3.19.0-GA.jar:/Users/haochen/.m2/repository/org/objenesis/objenesis/2.4/objenesis-2.4.jar:/Users/haochen/.m2/repository/com/github/davidmoten/flatbuffers-java/1.9.0.1/flatbuffers-java-1.9.0.1.jar:/Users/haochen/.m2/repository/redis/clients/jedis/2.8.0/jedis-2.8.0.jar:/Users/haochen/.m2/repository/org/apache/commons/commons-pool2/2.3/commons-pool2-2.3.jar:/Users/haochen/.m2/repository/org/apache/arrow/arrow-plasma/0.10.0/arrow-plasma-0.10.0.jar:/Users/haochen/.m2/repository/commons-io/commons-io/2.5/commons-io-2.5.jar:/Users/haochen/.m2/repository/com/google/guava/guava/19.0/guava-19.0.jar:/Users/haochen/.m2/repository/net/lingala/zip4j/zip4j/1.3.2/zip4j-1.3.2.jar:/Users/haochen/.m2/repository/org/ini4j/ini4j/0.5.2/ini4j-0.5.2.jar:/Users/haochen/.m2/repository/org/ow2/asm/asm/6.0/asm-6.0.jar"
+    java_library_path = "/Users/haochen/code/arc/ray/java/test/../../build/src/plasma:/Users/haochen/code/arc/ray/java/test/../../build/src/local_scheduler"
+    command = (
+        "java -classpath %s -Djava.library.path=%s"
+        " -Dray.redis.address=%s"
+        " -Dray.object-store.socket-name=%s"
+        " -Dray.raylet.socket-name=%s"
+        " org.ray.runtime.runner.worker.DefaultWorker"
+    ) % (classpath, java_library_path, redis_address, plasma_store_name, raylet_name)
+    return command
 
 
 def start_plasma_store(node_ip_address,
