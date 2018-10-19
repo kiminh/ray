@@ -3,6 +3,7 @@ package org.ray.runtime.objectstore;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.arrow.plasma.ObjectStoreLink;
+import org.apache.arrow.plasma.exceptions.DuplicateObjectException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.ray.api.id.UniqueId;
 import org.ray.runtime.AbstractRayRuntime;
