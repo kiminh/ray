@@ -9,6 +9,7 @@ import org.ray.runtime.AbstractRayRuntime;
 import org.ray.runtime.util.Serializer;
 import org.ray.runtime.util.UniqueIdUtil;
 import org.ray.runtime.util.exception.TaskExecutionException;
+import org.ray.runtime.util.logger.RayLog;
 
 /**
  * Object store proxy, which handles serialization and deserialization, and utilize a {@code
@@ -72,7 +73,15 @@ public class ObjectStoreProxy {
   }
 
   public void put(UniqueId id, Object obj, Object metadata) {
-    store.put(id.getBytes(), Serializer.encode(obj), Serializer.encode(metadata));
+    //with DuplicateObjectException, print a log and ignore
+    try {
+      store.put(id.getBytes(), Serializer.encode(obj), Serializer.encode(metadata));
+    } catch (DuplicateObjectException e) {
+      //object with this ID already exists in the plasma store
+      RayLog.core.warn(e.getMessage() + " Object ID is " + id);
+    } catch (Exception e) {
+      RayLog.core.error(e.getMessage() + " Object ID is " + id, e);
+    }
   }
 
   public enum GetStatus {
