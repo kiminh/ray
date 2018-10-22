@@ -154,6 +154,9 @@ matrix:
 
         # ray tune tests
         - python python/ray/tune/test/dependency_test.py
+        - echo 'xxxxxxxxxxxxxxxxxxxx'
+        - python -m pytest -s python/ray/tune/test/trial_runner_test.py -k testCheckpointing
+        - echo 'xxxxxxxxxxxxxxxxxxxx'
         - python -m pytest -v python/ray/tune/test/trial_runner_test.py
         - python -m pytest -v python/ray/tune/test/trial_scheduler_test.py
         - python -m pytest -v python/ray/tune/test/experiment_test.py

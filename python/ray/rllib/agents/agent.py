@@ -195,6 +195,11 @@ class Agent(Trainable):
         # Vars to synchronize to evaluators on each train call
         self.global_vars = {"timestep": 0}
 
+        print('0'*20)
+        import inspect, pprint
+        print(env, config.get("env"), type(self))
+        pprint.pprint(inspect.stack())
+        print('0'*20)
         # Agents allow env ids to be passed directly to the constructor.
         self._env_id = env or config.get("env")
         if not self._env_id:
