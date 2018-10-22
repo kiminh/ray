@@ -10,13 +10,16 @@ import org.ray.runtime.AbstractRayRuntime;
 import org.ray.runtime.util.Serializer;
 import org.ray.runtime.util.UniqueIdUtil;
 import org.ray.runtime.util.exception.TaskExecutionException;
-import org.ray.runtime.util.logger.RayLog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Object store proxy, which handles serialization and deserialization, and utilize a {@code
  * org.ray.spi.ObjectStoreLink} to actually store data.
  */
 public class ObjectStoreProxy {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ObjectStoreProxy.class);
 
   private static final int GET_TIMEOUT_MS = 1000;
 
@@ -79,9 +82,9 @@ public class ObjectStoreProxy {
       store.put(id.getBytes(), Serializer.encode(obj), Serializer.encode(metadata));
     } catch (DuplicateObjectException e) {
       //object with this ID already exists in the plasma store
-      RayLog.core.warn(e.getMessage() + " Object ID is " + id);
+      LOGGER.warn(e.getMessage());
     } catch (Exception e) {
-      RayLog.core.error(e.getMessage() + " Object ID is " + id, e);
+      LOGGER.error("Fail to put object in object store", e);
     }
   }
 
