@@ -731,7 +731,9 @@ class ActorHandle(object):
             # same actor is likely a performance bug. We should consider
             # logging a warning in these cases.
             actor_handle_id = compute_actor_handle_id_non_forked(
-                ray.ObjectID(state["actor_handle_id"]), worker.current_task_id)
+                ray.ObjectID(state["actor_handle_id"]),
+                worker.task_context.current_task_id,
+            )
 
         # This is the driver ID of the driver that owns the actor, not
         # necessarily the driver that owns this actor handle.
