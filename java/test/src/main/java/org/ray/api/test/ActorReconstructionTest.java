@@ -6,11 +6,15 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.ray.api.Ray;
 import org.ray.api.RayActor;
 import org.ray.api.annotation.RayRemote;
 import org.ray.api.options.ActorCreationOptions;
+import org.ray.runtime.AbstractRayRuntime;
+import org.ray.runtime.config.RunMode;
 
 public class ActorReconstructionTest extends BaseTest {
 
@@ -27,6 +31,12 @@ public class ActorReconstructionTest extends BaseTest {
     public int getPid() {
       return pid();
     }
+  }
+
+  @BeforeClass
+  public static void beforeClass() {
+    AbstractRayRuntime runtime = (AbstractRayRuntime)Ray.internal();
+    Assume.assumeFalse(runtime.getRayConfig().runMode == RunMode.SINGLE_PROCESS);
   }
 
   @Test

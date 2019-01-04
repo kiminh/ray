@@ -21,8 +21,10 @@ public interface RayletClient {
 
   UniqueId generateTaskId(UniqueId driverId, UniqueId parentTaskId, int taskIndex);
 
-  <T> WaitResult<T> wait(List<RayObject<T>> waitFor, int numReturns, int
+  <T> WaitResult<T> wait(List<RayObject<T>> waitList, int numReturns, int
       timeoutMs, UniqueId currentTaskId);
 
   void freePlasmaObjects(List<UniqueId> objectIds, boolean localOnly);
+
+  void destroy();
 }

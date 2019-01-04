@@ -1,14 +1,15 @@
 package org.ray.runtime.objectstore;
 
+import com.google.common.base.Preconditions;
+
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import org.apache.arrow.plasma.ObjectStoreLink;
+import org.apache.commons.lang3.NotImplementedException;
 import org.ray.api.id.UniqueId;
-import org.ray.runtime.RayDevRuntime;
-import org.ray.runtime.raylet.MockRayletClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,64 +19,79 @@ import org.slf4j.LoggerFactory;
 public class MockObjectStore implements ObjectStoreLink {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MockObjectStore.class);
-  private final RayDevRuntime runtime;
+
+  private static final int GET_CHECK_INTERVAL_MS = 100;
+
   private final Map<UniqueId, byte[]> data = new ConcurrentHashMap<>();
   private final Map<UniqueId, byte[]> metadata = new ConcurrentHashMap<>();
-  private MockRayletClient scheduler = null;
 
-  public MockObjectStore(RayDevRuntime runtime) {
-    this.runtime = runtime;
+  private final List<Consumer<UniqueId>> objectPutCallbacks;
+
+  public MockObjectStore() {
+    this.objectPutCallbacks = new ArrayList<>();
+  }
+
+  public void addObjectPutCallback(Consumer<UniqueId> callback) {
+    this.objectPutCallbacks.add(callback);
   }
 
   @Override
   public void put(byte[] objectId, byte[] value, byte[] metadataValue) {
-    if (objectId == null || objectId.length == 0 || value == null) {
-      LOGGER
-          .error("{} cannot put null: {}, {}", logPrefix(), objectId, Arrays.toString(value));
-      System.exit(-1);
+    Preconditions.checkArgument(objectId != null && objectId.length != 0);
+    Preconditions.checkArgument(value != null);
+    data.put(new UniqueId(objectId), value);
+    metadata.put(new UniqueId(objectId), metadataValue);
+    UniqueId id = new UniqueId(objectId);
+    for (Consumer<UniqueId> callback : objectPutCallbacks) {
+      callback.accept(id);
     }
-    UniqueId uniqueId = new UniqueId(objectId);
-    data.put(uniqueId, value);
-    if (metadataValue != null) {
-      metadata.put(uniqueId, metadataValue);
-    }
-    if (scheduler != null) {
-      scheduler.onObjectPut(uniqueId);
-    }
+  }
+
+  @Override
+  public byte[] get(byte[] objectId, int timeoutMs, boolean isMetadata) {
+    return get(new byte[][] {objectId}, timeoutMs, isMetadata).get(0);
   }
 
   @Override
   public List<byte[]> get(byte[][] objectIds, int timeoutMs, boolean isMetadata) {
-    final Map<UniqueId, byte[]> dataMap = isMetadata ? metadata : data;
-    ArrayList<byte[]> rets = new ArrayList<>(objectIds.length);
-    for (byte[] objId : objectIds) {
-      UniqueId uniqueId = new UniqueId(objId);
-      LOGGER.info("{} is notified for objectid {}",logPrefix(), uniqueId);
-      rets.add(dataMap.get(uniqueId));
-    }
-    return rets;
-  }
-
-  @Override
-  public List<byte[]> wait(byte[][] objectIds, int timeoutMs, int numReturns) {
-    ArrayList<byte[]> rets = new ArrayList<>();
-    for (byte[] objId : objectIds) {
-      //tod test
-      if (data.containsKey(new UniqueId(objId))) {
-        rets.add(objId);
+    int ready = 0;
+    int remainingTime = timeoutMs;
+    while (ready < objectIds.length && remainingTime > 0) {
+      int sleepTime = Math.min(remainingTime, GET_CHECK_INTERVAL_MS);
+      try {
+        Thread.sleep(sleepTime);
+      } catch (InterruptedException e) {
+        LOGGER.warn("Got InterruptedException while sleeping.");
+      }
+      remainingTime -= sleepTime;
+      ready = 0;
+      for (byte[] id : objectIds) {
+        if (data.containsKey(new UniqueId(id))) {
+          ready += 1;
+        }
       }
     }
-    return rets;
+    List<byte[]> res = new ArrayList<>();
+    if (!isMetadata) {
+      for (byte[] id : objectIds) {
+        res.add(data.get(new UniqueId(id)));
+      }
+    } else {
+      for (byte[] id : objectIds) {
+        res.add(metadata.get(new UniqueId(id)));
+      }
+    }
+    return res;
   }
 
   @Override
-  public byte[] hash(byte[] objectId) {
+  public List<ObjectStoreData> get(byte[][] objectIds, int timeoutMs) {
     return null;
   }
 
   @Override
-  public void fetch(byte[][] objectIds) {
-
+  public byte[] hash(byte[] objectId) {
+    throw new NotImplementedException("");
   }
 
   @Override
@@ -89,13 +105,13 @@ public class MockObjectStore implements ObjectStoreLink {
   }
 
   @Override
-  public boolean contains(byte[] objectId) {
+  public void delete(byte[] bytes) {
 
-    return data.containsKey(new UniqueId(objectId));
   }
 
-  private String logPrefix() {
-    return runtime.getWorkerContext().getCurrentTask().taskId + "-" + getUserTrace() + " -> ";
+  @Override
+  public boolean contains(byte[] objectId) {
+    return data.containsKey(new UniqueId(objectId));
   }
 
   private String getUserTrace() {
@@ -112,7 +128,9 @@ public class MockObjectStore implements ObjectStoreLink {
     return data.containsKey(id);
   }
 
-  public void registerScheduler(MockRayletClient s) {
-    scheduler = s;
+  public void free(UniqueId id) {
+    data.remove(id);
+    metadata.remove(id);
   }
+
 }

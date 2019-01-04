@@ -102,6 +102,7 @@ public class TaskSpec {
         ", returnIds=" + Arrays.toString(returnIds) +
         ", resources=" + ResourceUtil.getResourcesStringFromMap(resources) +
         ", functionDescriptor=" + functionDescriptor +
+        ", executionDependencies=" + executionDependencies +
         '}';
   }
 }

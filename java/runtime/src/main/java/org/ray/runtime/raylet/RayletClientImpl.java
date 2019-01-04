@@ -48,15 +48,15 @@ public class RayletClientImpl implements RayletClient {
   }
 
   @Override
-  public <T> WaitResult<T> wait(List<RayObject<T>> waitFor, int numReturns, int
+  public <T> WaitResult<T> wait(List<RayObject<T>> waitList, int numReturns, int
       timeoutMs, UniqueId currentTaskId) {
-    Preconditions.checkNotNull(waitFor);
-    if (waitFor.isEmpty()) {
+    Preconditions.checkNotNull(waitList);
+    if (waitList.isEmpty()) {
       return new WaitResult<>(new ArrayList<>(), new ArrayList<>());
     }
 
     List<UniqueId> ids = new ArrayList<>();
-    for (RayObject<T> element : waitFor) {
+    for (RayObject<T> element : waitList) {
       ids.add(element.getId());
     }
 
@@ -67,9 +67,9 @@ public class RayletClientImpl implements RayletClient {
 
     for (int i = 0; i < ready.length; i++) {
       if (ready[i]) {
-        readyList.add(waitFor.get(i));
+        readyList.add(waitList.get(i));
       } else {
-        unreadyList.add(waitFor.get(i));
+        unreadyList.add(waitList.get(i));
       }
     }
 

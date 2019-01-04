@@ -1,9 +1,16 @@
 package org.ray.runtime.raylet;
 
 import com.google.common.collect.ImmutableList;
+
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import org.ray.api.RayObject;
 import org.ray.api.WaitResult;
 import org.ray.api.id.UniqueId;
@@ -11,53 +18,81 @@ import org.ray.runtime.RayDevRuntime;
 import org.ray.runtime.objectstore.MockObjectStore;
 import org.ray.runtime.task.FunctionArg;
 import org.ray.runtime.task.TaskSpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A mock implementation of RayletClient, used in single process mode.
  */
 public class MockRayletClient implements RayletClient {
+  private static final Logger LOGGER = LoggerFactory.getLogger(MockRayletClient.class);
 
-  private final Map<UniqueId, Map<UniqueId, TaskSpec>> waitTasks = new ConcurrentHashMap<>();
+  private final Map<UniqueId, Set<TaskSpec>> waitingTasks = new ConcurrentHashMap<>();
   private final MockObjectStore store;
   private final RayDevRuntime runtime;
+  private final ExecutorService exec;
 
-  public MockRayletClient(RayDevRuntime runtime, MockObjectStore store) {
+  public MockRayletClient(RayDevRuntime runtime, int numberThreads) {
     this.runtime = runtime;
-    this.store = store;
-    store.registerScheduler(this);
+    this.store = runtime.getObjectStore();
+    store.addObjectPutCallback(this::onObjectPut);
+    // the thread pool that executes tasks in parallel
+    exec = Executors.newFixedThreadPool(numberThreads);
   }
 
   public void onObjectPut(UniqueId id) {
-    Map<UniqueId, TaskSpec> bucket = waitTasks.get(id);
-    if (bucket != null) {
-      waitTasks.remove(id);
-      for (TaskSpec ts : bucket.values()) {
-        submitTask(ts);
+    LOGGER.debug("Object {} is ready.", id);
+    Set<TaskSpec> tasks = waitingTasks.get(id);
+    if (tasks != null) {
+      waitingTasks.remove(id);
+      for (TaskSpec taskSpec : tasks) {
+        submitTask(taskSpec);
       }
     }
   }
 
   @Override
   public void submitTask(TaskSpec task) {
-    UniqueId id = isTaskReady(task);
-    if (id == null) {
-      runtime.getWorker().execute(task);
+    LOGGER.debug("Submitting task: {}.", task);
+    Set<UniqueId> unreadyObjects = getUnreadyObjects(task);
+    if (unreadyObjects.isEmpty()) {
+      // If all dependencies are ready, execute this task.
+      exec.submit(() -> {
+        runtime.getWorker().execute(task);
+        // If the task is an actor task or an actor creation task,
+        // put the dummy object in object store, so those tasks which depends on it can be executed.
+        if (task.isActorCreationTask() || task.isActorTask()) {
+          UniqueId[] returnIds = task.returnIds;
+          store.put(returnIds[returnIds.length - 1].getBytes(),
+                  new byte[]{}, new byte[]{});
+        }
+      });
     } else {
-      Map<UniqueId, TaskSpec> bucket = waitTasks
-          .computeIfAbsent(id, id_ -> new ConcurrentHashMap<>());
-      bucket.put(id, task);
+      // If some dependencies aren't ready yet, put this task in waiting list.
+      for (UniqueId id : unreadyObjects) {
+        waitingTasks.computeIfAbsent(id, k -> new HashSet<>()).add(task);
+      }
     }
   }
 
-  private UniqueId isTaskReady(TaskSpec spec) {
+  private Set<UniqueId> getUnreadyObjects(TaskSpec spec) {
+    Set<UniqueId> unreadyObjects = new HashSet<>();
+    // check whether the arguments which this task needs is ready
     for (FunctionArg arg : spec.args) {
       if (arg.id != null) {
         if (!store.isObjectReady(arg.id)) {
-          return arg.id;
+          // if this objectId doesn't exist in store, then return this objectId
+          unreadyObjects.add(arg.id);
         }
       }
     }
-    return null;
+    // check whether the dependencies which this task needs is ready
+    for (UniqueId id : spec.getExecutionDependencies()) {
+      if (!store.isObjectReady(id)) {
+        unreadyObjects.add(id);
+      }
+    }
+    return unreadyObjects;
   }
 
   @Override
@@ -82,16 +117,37 @@ public class MockRayletClient implements RayletClient {
   }
 
   @Override
-  public <T> WaitResult<T> wait(List<RayObject<T>> waitFor, int numReturns, int
+  public <T> WaitResult<T> wait(List<RayObject<T>> waitList, int numReturns, int
       timeoutMs, UniqueId currentTaskId) {
-    return new WaitResult<T>(
-        waitFor,
-        ImmutableList.of()
-    );
+    if (waitList == null || waitList.isEmpty()) {
+      return new WaitResult<>(ImmutableList.of(), ImmutableList.of());
+    }
+    byte[][] ids = new byte[waitList.size()][];
+    for (int i = 0; i < waitList.size(); i++) {
+      ids[i] = waitList.get(i).getId().getBytes();
+    }
+    List<RayObject<T>> readyList = new ArrayList<>();
+    List<RayObject<T>> unreadyList = new ArrayList<>();
+    List<byte[]> result = store.get(ids, timeoutMs, false);
+    for (int i = 0; i < waitList.size(); i++) {
+      if (result.get(i) != null) {
+        readyList.add(waitList.get(i));
+      } else {
+        unreadyList.add(waitList.get(i));
+      }
+    }
+    return new WaitResult<>(readyList, unreadyList);
   }
 
   @Override
   public void freePlasmaObjects(List<UniqueId> objectIds, boolean localOnly) {
-    return;
+    for (UniqueId id : objectIds) {
+      store.free(id);
+    }
+  }
+
+  @Override
+  public void destroy() {
+    exec.shutdown();
   }
 }
