@@ -107,6 +107,7 @@ public class MultiLanguageClusterTest {
 
   @Test
   public void testMultiLanguageCluster() {
+    LOGGER.info("testMultiLanguageCluster");
     RayObject<String> obj = Ray.call(MultiLanguageClusterTest::echo, "hello");
     Assert.assertEquals("hello", obj.get());
   }

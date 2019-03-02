@@ -8,6 +8,8 @@ import org.ray.api.RayObject;
 import org.ray.api.WaitResult;
 import org.ray.api.annotation.RayRemote;
 import org.ray.api.id.UniqueId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -19,8 +21,11 @@ public class PlasmaFreeTest extends BaseTest {
     return "hello";
   }
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(PlasmaFreeTest.class);
+
   @Test
   public void test() {
+    LOGGER.info("PlasmaFreeTest");
     RayObject<String> helloId = Ray.call(PlasmaFreeTest::hello);
     String helloString = helloId.get();
     Assert.assertEquals("hello", helloString);

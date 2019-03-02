@@ -18,6 +18,7 @@ public class ClientExceptionTest extends BaseTest {
 
   @Test
   public void testWaitAndCrash() {
+    LOGGER.info("testWaitAndCrash");
     UniqueId randomId = UniqueId.randomId();
     RayObject<String> notExisting = new RayObjectImpl(randomId);
 
