@@ -138,8 +138,8 @@ int main(int argc, char *argv[]) {
   auto handler = [&main_service, &raylet_socket_name, &server, &gcs_client](
       const boost::system::error_code &error, int signal_number) {
     auto shutdown_callback = [&server, &main_service, &raylet_socket_name]() {
-      server.reset();
       remove(raylet_socket_name.c_str());
+      server.reset();
       main_service.stop();
     };
     RAY_CHECK_OK(gcs_client->client_table().Disconnect(shutdown_callback));
