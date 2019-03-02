@@ -139,10 +139,10 @@ int main(int argc, char *argv[]) {
       const boost::system::error_code &error, int signal_number) {
     auto shutdown_callback = [&server, &main_service, &raylet_socket_name]() {
       server.reset();
+      remove(raylet_socket_name.c_str());
       main_service.stop();
     };
     RAY_CHECK_OK(gcs_client->client_table().Disconnect(shutdown_callback));
-    remove(raylet_socket_name.c_str());
   };
   boost::asio::signal_set signals(main_service, SIGTERM);
   signals.async_wait(handler);
