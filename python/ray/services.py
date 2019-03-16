@@ -1226,7 +1226,7 @@ def determine_plasma_store_config(object_store_memory=None,
 
     # Choose a default object store size.
     if object_store_memory is None:
-        object_store_memory = int(system_memory * 0.3)
+        object_store_memory = int(system_memory * 0.22)
         # Cap memory to avoid memory waste and perf issues on large nodes
         if (object_store_memory >
                 ray_constants.DEFAULT_OBJECT_STORE_MAX_MEMORY_BYTES):
