@@ -216,31 +216,44 @@ Status RedisContext::AttachToEventLoop(aeEventLoop *loop) {
 Status RedisContext::RunAsync(const std::string &command, const UniqueID &id,
                               const uint8_t *data, int64_t length,
                               const TablePrefix prefix, const TablePubsub pubsub_channel,
-                              RedisCallback redisCallback, int log_length) {
+                              RedisCallback redisCallback, const BatchID &batch_id,
+                              int log_length) {
   int64_t callback_index =
       redisCallback != nullptr ? RedisCallbackManager::instance().add(redisCallback) : -1;
   if (length > 0) {
     if (log_length >= 0) {
-      std::string redis_command = command + " %d %d %b %b %d";
+      std::string redis_command = command + " %d %d %b %b %b %d";
       int status = redisAsyncCommand(
           async_context_, reinterpret_cast<redisCallbackFn *>(&GlobalRedisCallback),
           reinterpret_cast<void *>(callback_index), redis_command.c_str(), prefix,
-          pubsub_channel, id.data(), id.size(), data, length, log_length);
+          pubsub_channel, id.data(), id.size(), data, length,
+          batch_id.binary().c_str(), batch_id.binary().size(), log_length);
       if (status == REDIS_ERR) {
         return Status::RedisError(std::string(async_context_->errstr));
       }
     } else {
-      std::string redis_command = command + " %d %d %b %b";
-      int status = redisAsyncCommand(
-          async_context_, reinterpret_cast<redisCallbackFn *>(&GlobalRedisCallback),
-          reinterpret_cast<void *>(callback_index), redis_command.c_str(), prefix,
-          pubsub_channel, id.data(), id.size(), data, length);
+      int status;
+      if (batch_id.is_nil()) {
+        std::string redis_command = command + " %d %d %b %b";
+        status = async_context_->CommandAsync(
+            &GlobalRedisCallback, reinterpret_cast<void *>(callback_index),
+            redis_command.c_str(), prefix, pubsub_channel,
+            id.data(), id.size(), data, length);
+      } else {
+        std::string redis_command = command + " %d %d %b %b %b";
+        status = async_context_->CommandAsync(
+            &GlobalRedisCallback, reinterpret_cast<void *>(callback_index),
+            redis_command.c_str(), prefix, pubsub_channel, id.data(), id.size(),
+            data, length, batch_id.binary().c_str(), batch_id.binary().size());
+      }
+
       if (status == REDIS_ERR) {
         return Status::RedisError(std::string(async_context_->errstr));
       }
     }
   } else {
-    RAY_CHECK(log_length == -1);
+    // batch_id is not used in this code path.
+    RAY_CHECK(log_length == -1 && batch_id.is_nil());
     std::string redis_command = command + " %d %d %b";
     int status = redisAsyncCommand(
         async_context_, reinterpret_cast<redisCallbackFn *>(&GlobalRedisCallback),

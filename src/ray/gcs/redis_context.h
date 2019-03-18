@@ -65,6 +65,7 @@ class RedisContext {
   /// \param prefix
   /// \param pubsub_channel
   /// \param redisCallback The Redis callback function.
+  /// \param batch_id The batch id to bind for the ID. This is optional.
   /// \param log_length The RAY.TABLE_APPEND command takes in an optional index
   /// at which the data must be appended. For all other commands, set to
   /// -1 for unused. If set, then data must be provided.
@@ -72,7 +73,7 @@ class RedisContext {
   Status RunAsync(const std::string &command, const UniqueID &id, const uint8_t *data,
                   int64_t length, const TablePrefix prefix,
                   const TablePubsub pubsub_channel, RedisCallback redisCallback,
-                  int log_length = -1);
+                  const BatchID& batch_id = BatchID(), int log_length = -1);
 
   /// Run an arbitrary Redis command without a callback.
   ///

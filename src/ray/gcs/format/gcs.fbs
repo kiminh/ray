@@ -22,6 +22,7 @@ enum TablePrefix:int {
   TASK_LEASE,
   ACTOR_CHECKPOINT,
   ACTOR_CHECKPOINT_ID,
+  BATCH_RESOURCE,
 }
 
 // The channel that Add operations to the Table should be published on, if any.
@@ -37,6 +38,7 @@ enum TablePubsub:int {
   ERROR_INFO,
   TASK_LEASE,
   DRIVER,
+  BATCH_CLEAN,
 }
 
 table Arg {
@@ -99,6 +101,8 @@ table TaskInfo {
   // TODO(hchen): after changing Python worker to use function_descriptor,
   // function_id can be removed.
   function_descriptor: [string];
+  // Batch ID of the task.
+  batch_id: string;
 }
 
 table ResourcePair {
@@ -362,4 +366,13 @@ enum ErrorType:int {
   // 2) The object's creating task is already cleaned up from GCS (this currently
   //    crashes raylet).
   OBJECT_UNRECONSTRUCTABLE = 3,
+}
+
+// One batch object which will be deleted when batch finishes.
+// This object will be added to a BATCH_OBJECT_TABLE.
+table BatchResourceData {
+  // The object prefix to mark the object type: object/function/task/actor.
+  prefix: TablePrefix;
+  // The correpending id.
+  object_id: string;
 }

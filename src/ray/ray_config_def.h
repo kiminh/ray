@@ -148,3 +148,6 @@ RAY_CONFIG(uint32_t, num_actor_checkpoints_to_keep, 20);
 
 /// Maximum number of ids in one batch to send to GCS to delete keys.
 RAY_CONFIG(uint32_t, maximum_gcs_deletion_batch_size, 1000);
+
+/// The delay time for batch clean to wait for object free.
+RAY_CONFIG(int64_t, batch_clean_delay_ms, 1000);

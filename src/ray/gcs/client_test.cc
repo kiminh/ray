@@ -1291,6 +1291,194 @@ TEST_F(TestGcsWithAsio, TestClientTableMarkDisconnected) {
   TestClientTableMarkDisconnected(job_id_, client_);
 }
 
+void TestBatchResourceTableClean(const JobID &job_id,
+                                 std::shared_ptr<gcs::AsyncGcsClient> client) {
+  // The resource Ids.
+  BatchID batch_id = BatchID::from_random();
+  auto client_id = client->client_table().GetLocalClientId();
+  std::unordered_map<UniqueID, TablePrefix> resultMap;
+  ActorID actor_id = ActorID::from_random();
+  resultMap.emplace(actor_id, TablePrefix::ACTOR);
+  ObjectID object_id = ObjectID::from_random();
+  resultMap.insert(std::make_pair(object_id, TablePrefix::OBJECT));
+  TaskID task_id = TaskID::from_random();
+  resultMap[task_id] = TablePrefix::TASK;
+  TaskID raylet_task_id = TaskID::from_random();
+  resultMap[raylet_task_id] = TablePrefix::RAYLET_TASK;
+  // The following data is added to batch when they are added to GCS. There is no
+  // explicit call to add it to batch.
+  std::unordered_map<UniqueID, TablePrefix> resultMap_implicit;
+  TaskID raylet_task_id2 = TaskID::from_random();
+  resultMap_implicit.emplace(raylet_task_id2,TablePrefix::RAYLET_TASK);
+  ActorID actor_id2 = ActorID::from_random();
+  resultMap_implicit.emplace(actor_id2, TablePrefix::ACTOR);
+  ObjectID object_id2 = ObjectID::from_random();
+  resultMap_implicit.insert(std::make_pair(object_id2, TablePrefix::OBJECT));
+  auto batchCleanCallback = [&resultMap, resultMap_implicit](AsyncGcsClient *client, const BatchID &id,
+                                                             const std::vector<BatchResourceDataT> &data) {
+      // This is the clean processing function. Here we just verify the information.
+      ASSERT_EQ(data.size(), resultMap.size() + resultMap_implicit.size());
+      for (const auto &resource : data) {
+        auto id = UniqueID::from_binary(resource.object_id);
+        auto iter = resultMap.find(id);
+        if (iter != resultMap.end())
+        {
+          ASSERT_TRUE(iter->second == resource.prefix);
+        } else {
+          auto iter2 = resultMap_implicit.find(id);
+          ASSERT_TRUE(iter2 != resultMap_implicit.end());
+          ASSERT_TRUE(iter2->second == resource.prefix);
+        }
+
+      }
+  };
+
+  auto onSubSuccessCallback = [](AsyncGcsClient *client) { ASSERT_TRUE(true); };
+  // Subscribe the BatchClean message.
+  RAY_CHECK_OK(client->batch_resource_table().SubscribeBatchClean(
+      job_id, batchCleanCallback, onSubSuccessCallback));
+  // It is fine to clean a batch_id that does not exist.
+  // Redis server will found this is empty and it will do nothing.
+  RAY_CHECK_OK(client->batch_resource_table().CleanBatchResources(batch_id));
+  // Add everything to BatchResourceTable.
+  // Check that we added the correct batch_object.
+
+  auto add_callback = [batch_id, resultMap](gcs::AsyncGcsClient *client,
+                                            const UniqueID &id,
+                                            const BatchResourceDataT &d) {
+      ASSERT_EQ(batch_id, id);
+      auto iter = resultMap.find(UniqueID::from_binary(d.object_id));
+      ASSERT_TRUE(iter != resultMap.end());
+      ASSERT_EQ(iter->second, d.prefix);
+  };
+
+  for (auto &pair : resultMap) {
+    auto data = std::make_shared<BatchResourceDataT>();
+    data->prefix = pair.second;
+    data->object_id = pair.first.binary();
+    RAY_CHECK_OK(
+        client->batch_resource_table().Append(job_id, batch_id, data, add_callback));
+  }
+
+  // Add the fake actors info to GCS. One will be deleted and one will not.
+  auto actor_data = std::make_shared<ActorTableDataT>();
+  actor_data->actor_id = actor_id.binary();
+  actor_data->actor_creation_dummy_object_id = object_id.binary();
+  actor_data->driver_id = job_id.binary();
+  actor_data->node_manager_id = client_id.binary();
+  RAY_CHECK_OK(client->actor_table().Append(JobID::nil(), actor_id, actor_data, nullptr));
+  ActorID actor_id3 = ActorID::from_random();
+  RAY_CHECK_OK(
+      client->actor_table().Append(JobID::nil(), actor_id3, actor_data, nullptr));
+
+  // Add the fake objects info to GCS. One will be deleted and one will not.
+  auto object_data = std::make_shared<ObjectTableDataT>();
+  object_data->manager = client_id.binary();
+  object_data->is_eviction = false;
+  object_data->num_evictions = 151;
+  RAY_CHECK_OK(client->object_table().Append(job_id, object_id, object_data, nullptr));
+  ObjectID object_id3 = ObjectID::from_random();
+  RAY_CHECK_OK(client->object_table().Append(job_id, object_id3, object_data, nullptr));
+  object_data->num_evictions += 10;
+  RAY_CHECK_OK(client->object_table().Append(job_id, object_id, object_data, nullptr));
+  RAY_CHECK_OK(client->object_table().Append(job_id, object_id3, object_data, nullptr));
+
+  // Add the raylet tasks info to GCS. One will be deleted and one will not.
+  auto raylet_task_data = std::make_shared<protocol::TaskT>();
+  raylet_task_data->task_specification = "Raylet Task info";
+  RAY_CHECK_OK(
+      client->raylet_task_table().Add(job_id, raylet_task_id, raylet_task_data, nullptr));
+  TaskID raylet_task_id3 = TaskID::from_random();
+  RAY_CHECK_OK(client->raylet_task_table().Add(job_id, raylet_task_id3, raylet_task_data,
+                                               nullptr));
+
+  // The following data will be added to table with batch id specified.
+  RAY_CHECK_OK(client->actor_table().AppendAt(job_id, actor_id2, actor_data, nullptr, nullptr, 0, batch_id));
+  RAY_CHECK_OK(client->object_table().Append(job_id, object_id2, object_data, nullptr, batch_id));
+  RAY_CHECK_OK(client->raylet_task_table().Add(job_id, raylet_task_id2, raylet_task_data,
+                                               nullptr, batch_id));
+  RAY_LOG(ERROR) << "actor_id2:" << actor_id2;
+
+  // Do the batch clean.
+  RAY_CHECK_OK(client->batch_resource_table().CleanBatchResources(batch_id));
+
+  // Check.
+  // The callbacks to check that one object is deleted and one object remains.
+  auto actor_callback = [actor_id, actor_id2, actor_id3, actor_data](
+      gcs::AsyncGcsClient *client, const TaskID &id,
+      const std::vector<ActorTableDataT> &d) {
+      if (id == actor_id3) {
+        ASSERT_EQ(d.size(), 1);
+        ASSERT_EQ(d[0].actor_id, actor_data->actor_id);
+        ASSERT_EQ(d[0].actor_creation_dummy_object_id,
+                  actor_data->actor_creation_dummy_object_id);
+        ASSERT_EQ(d[0].driver_id, actor_data->driver_id);
+        ASSERT_EQ(d[0].node_manager_id, actor_data->node_manager_id);
+      } else if (id == actor_id || id == actor_id2) {
+        ASSERT_EQ(d.size(), 0);
+      } else {
+        ASSERT_TRUE(false);
+      }
+  };
+
+  auto object_callback = [object_id, object_id2, object_id3, object_data](
+      gcs::AsyncGcsClient *client, const TaskID &id,
+      const std::vector<ObjectTableDataT> &d) {
+      if (id == object_id3) {
+        ASSERT_EQ(d.size(), 2);
+        ASSERT_EQ(object_data->manager, d[0].manager);
+        ASSERT_EQ(object_data->is_eviction, d[0].is_eviction);
+        ASSERT_EQ(object_data->num_evictions - 10, d[0].num_evictions);
+        ASSERT_EQ(object_data->manager, d[1].manager);
+        ASSERT_EQ(object_data->is_eviction, d[1].is_eviction);
+        ASSERT_EQ(object_data->num_evictions, d[1].num_evictions);
+      } else if (id == object_id || id == object_id2) {
+        RAY_LOG(ERROR) << "1:"<< (id == object_id) << ",2:" << (id == object_id3) << ",size:" << d.size();
+        ASSERT_EQ(d.size(), 0);
+      } else {
+        ASSERT_TRUE(false);
+      }
+  };
+
+  auto callback_not_called = [](gcs::AsyncGcsClient *client, const UniqueID &id) {
+      ASSERT_TRUE(false);
+  };
+
+  auto expect_callback = [](gcs::AsyncGcsClient *client, const UniqueID &id) {
+      ASSERT_TRUE(true);
+  };
+
+  auto raylet_task_callback = [raylet_task_id3, raylet_task_data](
+      gcs::AsyncGcsClient *client, const TaskID &id,
+      const protocol::TaskT &d) {
+      ASSERT_EQ(id, raylet_task_id3);
+      ASSERT_EQ(raylet_task_data->task_specification, d.task_specification);
+      test->Stop();
+  };
+
+  // Lookup test for the existing and deleted batch resources.
+  RAY_CHECK_OK(client->actor_table().Lookup(job_id, actor_id, actor_callback));
+  RAY_CHECK_OK(client->actor_table().Lookup(job_id, actor_id2, actor_callback));
+  RAY_CHECK_OK(client->actor_table().Lookup(job_id, actor_id2, actor_callback));
+  RAY_CHECK_OK(client->object_table().Lookup(job_id, object_id, object_callback));
+  RAY_CHECK_OK(client->object_table().Lookup(job_id, object_id2, object_callback));
+  RAY_CHECK_OK(client->object_table().Lookup(job_id, object_id3, object_callback));
+  RAY_CHECK_OK(client->raylet_task_table().Lookup(job_id, raylet_task_id,
+                                                  raylet_task_callback, expect_callback));
+  RAY_CHECK_OK(client->raylet_task_table().Lookup(job_id, raylet_task_id2,
+                                                  raylet_task_callback, expect_callback));
+  RAY_CHECK_OK(client->raylet_task_table().Lookup(
+      job_id, raylet_task_id3, raylet_task_callback, callback_not_called));
+  test->Start();
+}
+
+TEST_MACRO(TestGcsWithAsio, TestBatchResourceTableClean);
+#if RAY_USE_NEW_GCS
+TEST_MACRO(TestGcsWithChainAsio, TestBatchResourceTableClean);
+#endif
+
+#endif
+
 #undef TEST_MACRO
 
 }  // namespace gcs

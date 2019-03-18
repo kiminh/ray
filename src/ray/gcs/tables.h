@@ -51,11 +51,15 @@ class LogInterface {
   using DataT = typename Data::NativeTableType;
   using WriteCallback =
       std::function<void(AsyncGcsClient *client, const ID &id, const DataT &data)>;
+
   virtual Status Append(const JobID &job_id, const ID &id, std::shared_ptr<DataT> &data,
-                        const WriteCallback &done) = 0;
+                        const WriteCallback &done, const BatchID &batch_id = BatchID()) = 0;
+
   virtual Status AppendAt(const JobID &job_id, const ID &task_id,
                           std::shared_ptr<DataT> &data, const WriteCallback &done,
-                          const WriteCallback &failure, int log_length) = 0;
+                          const WriteCallback &failure, int log_length,
+                          const BatchID &batch_id = BatchID()) = 0;
+
   virtual ~LogInterface(){};
 };
 
@@ -112,7 +116,7 @@ class Log : public LogInterface<ID, Data>, virtual public PubsubInterface<ID> {
   /// GCS.
   /// \return Status
   Status Append(const JobID &job_id, const ID &id, std::shared_ptr<DataT> &data,
-                const WriteCallback &done);
+                const WriteCallback &done, const BatchID &batch_id = BatchID());
 
   /// Append a log entry to a key if and only if the log has the given number
   /// of entries.
@@ -128,7 +132,7 @@ class Log : public LogInterface<ID, Data>, virtual public PubsubInterface<ID> {
   /// \return Status
   Status AppendAt(const JobID &job_id, const ID &id, std::shared_ptr<DataT> &data,
                   const WriteCallback &done, const WriteCallback &failure,
-                  int log_length);
+                  int log_length, const BatchID &batch_id = BatchID());
 
   /// Lookup the log values at a key asynchronously.
   ///
@@ -252,6 +256,9 @@ class Log : public LogInterface<ID, Data>, virtual public PubsubInterface<ID> {
   /// Commands to a GCS table can either be regular (default) or chain-replicated.
   CommandType command_type_ = CommandType::kRegular;
 
+  /// TODO(qwang): doc this.
+  void GetVecFromGcsTableEntry(std::vector<DataT> *out_vec, const GcsTableEntry &root);
+
   int64_t num_appends_ = 0;
   int64_t num_lookups_ = 0;
 };
@@ -262,7 +269,7 @@ class TableInterface {
   using DataT = typename Data::NativeTableType;
   using WriteCallback = typename Log<ID, Data>::WriteCallback;
   virtual Status Add(const JobID &job_id, const ID &task_id, std::shared_ptr<DataT> &data,
-                     const WriteCallback &done) = 0;
+                     const WriteCallback &done, const BatchID &batch_id = BatchID()) = 0;
   virtual ~TableInterface(){};
 };
 
@@ -306,7 +313,7 @@ class Table : private Log<ID, Data>,
   /// GCS.
   /// \return Status
   Status Add(const JobID &job_id, const ID &id, std::shared_ptr<DataT> &data,
-             const WriteCallback &done);
+             const WriteCallback &done, const BatchID &batch_id = BatchID());
 
   /// Lookup an entry asynchronously.
   ///
@@ -538,6 +545,28 @@ class TaskReconstructionLog : public Log<TaskID, TaskReconstructionData> {
   }
 };
 
+class BatchResourceTable : public Log<BatchID, BatchResourceTable> {
+ public:
+  BatchResourceTable(const std::vector<std::shared_ptr<RedisContext>> &context,
+                     AsyncGcsClient *client)
+      : Log(context, client), batch_clean_subscribe_callback_index_(-1) {
+    pubsub_channel_ = TablePubsub::NO_PUBLISH;
+    deletion_pubsub_channel_ = TablePubsub::BATCH_NEW;
+    prefix_ = TablePrefix::BATCH_RESOURCE;
+  }
+
+  Status CleanBatchResources(const BatchID &batch_id);
+
+  Status SubscribeBatchClean(const JobID &job_id, const Callback &subscribe,
+                             const SubscriptionCallback &done);
+
+ private:
+  TablePubsub deletion_pubsub_channel_;
+
+  int64_t batch_clean_subscribe_callback_index_;
+};
+
+
 class TaskLeaseTable : public Table<TaskID, TaskLeaseData> {
  public:
   TaskLeaseTable(const std::vector<std::shared_ptr<RedisContext>> &contexts,
@@ -548,7 +577,7 @@ class TaskLeaseTable : public Table<TaskID, TaskLeaseData> {
   }
 
   Status Add(const JobID &job_id, const TaskID &id, std::shared_ptr<TaskLeaseDataT> &data,
-             const WriteCallback &done) override {
+             const WriteCallback &done, const BatchID &batch_id = BatchID()) override {
     RAY_RETURN_NOT_OK((Table<TaskID, TaskLeaseData>::Add(job_id, id, data, done)));
     // Mark the entry for expiration in Redis. It's okay if this command fails
     // since the lease entry itself contains the expiration period. In the

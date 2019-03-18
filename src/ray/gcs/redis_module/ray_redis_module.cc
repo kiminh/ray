@@ -803,6 +803,99 @@ Status is_nil(bool *out, const std::string &data) {
   return Status::OK();
 }
 
+
+/// Clean all the objects/actors/tasks/functions under one batch.
+///
+/// This is called from a client with the command:
+///
+///    RAY.BATCH_CLEAN <table_prefix> <pubsub_channel> <batch_id>
+///
+/// \param table_prefix The prefix string for keys in batch table.
+/// \param pubsub_channel The pubsub channel name that notifications for
+///        this key should be published to.
+/// \param batch_id The ID of the batch to delete.
+/// \return OK.
+int BatchClean_RedisCommand(RedisModuleCtx *ctx,
+        RedisModuleString **argv, int argc) {
+  RedisModule_AutoMemory(ctx);
+  if (argc < 4) {
+    return RedisModule_WrongArity(ctx);
+  }
+  RedisModuleString *prefix_str = argv[1];
+  RedisModuleString *pubsub_channel_str = argv[2];
+  RedisModuleString *batch_id = argv[3];
+
+  // Publish this batch clean message before cleaning this table.
+  // Read the table content to form the publish message.
+  flatbuffers::FlatBufferBuilder fbb;
+  RedisModuleKey *table_key_read;
+  REPLY_AND_RETURN_IF_NOT_OK(
+          OpenPrefixedKey(&table_key_read, ctx, prefix_str, batch_id, REDISMODULE_READ));
+
+  if (table_key_read == nullptr) {
+    // This is an empty key, no need to process.
+    RedisModule_ReplyWithNull(ctx);
+    return REDISMODULE_OK;
+  } else {
+    auto batch_key = RedisModule_CreateStringFromLongLong(ctx, static_cast<long long>(TablePrefix::BATCH_RESOURCE));;
+    REPLY_AND_RETURN_IF_NOT_OK(TableEntryToFlatbuf(ctx, table_key_read, batch_key, batch_id, fbb));
+  }
+
+  TablePubsub pubsub_channel;
+  REPLY_AND_RETURN_IF_NOT_OK(ParseTablePubsub(&pubsub_channel, pubsub_channel_str));
+  if (pubsub_channel != TablePubsub::NO_PUBLISH) {
+    RedisModuleCallReply *reply =
+            RedisModule_Call(ctx, "PUBLISH", "sb", pubsub_channel_str,
+                    fbb.GetBufferPointer(), fbb.GetSize());
+    if (reply == nullptr) {
+      return RedisModule_ReplyWithError(ctx, "error during PUBLISH");
+    }
+  }
+
+  RedisModule_CloseKey(table_key_read);
+  RedisModuleKey *table_key;
+  REPLY_AND_RETURN_IF_NOT_OK(
+          OpenPrefixedKey(&table_key, ctx, prefix_str, batch_id, REDISMODULE_READ | REDISMODULE_WRITE));
+  auto key_type = RedisModule_KeyType(table_key);
+  char buffer[64] = {0};
+
+  if (key_type == REDISMODULE_KEYTYPE_ZSET) {
+    RAY_CHECK(RedisModule_ZsetFirstInScoreRange(table_key,
+            REDISMODULE_NEGATIVE_INFINITE, REDISMODULE_POSITIVE_INFINITE, 1, 1) == REDISMODULE_OK);
+
+    for (; !RedisModule_ZsetRangeEndReached(table_key); RedisModule_ZsetRangeNext(table_key)) {
+      RedisModuleString *redis_string =
+              RedisModule_ZsetRangeCurrentElement(table_key, nullptr);
+      const char *buf = RedisModule_StringPtrLen(redis_string, nullptr);
+      auto data = flatbuffers::GetRoot<BatchResourceData>(buf);
+      TablePrefix prefix_enum = data->prefix();
+      RAY_LOG(ERROR) << "BatchClean:" << static_cast<int>(prefix_enum)
+                     << ",id:" << from_flatbuf(*data->object_id());
+      // Delete the corresponding table.
+      sprintf(buffer, "%d", static_cast<int>(prefix_enum));
+      RedisModuleString *prefixed_name = RedisString_Format(ctx, "%s", buffer);
+      RedisModuleString *id_keyname =
+              RedisModule_CreateString(ctx, data->object_id()->str().c_str(),
+                      data->object_id()->str().length());
+      RedisModuleKey *delete_key;
+
+      REPLY_AND_RETURN_IF_NOT_OK(
+              OpenPrefixedKey(&delete_key, ctx, prefixed_name, id_keyname, REDISMODULE_WRITE));
+      RedisModule_DeleteKey(delete_key);
+    }
+
+    // Delete the batch resource table itself.
+    RedisModule_DeleteKey(table_key);
+
+  } else {
+    RedisModule_ReplyWithNull(ctx);
+    return REDISMODULE_OK;
+  }
+  RedisModule_ReplyWithSimpleString(ctx, "OK");
+  return REDISMODULE_OK;
+}
+
+
 // This is a temporary redis command that will be removed once
 // the GCS uses https://github.com/pcmoritz/credis.
 // Be careful, this only supports Task Table payloads.
@@ -880,6 +973,7 @@ AUTO_MEMORY(TableRequestNotifications_RedisCommand);
 AUTO_MEMORY(TableDelete_RedisCommand);
 AUTO_MEMORY(TableCancelNotifications_RedisCommand);
 AUTO_MEMORY(TableTestAndUpdate_RedisCommand);
+AUTO_MEMORY(BatchClean_RedisCommand);
 AUTO_MEMORY(DebugString_RedisCommand);
 #if RAY_USE_NEW_GCS
 AUTO_MEMORY(ChainTableAdd_RedisCommand);
@@ -943,6 +1037,11 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   if (RedisModule_CreateCommand(ctx, "ray.table_test_and_update",
                                 TableTestAndUpdate_RedisCommand, "write", 0, 0,
                                 0) == REDISMODULE_ERR) {
+    return REDISMODULE_ERR;
+  }
+
+  if (RedisModule_CreateCommand(ctx, "ray.batch_clean", BatchClean_RedisCommand,
+                                "write pubsub", 0, 0, 0) == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
 

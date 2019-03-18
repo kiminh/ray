@@ -39,7 +39,8 @@ namespace gcs {
 
 template <typename ID, typename Data>
 Status Log<ID, Data>::Append(const JobID &job_id, const ID &id,
-                             std::shared_ptr<DataT> &dataT, const WriteCallback &done) {
+                             std::shared_ptr<DataT> &dataT,
+                             const WriteCallback &done, const BatchID *batch_id) {
   num_appends_++;
   auto callback = [this, id, dataT, done](const std::string &data) {
     // If data is not empty, then Redis failed to append the entry.
@@ -55,13 +56,14 @@ Status Log<ID, Data>::Append(const JobID &job_id, const ID &id,
   fbb.Finish(Data::Pack(fbb, dataT.get()));
   return GetRedisContext(id)->RunAsync(GetLogAppendCommand(command_type_), id,
                                        fbb.GetBufferPointer(), fbb.GetSize(), prefix_,
-                                       pubsub_channel_, std::move(callback));
+                                       pubsub_channel_, std::move(callback), batch_id);
 }
 
 template <typename ID, typename Data>
 Status Log<ID, Data>::AppendAt(const JobID &job_id, const ID &id,
                                std::shared_ptr<DataT> &dataT, const WriteCallback &done,
-                               const WriteCallback &failure, int log_length) {
+                               const WriteCallback &failure, int log_length,
+                               const BatchID &batch_id) {
   num_appends_++;
   auto callback = [this, id, dataT, done, failure](const std::string &data) {
     if (data.empty()) {
@@ -80,7 +82,21 @@ Status Log<ID, Data>::AppendAt(const JobID &job_id, const ID &id,
   fbb.Finish(Data::Pack(fbb, dataT.get()));
   return GetRedisContext(id)->RunAsync(GetLogAppendCommand(command_type_), id,
                                        fbb.GetBufferPointer(), fbb.GetSize(), prefix_,
-                                       pubsub_channel_, std::move(callback), log_length);
+                                       pubsub_channel_, std::move(callback), batch_id,
+                                       log_length);
+}
+
+template <typename ID, typename Data>
+void Log<ID, Data>::GetVecFromGcsTableEntry(std::vector<DataT> *out_vec,
+                                            const GcsTableEntry &root) {
+  if (out_vec != nullptr) {
+    for (size_t i = 0; i < root.entries()->size(); i++) {
+      DataT result;
+      auto data_root = flatbuffers::GetRoot<Data>(root.entries()->Get(i)->data());
+      data_root->UnPackTo(&result);
+      out_vec->emplace_back(std::move(result));
+    }
+  }
 }
 
 template <typename ID, typename Data>
@@ -92,12 +108,7 @@ Status Log<ID, Data>::Lookup(const JobID &job_id, const ID &id, const Callback &
       if (!data.empty()) {
         auto root = flatbuffers::GetRoot<GcsTableEntry>(data.data());
         RAY_CHECK(from_flatbuf<ID>(*root->id()) == id);
-        for (size_t i = 0; i < root->entries()->size(); i++) {
-          DataT result;
-          auto data_root = flatbuffers::GetRoot<Data>(root->entries()->Get(i)->data());
-          data_root->UnPackTo(&result);
-          results.emplace_back(std::move(result));
-        }
+        GetVecFromGcsTableEntry(&results, *root);
       }
       lookup(client_, id, results);
     }
@@ -144,12 +155,7 @@ Status Log<ID, Data>::Subscribe(const JobID &job_id, const ClientID &client_id,
           id = from_flatbuf<ID>(*root->id());
         }
         std::vector<DataT> results;
-        for (size_t i = 0; i < root->entries()->size(); i++) {
-          DataT result;
-          auto data_root = flatbuffers::GetRoot<Data>(root->entries()->Get(i)->data());
-          data_root->UnPackTo(&result);
-          results.emplace_back(std::move(result));
-        }
+        GetVecFromGcsTableEntry(&results, *root);
         subscribe(client_, id, root->notification_mode(), results);
       }
     }
@@ -542,6 +548,55 @@ const std::unordered_map<ClientID, ClientTableDataT> &ClientTable::GetAllClients
   return client_cache_;
 }
 
+Status BatchResourceTable::CleanBatchResources(const BatchID &batch_id) {
+  std::vector<uint8_t> nil;
+  return GetRedisContext(batch_id)->RunAsync("RAY.BATCH_CLEAN", batch_id, nil.data(), nil.size(), prefix_,
+                                             deletion_pubsub_channel_, nullptr);
+}
+
+Status BatchResourceTable::SubscribeBatchClean(const JobID &job_id,
+                                               const Callback &subscribe,
+                                               const SubscriptionCallback &done) {
+  RAY_CHECK(batch_clean_subscribe_callback_index_ == -1)
+      << "Client called SubscribeBatchClean twice on the same table";
+  auto callback = [this, subscribe, done](const Status &status, const std::string &data) {
+      RAY_CHECK_OK(status);
+      if (data.empty()) {
+        // No notification data is provided. This is the callback for the
+        // initial subscription request.
+        if (done != nullptr) {
+          done(client_);
+        }
+      } else {
+        // Data is provided. This is the callback for a message.
+        if (subscribe != nullptr) {
+          std::vector<DataT> results;
+          BatchID id = BatchID::nil();
+          if (!data.empty()) {
+            auto root = flatbuffers::GetRoot<GcsTableEntry>(data.data());
+            id = from_flatbuf(*root->id());
+            GetVecFromGcsTableEntry(&results, *root);
+          }
+          subscribe(client_, id, results);
+        }
+      }
+      // We do not delete the callback after calling it since there may be
+      // more subscription messages.
+      return false;
+  };
+
+  batch_clean_subscribe_callback_index_ = 1;
+  for (auto &context : shard_contexts_) {
+    RAY_RETURN_NOT_OK(context->SubscribeAsync(ClientID::nil(), deletion_pubsub_channel_,
+                                              std::move(callback),
+                                              &batch_clean_subscribe_callback_index_));
+  }
+  return Status::OK();
+  //return GetRedisContext(batch_id)->SubscribeAsync(ClientID::nil(), deletion_pubsub_channel_,
+  //                                           std::move(callback));
+}
+
+
 Status ClientTable::Lookup(const Callback &lookup) {
   RAY_CHECK(lookup != nullptr);
   return Log::Lookup(JobID::nil(), client_log_key_, lookup);
@@ -606,6 +661,7 @@ template class Log<DriverID, DriverTableData>;
 template class Log<UniqueID, ProfileTableData>;
 template class Table<ActorCheckpointID, ActorCheckpointData>;
 template class Table<ActorID, ActorCheckpointIdData>;
+template class Log<BatchID, BatchResourceData>;
 
 }  // namespace gcs
 
