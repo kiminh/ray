@@ -109,7 +109,7 @@ def test_add_remove_cluster_resources(cluster_start):
 
 
 def test_print_current_status():
-    cmd = "lsof / | grep deleted"
+    cmd = "lsof /"
     print(cmd)
     os.system(cmd)
     cmd = "free -m"

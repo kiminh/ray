@@ -47,7 +47,7 @@ def ray_start_cluster():
 
 
 def test_print_current_status():
-    cmd = "lsof / | grep deleted"
+    cmd = "lsof /"
     print(cmd)
     os.system(cmd)
     cmd = "free -m"
