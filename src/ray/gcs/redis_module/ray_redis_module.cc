@@ -869,8 +869,8 @@ int BatchClean_RedisCommand(RedisModuleCtx *ctx,
       const char *buf = RedisModule_StringPtrLen(redis_string, nullptr);
       auto data = flatbuffers::GetRoot<BatchResourceData>(buf);
       TablePrefix prefix_enum = data->prefix();
-      RAY_LOG(ERROR) << "BatchClean:" << static_cast<int>(prefix_enum)
-                     << ",id:" << from_flatbuf(*data->object_id());
+      RAY_LOG(DEBUG) << "BatchClean:" << static_cast<int>(prefix_enum)
+                     << ",id:" << data->object_id()->str();
       // Delete the corresponding table.
       sprintf(buffer, "%d", static_cast<int>(prefix_enum));
       RedisModuleString *prefixed_name = RedisString_Format(ctx, "%s", buffer);

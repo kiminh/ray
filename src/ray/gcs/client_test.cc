@@ -1374,12 +1374,12 @@ void TestBatchResourceTableClean(const JobID &job_id,
   // Add the fake objects info to GCS. One will be deleted and one will not.
   auto object_data = std::make_shared<ObjectTableDataT>();
   object_data->manager = client_id.binary();
-  object_data->is_eviction = false;
-  object_data->num_evictions = 151;
+  //object_data->is_eviction = false;
+  //object_data->num_evictions = 151;
   RAY_CHECK_OK(client->object_table().Append(job_id, object_id, object_data, nullptr));
   ObjectID object_id3 = ObjectID::from_random();
   RAY_CHECK_OK(client->object_table().Append(job_id, object_id3, object_data, nullptr));
-  object_data->num_evictions += 10;
+  //object_data->num_evictions += 10;
   RAY_CHECK_OK(client->object_table().Append(job_id, object_id, object_data, nullptr));
   RAY_CHECK_OK(client->object_table().Append(job_id, object_id3, object_data, nullptr));
 
@@ -1427,11 +1427,11 @@ void TestBatchResourceTableClean(const JobID &job_id,
       if (id == object_id3) {
         ASSERT_EQ(d.size(), 2);
         ASSERT_EQ(object_data->manager, d[0].manager);
-        ASSERT_EQ(object_data->is_eviction, d[0].is_eviction);
-        ASSERT_EQ(object_data->num_evictions - 10, d[0].num_evictions);
+        //ASSERT_EQ(object_data->is_eviction, d[0].is_eviction);
+        //ASSERT_EQ(object_data->num_evictions - 10, d[0].num_evictions);
         ASSERT_EQ(object_data->manager, d[1].manager);
-        ASSERT_EQ(object_data->is_eviction, d[1].is_eviction);
-        ASSERT_EQ(object_data->num_evictions, d[1].num_evictions);
+        //ASSERT_EQ(object_data->is_eviction, d[1].is_eviction);
+        //ASSERT_EQ(object_data->num_evictions, d[1].num_evictions);
       } else if (id == object_id || id == object_id2) {
         RAY_LOG(ERROR) << "1:"<< (id == object_id) << ",2:" << (id == object_id3) << ",size:" << d.size();
         ASSERT_EQ(d.size(), 0);

@@ -235,16 +235,17 @@ Status RedisContext::RunAsync(const std::string &command, const UniqueID &id,
       int status;
       if (batch_id.is_nil()) {
         std::string redis_command = command + " %d %d %b %b";
-        status = async_context_->CommandAsync(
-            &GlobalRedisCallback, reinterpret_cast<void *>(callback_index),
-            redis_command.c_str(), prefix, pubsub_channel,
-            id.data(), id.size(), data, length);
+        status = redisAsyncCommand(
+            async_context_, reinterpret_cast<redisCallbackFn *>(&GlobalRedisCallback),
+            reinterpret_cast<void *>(callback_index), redis_command.c_str(),
+            prefix, pubsub_channel, id.data(), id.size(), data, length);
       } else {
         std::string redis_command = command + " %d %d %b %b %b";
-        status = async_context_->CommandAsync(
-            &GlobalRedisCallback, reinterpret_cast<void *>(callback_index),
-            redis_command.c_str(), prefix, pubsub_channel, id.data(), id.size(),
-            data, length, batch_id.binary().c_str(), batch_id.binary().size());
+        status = redisAsyncCommand(
+            async_context_, reinterpret_cast<redisCallbackFn *>(&GlobalRedisCallback),
+            reinterpret_cast<void *>(callback_index), redis_command.c_str(), prefix,
+            pubsub_channel, id.data(), id.size(), data, length,
+            batch_id.binary().c_str(), batch_id.binary().size());
       }
 
       if (status == REDIS_ERR) {

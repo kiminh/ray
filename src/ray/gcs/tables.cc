@@ -40,7 +40,7 @@ namespace gcs {
 template <typename ID, typename Data>
 Status Log<ID, Data>::Append(const JobID &job_id, const ID &id,
                              std::shared_ptr<DataT> &dataT,
-                             const WriteCallback &done, const BatchID *batch_id) {
+                             const WriteCallback &done, const BatchID &batch_id) {
   num_appends_++;
   auto callback = [this, id, dataT, done](const std::string &data) {
     // If data is not empty, then Redis failed to append the entry.
@@ -229,7 +229,8 @@ std::string Log<ID, Data>::DebugString() const {
 
 template <typename ID, typename Data>
 Status Table<ID, Data>::Add(const JobID &job_id, const ID &id,
-                            std::shared_ptr<DataT> &dataT, const WriteCallback &done) {
+                            std::shared_ptr<DataT> &dataT, const WriteCallback &done,
+                            const BatchID &batch_id) {
   num_adds_++;
   auto callback = [this, id, dataT, done](const std::string &data) {
     if (done != nullptr) {
@@ -559,8 +560,7 @@ Status BatchResourceTable::SubscribeBatchClean(const JobID &job_id,
                                                const SubscriptionCallback &done) {
   RAY_CHECK(batch_clean_subscribe_callback_index_ == -1)
       << "Client called SubscribeBatchClean twice on the same table";
-  auto callback = [this, subscribe, done](const Status &status, const std::string &data) {
-      RAY_CHECK_OK(status);
+  auto callback = [this, subscribe, done](const std::string &data) {
       if (data.empty()) {
         // No notification data is provided. This is the callback for the
         // initial subscription request.
@@ -574,7 +574,7 @@ Status BatchResourceTable::SubscribeBatchClean(const JobID &job_id,
           BatchID id = BatchID::nil();
           if (!data.empty()) {
             auto root = flatbuffers::GetRoot<GcsTableEntry>(data.data());
-            id = from_flatbuf(*root->id());
+            id = from_flatbuf<BatchID>(*root->id());
             GetVecFromGcsTableEntry(&results, *root);
           }
           subscribe(client_, id, results);
@@ -588,7 +588,7 @@ Status BatchResourceTable::SubscribeBatchClean(const JobID &job_id,
   batch_clean_subscribe_callback_index_ = 1;
   for (auto &context : shard_contexts_) {
     RAY_RETURN_NOT_OK(context->SubscribeAsync(ClientID::nil(), deletion_pubsub_channel_,
-                                              std::move(callback),
+                                              callback,
                                               &batch_clean_subscribe_callback_index_));
   }
   return Status::OK();

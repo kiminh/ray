@@ -545,13 +545,14 @@ class TaskReconstructionLog : public Log<TaskID, TaskReconstructionData> {
   }
 };
 
-class BatchResourceTable : public Log<BatchID, BatchResourceTable> {
+
+class BatchResourceTable : public Log<BatchID, BatchResourceData> {
  public:
   BatchResourceTable(const std::vector<std::shared_ptr<RedisContext>> &context,
                      AsyncGcsClient *client)
       : Log(context, client), batch_clean_subscribe_callback_index_(-1) {
     pubsub_channel_ = TablePubsub::NO_PUBLISH;
-    deletion_pubsub_channel_ = TablePubsub::BATCH_NEW;
+    deletion_pubsub_channel_ = TablePubsub::BATCH_CLEAN;
     prefix_ = TablePrefix::BATCH_RESOURCE;
   }
 
