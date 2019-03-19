@@ -17,6 +17,7 @@ from ray.tests.cluster_utils import Cluster
 from ray.tests.utils import run_string_as_driver_nonblocking
 
 
+
 @pytest.fixture
 def shutdown_only():
     yield None
@@ -43,6 +44,24 @@ def ray_start_cluster():
     yield cluster
     ray.shutdown()
     cluster.shutdown()
+
+
+def test_print_current_status():
+    cmd = "lsof / | grep deleted"
+    print(cmd)
+    os.system(cmd)
+    cmd = "free -m"
+    print(cmd)
+    os.system(cmd)
+    cmd = "df -h"
+    print(cmd)
+    os.system(cmd)
+    cmd = "du -h -d /tmp"
+    print(cmd)
+    os.system(cmd)
+    cmd = "ls -al /tmp/*"
+    print(cmd)
+    os.system(cmd)
 
 
 # This test checks that when a worker dies in the middle of a get, the plasma

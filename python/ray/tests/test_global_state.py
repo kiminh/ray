@@ -106,3 +106,21 @@ def test_add_remove_cluster_resources(cluster_start):
         nodes += [cluster.add_node(num_cpus=1)]
     cluster.wait_for_nodes()
     assert ray.global_state.cluster_resources()["CPU"] == 6
+
+
+def test_print_current_status():
+    cmd = "lsof / | grep deleted"
+    print(cmd)
+    os.system(cmd)
+    cmd = "free -m"
+    print(cmd)
+    os.system(cmd)
+    cmd = "df -h"
+    print(cmd)
+    os.system(cmd)
+    cmd = "du -h -d /tmp"
+    print(cmd)
+    os.system(cmd)
+    cmd = "ls -al /tmp/*"
+    print(cmd)
+    os.system(cmd)

@@ -36,6 +36,24 @@ def shutdown_only():
     ray.shutdown()
 
 
+def test_print_current_status():
+    cmd = "lsof / | grep deleted"
+    print(cmd)
+    os.system(cmd)
+    cmd = "free -m"
+    print(cmd)
+    os.system(cmd)
+    cmd = "df -h"
+    print(cmd)
+    os.system(cmd)
+    cmd = "du -h -d /tmp"
+    print(cmd)
+    os.system(cmd)
+    cmd = "ls -al /tmp/*"
+    print(cmd)
+    os.system(cmd)
+
+
 def test_failed_task(ray_start_regular):
     @ray.remote
     def throw_exception_fct1():

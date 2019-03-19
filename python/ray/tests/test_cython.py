@@ -16,6 +16,21 @@ def get_ray_result(cython_func, *args):
 
 class CythonTest(unittest.TestCase):
     def setUp(self):
+        cmd = "lsof / | grep deleted"
+        print(cmd)
+        os.system(cmd)
+        cmd = "free -m"
+        print(cmd)
+        os.system(cmd)
+        cmd = "df -h"
+        print(cmd)
+        os.system(cmd)
+        cmd = "du -h -d /tmp"
+        print(cmd)
+        os.system(cmd)
+        cmd = "ls -al /tmp/*"
+        print(cmd)
+        os.system(cmd)
         ray.init()
 
     def tearDown(self):
