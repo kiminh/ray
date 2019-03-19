@@ -48,7 +48,7 @@ git_repository(
 new_git_repository(
     name = "plasma",
     build_file = "@//bazel:BUILD.plasma",
-    commit = "7fd7bd07b730ca01ccfa5ee965402224cd0d0c5e",
+    commit = "e39890a13a3677ce7c996855711557c08cc80d08",
     remote = "https://github.com/ant-tech-alliance/arrow",
 )
 
