@@ -34,6 +34,9 @@ script:
   - python -m pytest --durations=10 python/ray/tests -s -v -x
   - tail -n 100 /tmp/ray/session_*/logs/raylet.err
   - tail -n 100 /tmp/ray/session_*/logs/plasma_store.err
+  - df -h
+  - du -h -d /tmp
+  - ls -al /tmp/*
 
 deploy:
   - provider: s3
