@@ -229,13 +229,14 @@ class TrialRunner(object):
         """
         if self.is_finished():
             raise TuneError("Called step when all trials finished?")
-        self.trial_executor.on_step_begin()
-        next_trial = self._get_next_trial()
+        with warn_if_slow("on_step_begin"):
+            self.trial_executor.on_step_begin()
+        next_trial = self._get_next_trial()  # blocking
         if next_trial is not None:
             with warn_if_slow("start_trial"):
                 self.trial_executor.start_trial(next_trial)
         elif self.trial_executor.get_running_trials():
-            self._process_events()
+            self._process_events()  # blocking
         else:
             for trial in self._trials:
                 if trial.status == Trial.PENDING:
@@ -244,7 +245,7 @@ class TrialRunner(object):
                             ("Insufficient cluster resources to launch trial: "
                              "trial requested {} but the cluster has only {}. "
                              "Pass `queue_trials=True` in "
-                             "ray.tune.run_experiments() or on the command "
+                             "ray.tune.run() or on the command "
                              "line to queue trials until the cluster scales "
                              "up. {}").format(
                                  trial.resources.summary_string(),
@@ -257,17 +258,20 @@ class TrialRunner(object):
                         "trials with sufficient resources.")
 
         try:
-            self.checkpoint()
+            with warn_if_slow("experiment_checkpoint"):
+                self.checkpoint()
         except Exception:
             logger.exception("Trial Runner checkpointing failed.")
         self._iteration += 1
 
         if self._server:
-            self._process_requests()
+            with warn_if_slow("server"):
+                self._process_requests()
 
             if self.is_finished():
                 self._server.shutdown()
-        self.trial_executor.on_step_end()
+        with warn_if_slow("on_step_end"):
+            self.trial_executor.on_step_end()
 
     def get_trial(self, tid):
         trial = [t for t in self._trials if t.trial_id == tid]
@@ -391,11 +395,12 @@ class TrialRunner(object):
         trials_done = all(trial.is_finished() for trial in self._trials)
         wait_for_trial = trials_done and not self._search_alg.is_finished()
         self._update_trial_queue(blocking=wait_for_trial)
-        trial = self._scheduler_alg.choose_trial_to_run(self)
+        with warn_if_slow("choose_trial_to_run"):
+            trial = self._scheduler_alg.choose_trial_to_run(self)
         return trial
 
     def _process_events(self):
-        trial = self.trial_executor.get_next_available_trial()
+        trial = self.trial_executor.get_next_available_trial()  # blocking
         with warn_if_slow("process_trial"):
             self._process_trial(trial)
 
@@ -410,7 +415,6 @@ class TrialRunner(object):
                 self._search_alg.on_trial_complete(
                     trial.trial_id, result=result)
                 decision = TrialScheduler.STOP
-
             else:
                 with warn_if_slow("scheduler.on_trial_result"):
                     decision = self._scheduler_alg.on_trial_result(
@@ -421,8 +425,15 @@ class TrialRunner(object):
                     with warn_if_slow("search_alg.on_trial_complete"):
                         self._search_alg.on_trial_complete(
                             trial.trial_id, early_terminated=True)
-            trial.update_last_result(
-                result, terminate=(decision == TrialScheduler.STOP))
+
+            # __duplicate__ is a magic keyword used internally to
+            # avoid double-logging results when using the Function API.
+            # TrialScheduler and SearchAlgorithm still receive a
+            # notification because there may be special handling for
+            # the `on_trial_complete` hook.
+            if "__duplicate__" not in result:
+                trial.update_last_result(
+                    result, terminate=(decision == TrialScheduler.STOP))
 
             # Checkpoints to disk. This should be checked even if
             # the scheduler decision is STOP or PAUSE. Note that
