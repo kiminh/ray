@@ -136,7 +136,7 @@ TaskID TaskSpecification::ParentTaskId() const {
 }
 BatchID TaskSpecification::BatchId() const {
   auto message = flatbuffers::GetRoot<TaskInfo>(spec_.data());
-  return from_flatbuf(*message->batch_id());
+  return from_flatbuf<BatchID>(*message->batch_id());
 }
 int64_t TaskSpecification::ParentCounter() const {
   auto message = flatbuffers::GetRoot<TaskInfo>(spec_.data());
