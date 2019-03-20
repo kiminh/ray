@@ -178,6 +178,15 @@ ray::Status NodeManager::RegisterGcs() {
   RAY_RETURN_NOT_OK(gcs_client_->driver_table().Subscribe(JobID::nil(), ClientID::nil(),
                                                           driver_table_handler, nullptr));
 
+  // Subscribe to Batch Clean.
+  auto batchCleanCallback = [](gcs::AsyncGcsClient *client, const BatchID &id,
+                               const std::vector<BatchResourceDataT> &data){
+    // TODO(qwang): If the subscribe function is not used, clean it.
+  };
+
+  RAY_RETURN_NOT_OK(gcs_client_->batch_resource_table().SubscribeBatchClean(
+      /*job_id=*/JobID::nil(), batchCleanCallback, nullptr));
+
   // Start sending heartbeats to the GCS.
   last_heartbeat_at_ms_ = current_time_ms();
   last_debug_dump_at_ms_ = current_time_ms();
@@ -705,7 +714,35 @@ void NodeManager::ProcessClientMessage(
   case protocol::MessageType::NotifyActorResumedFromCheckpoint: {
     ProcessNotifyActorResumedFromCheckpoint(message_data);
   } break;
+  case protocol::MessageType::BindTaskToBatch: {
+    auto message = flatbuffers::GetRoot<protocol::BindTaskToBatchRequest>(message_data);
+    BatchID batch_id = from_flatbuf(*message->batch_id());
+    // TODO(qwang): Java task id does not set the first 32 bits to 0.
+    // And we should refine this after the issue fixed.
+    TaskID task_id = ComputeTaskId(from_flatbuf(*message->task_id()));
+    object_directory_->BindTaskIdToBatch(task_id, batch_id);
+  } break;
+  case protocol::MessageType::CompleteBatch: {
+    auto message = flatbuffers::GetRoot<protocol::CompleteBatchRequest>(message_data);
+    BatchID batch_id = from_flatbuf(*message->batch_id());
+    CompleteBatch(batch_id);
+  } break;
+  case protocol::MessageType::AddObjectToReturn: {
+    auto message = flatbuffers::GetRoot<protocol::AddObjectToReturnRequest>(message_data);
+    DriverID driver_id = from_flatbuf(*message->driver_id());
+    BatchID batch_id = from_flatbuf(*message->batch_id());
+    std::vector<ObjectID> object_ids = from_flatbuf(*message->object_ids());
+    BatchID parent_batch_id = from_flatbuf(*message->parent_batch_id());
+    auto data = std::make_shared<BatchResourceDataT>();
+    data->prefix = TablePrefix::OBJECT;
 
+    for (auto object_id : object_ids) {
+      data->object_id = object_id.binary();
+      RAY_CHECK_OK(gcs_client_->batch_resource_table().RemoveEntry(JobID::nil(), batch_id, data, nullptr));
+      // Move the object to parent batch.
+      AddBatchResource(driver_id, parent_batch_id, TablePrefix::OBJECT, object_id);
+    }
+  } break;
   default:
     RAY_LOG(FATAL) << "Received unexpected message type " << message_type;
   }
@@ -921,6 +958,7 @@ void NodeManager::ProcessSubmitTaskMessage(const uint8_t *message_data) {
       from_flatbuf<ObjectID>(*message->execution_dependencies()));
   TaskSpecification task_spec(*message->task_spec());
   Task task(task_execution_spec, task_spec);
+  object_directory_->BindTaskIdToBatch(task_spec.TaskId(), task_spec.BatchId());
   // Submit the task to the local scheduler. Since the task was submitted
   // locally, there is no uncommitted lineage.
   SubmitTask(task, Lineage());
@@ -2182,6 +2220,42 @@ std::string NodeManager::DebugString() const {
   }
   result << "\nDebugString() time ms: " << (current_time_ms() - now_ms);
   return result.str();
+}
+
+void NodeManager::AddBatchResource(const DriverID &driver_id, const BatchID &batch_id,
+                                   const TablePrefix &prefix, const UniqueID &id) {
+  if(!batch_id.is_nil()) {
+    // add task to batch resource table
+    auto data = std::make_shared<BatchResourceDataT>();
+    data->prefix = prefix;
+    data->object_id = id.binary();
+    RAY_CHECK_OK(gcs_client_->batch_resource_table().Append(driver_id, batch_id, data, nullptr));
+  }
+}
+
+void NodeManager::CompleteBatch(const BatchID& batch_id) {
+  auto clean_callback = [this](gcs::AsyncGcsClient *client,
+                               const BatchID &batch_id,
+                               const std::vector<BatchResourceDataT> &batch_data) {
+      std::vector<ObjectID> object_ids;
+      for (const auto &data : batch_data) {
+        if (data.prefix == TablePrefix::OBJECT) {
+          object_ids.push_back(ObjectID::from_binary(data.object_id));
+        } else if (data.prefix == TablePrefix::RAYLET_TASK) {
+          object_directory_->CleanTaskBinding(TaskID::from_binary(data.object_id));
+        }
+      }
+      object_manager_.FreeObjects(object_ids, /*local_only=*/false);
+  };
+  RAY_CHECK_OK(gcs_client_->batch_resource_table().Lookup(JobID::nil(), batch_id, clean_callback));
+
+  // Wait for FreeObjects to take effect and then clean all the keys.
+  boost::posix_time::milliseconds batch_clean_time(RayConfig::instance().batch_clean_delay_ms());
+  auto timer = std::make_shared<boost::asio::deadline_timer>(io_service_);
+  timer->expires_from_now(batch_clean_time);
+  timer->async_wait([this, batch_id, timer](const boost::system::error_code &error) {
+      RAY_CHECK_OK(gcs_client_->batch_resource_table().CleanBatchResources(batch_id));
+  });
 }
 
 }  // namespace raylet

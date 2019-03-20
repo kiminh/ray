@@ -60,12 +60,13 @@ TaskSpecification::TaskSpecification(
     const DriverID &driver_id, const TaskID &parent_task_id, int64_t parent_counter,
     const std::vector<std::shared_ptr<TaskArgument>> &task_arguments, int64_t num_returns,
     const std::unordered_map<std::string, double> &required_resources,
-    const Language &language, const std::vector<std::string> &function_descriptor)
+    const Language &language, const std::vector<std::string> &function_descriptor,
+    const BatchID &batch_id)
     : TaskSpecification(driver_id, parent_task_id, parent_counter, ActorID::nil(),
                         ObjectID::nil(), 0, ActorID::nil(), ActorHandleID::nil(), -1, {},
                         task_arguments, num_returns, required_resources,
                         std::unordered_map<std::string, double>(), language,
-                        function_descriptor) {}
+                        function_descriptor, batch_id) {}
 
 TaskSpecification::TaskSpecification(
     const DriverID &driver_id, const TaskID &parent_task_id, int64_t parent_counter,
@@ -76,7 +77,8 @@ TaskSpecification::TaskSpecification(
     const std::vector<std::shared_ptr<TaskArgument>> &task_arguments, int64_t num_returns,
     const std::unordered_map<std::string, double> &required_resources,
     const std::unordered_map<std::string, double> &required_placement_resources,
-    const Language &language, const std::vector<std::string> &function_descriptor)
+    const Language &language, const std::vector<std::string> &function_descriptor,
+    const BatchID &batch_id)
     : spec_() {
   flatbuffers::FlatBufferBuilder fbb;
 
@@ -103,7 +105,7 @@ TaskSpecification::TaskSpecification(
       ids_to_flatbuf(fbb, new_actor_handles), fbb.CreateVector(arguments),
       ids_to_flatbuf(fbb, returns), map_to_flatbuf(fbb, required_resources),
       map_to_flatbuf(fbb, required_placement_resources), language,
-      string_vec_to_flatbuf(fbb, function_descriptor));
+      string_vec_to_flatbuf(fbb, function_descriptor), to_flatbuf(fbb, batch_id));
   fbb.Finish(spec);
   AssignSpecification(fbb.GetBufferPointer(), fbb.GetSize());
 }
@@ -131,6 +133,10 @@ DriverID TaskSpecification::DriverId() const {
 TaskID TaskSpecification::ParentTaskId() const {
   auto message = flatbuffers::GetRoot<TaskInfo>(spec_.data());
   return from_flatbuf<TaskID>(*message->parent_task_id());
+}
+BatchID TaskSpecification::BatchId() const {
+  auto message = flatbuffers::GetRoot<TaskInfo>(spec_.data());
+  return from_flatbuf(*message->batch_id());
 }
 int64_t TaskSpecification::ParentCounter() const {
   auto message = flatbuffers::GetRoot<TaskInfo>(spec_.data());

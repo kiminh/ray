@@ -360,7 +360,10 @@ void LineageCache::FlushTask(const TaskID &task_id) {
   root->UnPackTo(task_data.get());
   RAY_CHECK_OK(
       task_storage_.Add(JobID(task->TaskData().GetTaskSpecification().DriverId()),
-                        task_id, task_data, task_callback));
+                        task_id, task_data, task_callback,
+                        task->TaskData().getTaskSpecification().BatchID()));
+  RAY_LOG(INFO) << "FlushTask to add task:" << task_id << " to batch:"
+                << task->TaskData().GetTaskSpecification().BatchId();
 
   // We successfully wrote the task, so mark it as committing.
   // TODO(swang): Use a batched interface and write with all object entries.

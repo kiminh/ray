@@ -79,6 +79,17 @@ enum MessageType:int {
   NotifyActorResumedFromCheckpoint,
   // A node manager requests to connect to another node manager.
   ConnectClient,
+
+  //
+  // Batch
+  //
+  // If batch ID is presented, append the task to batch resource table.
+  // Since Ray API call plasma client directly to store objects, we need
+  // to provide an interface for API to bind objects to a batch.
+  BindTaskToBatch,
+  // Complete a batch. this will trigger batch cleanup.
+  CompleteBatch,
+  AddObjectToReturn,
 }
 
 table TaskExecutionSpecification {
@@ -233,4 +244,31 @@ table NotifyActorResumedFromCheckpoint {
 table ConnectClient {
   // ID of the connecting client.
   client_id: string;
+}
+
+table BindTaskToBatchRequest {
+  // The ID of driver.
+  driver_id: string;
+  // The ID of the batch.
+  batch_id: string;
+  // The ID of the task.
+  task_id: string;
+}
+
+table CompleteBatchRequest {
+  // The ID of driver.
+  driver_id: string;
+  // The ID of the batch.
+  batch_id: string;
+}
+
+table AddObjectToReturnRequest {
+  // The ID of driver.
+  driver_id: string;
+  // The ID of the batch.
+  batch_id: string;
+  // The object IDs to add as batch return.
+  object_ids: [string];
+  // The parent ID of the batch.
+  parent_batch_id: string;
 }

@@ -431,6 +431,18 @@ class NodeManager {
                                        const std::string &client_address,
                                        int32_t client_port);
 
+  /// If batch ID is presented, append the task/object/... to batch resource table.
+  /// \param driver_id The ID of driver.
+  /// \param batch_id The ID of the batch.
+  /// \param prefix The object prefix to mark the object type: object/function/task/actor.
+  /// \param id The ID of the object.
+  void AddBatchResource(const DriverID &driver_id, const BatchID &batch_id,
+                        const TablePrefix &prefix, const UniqueID &id);
+
+  void DeleteObjectCreatingTask(const std::vector<ObjectID>& object_ids);
+
+  void CompleteBatch(const BatchID& batch_id);
+
   // GCS client ID for this node.
   ClientID client_id_;
   boost::asio::io_service &io_service_;

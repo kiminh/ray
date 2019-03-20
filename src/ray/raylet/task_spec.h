@@ -96,13 +96,15 @@ class TaskSpecification {
   /// \param num_returns The number of values returned by the task.
   /// \param required_resources The task's resource demands.
   /// \param language The language of the worker that must execute the function.
+  /// \param batch_id The batch ID of the task.
   TaskSpecification(const DriverID &driver_id, const TaskID &parent_task_id,
                     int64_t parent_counter,
                     const std::vector<std::shared_ptr<TaskArgument>> &task_arguments,
                     int64_t num_returns,
                     const std::unordered_map<std::string, double> &required_resources,
                     const Language &language,
-                    const std::vector<std::string> &function_descriptor);
+                    const std::vector<std::string> &function_descriptor,
+                    const BatchID &batch_id);
 
   // TODO(swang): Define an actor task constructor.
   /// Create a task specification from the raw fields.
@@ -128,6 +130,7 @@ class TaskSpecification {
   /// will default to be equal to the required_resources argument.
   /// \param language The language of the worker that must execute the function.
   /// \param function_descriptor The function descriptor.
+  /// \param batch_id The batch ID of the task.
   TaskSpecification(
       const DriverID &driver_id, const TaskID &parent_task_id, int64_t parent_counter,
       const ActorID &actor_creation_id, const ObjectID &actor_creation_dummy_object_id,
@@ -138,7 +141,8 @@ class TaskSpecification {
       int64_t num_returns,
       const std::unordered_map<std::string, double> &required_resources,
       const std::unordered_map<std::string, double> &required_placement_resources,
-      const Language &language, const std::vector<std::string> &function_descriptor);
+      const Language &language, const std::vector<std::string> &function_descriptor,
+      const BatchID &batch_id);
 
   /// Deserialize a task specification from a flatbuffer's string data.
   ///
@@ -167,6 +171,7 @@ class TaskSpecification {
   DriverID DriverId() const;
   TaskID ParentTaskId() const;
   int64_t ParentCounter() const;
+  BatchID BatchId() const;
   std::vector<std::string> FunctionDescriptor() const;
   // Output the function descriptor as a string for log purpose.
   std::string FunctionDescriptorString() const;
