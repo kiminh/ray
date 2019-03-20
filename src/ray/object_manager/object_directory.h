@@ -124,6 +124,10 @@ class ObjectDirectoryInterface {
   ///
   /// \return string.
   virtual std::string DebugString() const = 0;
+
+  virtual void BindTaskIdToBatch(const TaskID &task_id, const BatchID &batch_id) = 0;
+
+  virtual void CleanTaskBinding(const TaskID &task_id) = 0;
 };
 
 /// Ray ObjectDirectory declaration.
@@ -168,6 +172,10 @@ class ObjectDirectory : public ObjectDirectoryInterface {
 
   std::string DebugString() const override;
 
+  void BindTaskIdToBatch(const TaskID &task_id, const BatchID &batch_id) override;
+
+  void CleanTaskBinding(const TaskID &task_id) override;
+
   /// ObjectDirectory should not be copied.
   RAY_DISALLOW_COPY_AND_ASSIGN(ObjectDirectory);
 
@@ -192,6 +200,10 @@ class ObjectDirectory : public ObjectDirectoryInterface {
   std::shared_ptr<gcs::AsyncGcsClient> gcs_client_;
   /// Info about subscribers to object locations.
   std::unordered_map<ObjectID, LocationListenerState> listeners_;
+
+  /// Map from task ID to batch ID. Used to bind object to batch.
+  /// This will help to keep GCS TPS lower.
+  std::unordered_map<TaskID, BatchID> task_batch_binding_;
 };
 
 }  // namespace ray

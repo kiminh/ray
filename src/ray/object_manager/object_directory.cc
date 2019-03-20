@@ -83,9 +83,16 @@ ray::Status ObjectDirectory::ReportObjectAdded(
   auto data = std::make_shared<ObjectTableDataT>();
   data->manager = client_id.binary();
   data->object_size = object_info.data_size;
-  ray::Status status =
-      gcs_client_->object_table().Add(JobID::nil(), object_id, data, nullptr);
-  return status;
+
+  auto batch_id = BatchID();
+  TaskID task_id = ComputeTaskId(object_id);
+  auto iter = task_batch_binding_.find(task_id);
+  if (iter != task_batch_binding_.end()) {
+    batch_id = iter->second;
+  }
+
+   return gcs_client_->object_table().Add(
+       JobID::nil(), object_id, data, nullptr, batch_id);
 }
 
 ray::Status ObjectDirectory::ReportObjectRemoved(
@@ -232,6 +239,14 @@ std::string ObjectDirectory::DebugString() const {
   result << "ObjectDirectory:";
   result << "\n- num listeners: " << listeners_.size();
   return result.str();
+}
+
+void ObjectDirectory::BindTaskIdToBatch(const TaskID &task_id, const BatchID &batch_id) {
+  task_batch_binding_[task_id] = batch_id;
+}
+
+void ObjectDirectory::CleanTaskBinding(const TaskID &task_id) {
+  task_batch_binding_.erase(task_id);
 }
 
 }  // namespace ray
