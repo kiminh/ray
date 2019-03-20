@@ -24,7 +24,8 @@ class MockGcs : public gcs::TableInterface<TaskID, protocol::Task>,
 
   Status Add(const JobID &job_id, const TaskID &task_id,
              std::shared_ptr<protocol::TaskT> &task_data,
-             const gcs::TableInterface<TaskID, protocol::Task>::WriteCallback &done) {
+             const gcs::TableInterface<TaskID, protocol::Task>::WriteCallback &done,
+             const BatchID &batch_id = BatchID()) {
     task_table_[task_id] = task_data;
     callbacks_.push_back(
         std::pair<gcs::raylet::TaskTable::WriteCallback, TaskID>(done, task_id));
@@ -115,7 +116,7 @@ static inline Task ExampleTask(const std::vector<ObjectID> &arguments,
   std::vector<std::string> function_descriptor(3);
   auto spec = TaskSpecification(DriverID::nil(), TaskID::from_random(), 0, task_arguments,
                                 num_returns, required_resources, Language::PYTHON,
-                                function_descriptor);
+                                function_descriptor, BatchID::nil());
   auto execution_spec = TaskExecutionSpecification(std::vector<ObjectID>());
   execution_spec.IncrementNumForwards();
   Task task = Task(execution_spec, spec);

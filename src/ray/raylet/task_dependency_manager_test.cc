@@ -27,11 +27,12 @@ class MockReconstructionPolicy : public ReconstructionPolicyInterface {
 
 class MockGcs : public gcs::TableInterface<TaskID, TaskLeaseData> {
  public:
-  MOCK_METHOD4(
+  MOCK_METHOD5(
       Add,
       ray::Status(const JobID &job_id, const TaskID &task_id,
                   std::shared_ptr<TaskLeaseDataT> &task_data,
-                  const gcs::TableInterface<TaskID, TaskLeaseData>::WriteCallback &done));
+                  const gcs::TableInterface<TaskID, TaskLeaseData>::WriteCallback &done,
+                  const BatchID &batch_id));
 };
 
 class TaskDependencyManagerTest : public ::testing::Test {
@@ -77,7 +78,7 @@ static inline Task ExampleTask(const std::vector<ObjectID> &arguments,
   std::vector<std::string> function_descriptor(3);
   auto spec = TaskSpecification(DriverID::nil(), TaskID::from_random(), 0, task_arguments,
                                 num_returns, required_resources, Language::PYTHON,
-                                function_descriptor);
+                                function_descriptor, BatchID::nil());
   auto execution_spec = TaskExecutionSpecification(std::vector<ObjectID>());
   execution_spec.IncrementNumForwards();
   Task task = Task(execution_spec, spec);
@@ -231,7 +232,7 @@ TEST_F(TaskDependencyManagerTest, TestTaskChain) {
 
     // Mark each task as pending. A lease entry should be added to the GCS for
     // each task.
-    EXPECT_CALL(gcs_mock_, Add(_, task.GetTaskSpecification().TaskId(), _, _));
+    EXPECT_CALL(gcs_mock_, Add(_, task.GetTaskSpecification().TaskId(), _, _, _));
     task_dependency_manager_.TaskPending(task);
 
     i++;
@@ -282,7 +283,7 @@ TEST_F(TaskDependencyManagerTest, TestDependentPut) {
   // it is pending execution.
   EXPECT_CALL(object_manager_mock_, CancelPull(put_id));
   EXPECT_CALL(reconstruction_policy_mock_, Cancel(put_id));
-  EXPECT_CALL(gcs_mock_, Add(_, task1.GetTaskSpecification().TaskId(), _, _));
+  EXPECT_CALL(gcs_mock_, Add(_, task1.GetTaskSpecification().TaskId(), _, _, _));
   task_dependency_manager_.TaskPending(task1);
 }
 
@@ -295,7 +296,7 @@ TEST_F(TaskDependencyManagerTest, TestTaskForwarding) {
     const auto &arguments = task.GetDependencies();
     static_cast<void>(task_dependency_manager_.SubscribeDependencies(
         task.GetTaskSpecification().TaskId(), arguments));
-    EXPECT_CALL(gcs_mock_, Add(_, task.GetTaskSpecification().TaskId(), _, _));
+    EXPECT_CALL(gcs_mock_, Add(_, task.GetTaskSpecification().TaskId(), _, _, _));
     task_dependency_manager_.TaskPending(task);
   }
 
@@ -399,7 +400,7 @@ TEST_F(TaskDependencyManagerTest, TestTaskLeaseRenewal) {
   // Mark a task as pending.
   auto task = ExampleTask({}, 0);
   // We expect an initial call to acquire the lease.
-  EXPECT_CALL(gcs_mock_, Add(_, task.GetTaskSpecification().TaskId(), _, _));
+  EXPECT_CALL(gcs_mock_, Add(_, task.GetTaskSpecification().TaskId(), _, _, _));
   task_dependency_manager_.TaskPending(task);
 
   // Check that while the task is still pending, there is one call to renew the
@@ -410,7 +411,7 @@ TEST_F(TaskDependencyManagerTest, TestTaskLeaseRenewal) {
   for (int i = 1; i <= num_expected_calls; i++) {
     sleep_time += i * initial_lease_period_ms_;
   }
-  EXPECT_CALL(gcs_mock_, Add(_, task.GetTaskSpecification().TaskId(), _, _))
+  EXPECT_CALL(gcs_mock_, Add(_, task.GetTaskSpecification().TaskId(), _, _, _))
       .Times(num_expected_calls);
   Run(sleep_time);
 }
@@ -433,7 +434,7 @@ TEST_F(TaskDependencyManagerTest, TestRemoveTasksAndRelatedObjects) {
                                                    arguments);
     // Mark each task as pending. A lease entry should be added to the GCS for
     // each task.
-    EXPECT_CALL(gcs_mock_, Add(_, task.GetTaskSpecification().TaskId(), _, _));
+    EXPECT_CALL(gcs_mock_, Add(_, task.GetTaskSpecification().TaskId(), _, _, _));
     task_dependency_manager_.TaskPending(task);
   }
 

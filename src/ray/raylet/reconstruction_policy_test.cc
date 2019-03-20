@@ -65,6 +65,8 @@ class MockObjectDirectory : public ObjectDirectoryInterface {
   MOCK_METHOD3(ReportObjectRemoved,
                ray::Status(const ObjectID &, const ClientID &,
                            const object_manager::protocol::ObjectInfoT &));
+  MOCK_METHOD2(BindTaskIdToBatch, void(const ObjectID &object_id, const BatchID &batch_id));
+  MOCK_METHOD1(CleanTaskBinding, void(const TaskID &object_id));
 
  private:
   std::vector<std::pair<ObjectID, OnLocationsFound>> callbacks_;
@@ -83,7 +85,8 @@ class MockGcs : public gcs::PubsubInterface<TaskID>,
   }
 
   void Add(const JobID &job_id, const TaskID &task_id,
-           std::shared_ptr<TaskLeaseDataT> &task_lease_data) {
+           std::shared_ptr<TaskLeaseDataT> &task_lease_data,
+           const BatchID &batch_id = BatchID()) {
     task_lease_table_[task_id] = task_lease_data;
     if (subscribed_tasks_.count(task_id) == 1) {
       notification_callback_(nullptr, task_id, *task_lease_data);
@@ -115,7 +118,7 @@ class MockGcs : public gcs::PubsubInterface<TaskID>,
           &success_callback,
       const ray::gcs::LogInterface<TaskID, TaskReconstructionData>::WriteCallback
           &failure_callback,
-      int log_index) {
+      int log_index, const BatchID &batch_id = BatchID()) {
     if (task_reconstruction_log_[task_id].size() == static_cast<size_t>(log_index)) {
       task_reconstruction_log_[task_id].push_back(*task_data);
       if (success_callback != nullptr) {
@@ -129,11 +132,12 @@ class MockGcs : public gcs::PubsubInterface<TaskID>,
     return Status::OK();
   }
 
-  MOCK_METHOD4(
+  MOCK_METHOD5(
       Append,
       ray::Status(
           const JobID &, const TaskID &, std::shared_ptr<TaskReconstructionDataT> &,
-          const ray::gcs::LogInterface<TaskID, TaskReconstructionData>::WriteCallback &));
+          const ray::gcs::LogInterface<TaskID, TaskReconstructionData>::WriteCallback &,
+          const BatchID &batch_id));
 
  private:
   gcs::TaskLeaseTable::WriteCallback notification_callback_;
