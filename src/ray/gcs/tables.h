@@ -393,7 +393,7 @@ class SetInterface {
 /// Example tables backed by Set:
 ///   ObjectTable: Stores a set of which clients have added an object.
 template <typename ID, typename Data>
-class Set : private Log<ID, Data>,
+class Set : public Log<ID, Data>,
             public SetInterface<ID, Data>,
             virtual public PubsubInterface<ID> {
  public:

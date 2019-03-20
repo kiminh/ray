@@ -1405,7 +1405,7 @@ void TestBatchResourceTableClean(const JobID &job_id,
   // Check.
   // The callbacks to check that one object is deleted and one object remains.
   auto actor_callback = [actor_id, actor_id2, actor_id3, actor_data](
-      gcs::AsyncGcsClient *client, const TaskID &id,
+      gcs::AsyncGcsClient *client, const ActorID &id,
       const std::vector<ActorTableDataT> &d) {
       if (id == actor_id3) {
         ASSERT_EQ(d.size(), 1);
@@ -1422,7 +1422,7 @@ void TestBatchResourceTableClean(const JobID &job_id,
   };
 
   auto object_callback = [object_id, object_id2, object_id3, object_data](
-      gcs::AsyncGcsClient *client, const TaskID &id,
+      gcs::AsyncGcsClient *client, const ObjectID &id,
       const std::vector<ObjectTableDataT> &d) {
       if (id == object_id3) {
         ASSERT_EQ(d.size(), 2);
@@ -1475,8 +1475,6 @@ void TestBatchResourceTableClean(const JobID &job_id,
 TEST_MACRO(TestGcsWithAsio, TestBatchResourceTableClean);
 #if RAY_USE_NEW_GCS
 TEST_MACRO(TestGcsWithChainAsio, TestBatchResourceTableClean);
-#endif
-
 #endif
 
 #undef TEST_MACRO
