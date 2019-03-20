@@ -233,6 +233,45 @@ int PublishTableUpdate(RedisModuleCtx *ctx, RedisModuleString *pubsub_channel_st
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
+// Forward declaration.
+// TODO(qwang): Why we don't define this forward.
+int TableAppend_DoWrite(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                        RedisModuleString **mutated_key_str);
+
+int AddResourceToBatch(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  const int batch_id_index = 5;
+  RAY_LOG(ERROR) << "AddResourceToBatch, argc:" << argc << ",batch_id_index:" << batch_id_index;
+  if (argc <= batch_id_index) {
+    return REDISMODULE_OK;
+  }
+  RedisModuleString *batch_id_str = argv[batch_id_index];
+  if (RedisStringToString(batch_id_str) == ray::BatchID().binary()) {
+    return REDISMODULE_OK;
+  }
+  RedisModuleString *prefix_str = argv[1];
+  RedisModuleString *id = argv[3];
+  RAY_LOG(INFO) << "Call AddResourceToBatch!: " << ray::BatchID::from_binary(RedisStringToString(batch_id_str))
+                 << ",ObjectTable:" <<static_cast<int>(TablePrefix::OBJECT)
+                 << ",RayletTaskTable: "<<static_cast<int>(TablePrefix::RAYLET_TASK)
+                 << ",PrefixStr:" << RedisStringToString(prefix_str);
+  TablePrefix prefix;
+  REPLY_AND_RETURN_IF_NOT_OK(ParseTablePrefix(prefix_str, &prefix));
+  RAY_LOG(ERROR) << "Get Prefix:" << static_cast<int>(prefix);
+
+  const int new_argc = 5;
+  RedisModuleString *new_argv[new_argc];
+  new_argv[0] = nullptr;
+  new_argv[1] = RedisModule_CreateStringFromLongLong(ctx, static_cast<long long>(TablePrefix::BATCH_RESOURCE));
+  new_argv[2] = nullptr;
+  new_argv[3] = batch_id_str;
+  flatbuffers::FlatBufferBuilder fbb;
+  auto message = CreateBatchResourceData(
+      fbb, prefix, RedisStringToFlatbuf(fbb, id));
+  fbb.Finish(message);
+  new_argv[4] = RedisModule_CreateString(ctx, reinterpret_cast<char *>(fbb.GetBufferPointer()), fbb.GetSize());
+  return TableAppend_DoWrite(ctx, new_argv, new_argc, /*mutated_key_str=*/nullptr);
+}
+
 // RAY.TABLE_ADD:
 //   TableAdd_RedisCommand: the actual command handler.
 //   (helper) TableAdd_DoWrite: performs the write to redis state.
@@ -241,12 +280,15 @@ int PublishTableUpdate(RedisModuleCtx *ctx, RedisModuleString *pubsub_channel_st
 
 int TableAdd_DoWrite(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
                      RedisModuleString **mutated_key_str) {
-  if (argc != 5) {
+  if (argc < 5 || argc > 6) {
     return RedisModule_WrongArity(ctx);
   }
   RedisModuleString *prefix_str = argv[1];
   RedisModuleString *id = argv[3];
   RedisModuleString *data = argv[4];
+  if (AddResourceToBatch(ctx, argv, argc) == REDISMODULE_ERR) {
+    return REDISMODULE_ERR;
+  }
 
   RedisModuleKey *key;
   REPLY_AND_RETURN_IF_NOT_OK(OpenPrefixedKey(
@@ -256,9 +298,10 @@ int TableAdd_DoWrite(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
 }
 
 int TableAdd_DoPublish(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  if (argc != 5) {
+  if (argc < 5 || argc > 6) {
     return RedisModule_WrongArity(ctx);
   }
+
   RedisModuleString *pubsub_channel_str = argv[2];
   RedisModuleString *id = argv[3];
   RedisModuleString *data = argv[4];
@@ -304,7 +347,7 @@ int ChainTableAdd_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, in
 
 int TableAppend_DoWrite(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
                         RedisModuleString **mutated_key_str) {
-  if (argc < 5 || argc > 6) {
+  if (argc < 5 || argc > 7) {
     return RedisModule_WrongArity(ctx);
   }
 
@@ -312,8 +355,12 @@ int TableAppend_DoWrite(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
   RedisModuleString *id = argv[3];
   RedisModuleString *data = argv[4];
   RedisModuleString *index_str = nullptr;
-  if (argc == 6) {
-    index_str = argv[5];
+  if (argc == 7) {
+    index_str = argv[6];
+  }
+
+  if (AddResourceToBatch(ctx, argv, argc) == REDISMODULE_ERR) {
+    return REDISMODULE_ERR;
   }
 
   // Set the keys in the table.
@@ -334,8 +381,9 @@ int TableAppend_DoWrite(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
     REPLY_AND_RETURN_IF_FALSE(
         RedisModule_StringToLongLong(index_str, &requested_index) == REDISMODULE_OK,
         "Index is not a number.");
-    REPLY_AND_RETURN_IF_FALSE(requested_index >= 0, "Index is less than 0.");
-    index = static_cast<size_t>(requested_index);
+    if (requested_index >= 0) {
+      index = static_cast<size_t>(requested_index);
+    }
   }
   // Only perform the append if the requested index matches the current length
   // of the log, or if no index was requested.
