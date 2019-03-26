@@ -3,7 +3,7 @@ package com.ray.streaming.api.function;
 import java.io.Serializable;
 
 /**
- * function for ray streaming.
+ * Interface of streaming functions.
  */
 public interface Function extends Serializable {
 

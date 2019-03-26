@@ -14,10 +14,17 @@ import org.ray.api.Ray;
 /**
  * Ray Job Context.
  */
+
+/**
+ * Encapsulate the context information of a streaming Job.
+ */
 public class RayContext implements Serializable {
 
   private transient AtomicInteger idGenerator;
   private List<StreamSink> streamSinks;
+  /**
+   * The logic plan.
+   */
   private Plan plan;
 
   private RayContext() {

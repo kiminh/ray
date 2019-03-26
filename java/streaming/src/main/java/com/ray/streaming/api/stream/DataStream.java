@@ -7,7 +7,7 @@ import com.ray.streaming.api.function.impl.KeyFunction;
 import com.ray.streaming.api.function.impl.MapFunction;
 import com.ray.streaming.api.function.impl.SinkFunction;
 import com.ray.streaming.api.partition.Partition;
-import com.ray.streaming.api.partition.impl.BoardCastPartition;
+import com.ray.streaming.api.partition.impl.BroadcastPartition;
 import com.ray.streaming.operator.StreamOperator;
 import com.ray.streaming.operator.impl.FlatMapOperator;
 import com.ray.streaming.operator.impl.KeyByOperator;
@@ -28,6 +28,12 @@ public class DataStream<T> extends Stream<T> {
     super(input, streamOperator);
   }
 
+  /**
+   * Apply a map function on the stream.
+   * @param mapFunction The map function.
+   * @param <R> Type of data returned by the map function.
+   * @return A new DataStream.
+   */
   public <R> DataStream<R> map(MapFunction<T, R> mapFunction) {
     return new DataStream<>(this, new MapOperator(mapFunction));
   }
@@ -58,7 +64,7 @@ public class DataStream<T> extends Stream<T> {
   }
 
   public DataStream<T> broadcast() {
-    this.partition = new BoardCastPartition<>();
+    this.partition = new BroadcastPartition<>();
     return this;
   }
 

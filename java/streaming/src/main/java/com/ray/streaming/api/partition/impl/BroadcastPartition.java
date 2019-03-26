@@ -3,12 +3,12 @@ package com.ray.streaming.api.partition.impl;
 import com.ray.streaming.api.partition.Partition;
 
 /**
- * Broad Partition Default Implementation.
+ * Shuffle data based on broadcast strategy.
  * @param <T> broad cast element
  */
-public class BoardCastPartition<T> implements Partition<T> {
+public class BroadcastPartition<T> implements Partition<T> {
 
-  public BoardCastPartition() {
+  public BroadcastPartition() {
   }
 
   @Override

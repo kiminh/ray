@@ -6,7 +6,10 @@ import com.ray.streaming.api.partition.impl.RRPartition;
 import com.ray.streaming.operator.StreamOperator;
 import java.io.Serializable;
 
-
+/**
+ * Represents an abstract stream of data.
+ * @param <T>
+ */
 public class Stream<T> implements Serializable {
 
   protected int id;

@@ -3,9 +3,9 @@ package com.ray.streaming.api.function.impl;
 import com.ray.streaming.api.function.Function;
 
 /**
- * Aggregate Function.
- * @param <I> In
- * @param <A> Agg
+ * Interface of aggregate functions.
+ * @param <I> Type of the input data.
+ * @param <A> Type of the intermediate data.
  * @param <O> Out
  */
 public interface AggregateFunction<I, A, O> extends Function {

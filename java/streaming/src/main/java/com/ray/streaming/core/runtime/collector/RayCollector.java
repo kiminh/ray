@@ -15,8 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Use Ray API to implement collector,
- * we use ray.call to forward message to downstream operator
+ * The collector that emits data via Ray remote calls.
  */
 public class RayCollector implements Collector<Record> {
 
