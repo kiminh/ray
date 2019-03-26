@@ -3,10 +3,10 @@ package com.ray.streaming.api.function.impl;
 import java.io.Serializable;
 
 /**
- * join function.
- * @param <T> left stream element
- * @param <O> right stream element
- * @param <R> join result element
+ * Interface of Join functions.
+ * @param <T> Type of the left input data.
+ * @param <O> Type of the right input data.
+ * @param <R> Type of the output data.
  */
 @FunctionalInterface
 public interface JoinFunction<T, O, R> extends Serializable {

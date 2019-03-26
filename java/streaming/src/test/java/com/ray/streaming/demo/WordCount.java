@@ -1,6 +1,6 @@
 package com.ray.streaming.demo;
 
-import com.ray.streaming.api.context.RayContext;
+import com.ray.streaming.api.context.StreamingContext;
 import com.ray.streaming.api.function.impl.FlatMapFunction;
 import com.ray.streaming.api.function.impl.KeyFunction;
 import com.ray.streaming.api.function.impl.ReduceFunction;
@@ -19,10 +19,10 @@ public class WordCount {
     private static final Logger LOGGER = LoggerFactory.getLogger(WordCount.class);
 
     public static void main(String[] args) {
-        RayContext rayContext = RayContext.buildContext();
+        StreamingContext streamingContext = StreamingContext.buildContext();
         List<String> value = new ArrayList<>();
         value.add("hello world eagle");
-        StreamSource<String> streamSource = StreamSource.buildSource(rayContext, value);
+        StreamSource<String> streamSource = StreamSource.buildSource(streamingContext, value);
         streamSource
                 .flatMap((FlatMapFunction<String, KeyWord>) (value1, collector) -> {
                     String[] records = value1.split(" ");
@@ -35,7 +35,7 @@ public class WordCount {
                         new KeyWord(oldValue.getKey(), oldValue.getCount() + newValue.getCount()))
                 .sink((SinkFunction<KeyWord>) value13 -> LOGGER.info("result is {}", value13));
 
-        rayContext.execute();
+        streamingContext.execute();
     }
 
     static class KeyWord implements Serializable {

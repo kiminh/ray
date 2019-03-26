@@ -3,14 +3,14 @@ package com.ray.streaming.api.partition.impl;
 import com.ray.streaming.api.partition.Partition;
 
 /**
- * Round Robin Partition Record to downstream Tasks.
- * @param <T> input element type
+ * Round Robin partition record to downstream Tasks.
+ * @param <T> Type of the input data.
  */
-public class RRPartition<T> implements Partition<T> {
+public class RoundRobinPartition<T> implements Partition<T> {
 
   private int seq;
 
-  public RRPartition() {
+  public RoundRobinPartition() {
     this.seq = 0;
   }
 

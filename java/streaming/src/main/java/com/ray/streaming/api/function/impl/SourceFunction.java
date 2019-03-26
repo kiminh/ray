@@ -3,8 +3,8 @@ package com.ray.streaming.api.function.impl;
 import com.ray.streaming.api.function.Function;
 
 /**
- * SOURCE function for stream input.
- * @param <T> SOURCE function output element
+ * Interface of Source functions.
+ * @param <T> Type of the source output data.
  */
 public interface SourceFunction<T> extends Function {
 

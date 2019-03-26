@@ -5,8 +5,8 @@ import com.ray.streaming.message.KeyRecord;
 
 /**
  * Key Partition Default Implementation.
- * @param <K> key partition element type
- * @param <T> input element type
+ * @param <K> Type of the partition key.
+ * @param <T> Type of the input data.
  */
 public class KeyPartition<K, T> implements Partition<KeyRecord<K, T>> {
 

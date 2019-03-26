@@ -3,8 +3,8 @@ package com.ray.streaming.api.function.impl;
 import com.ray.streaming.api.function.Function;
 
 /**
- * Reduce Function.
- * @param <T> input element
+ * Interface of Reduce functions.
+ * @param <T> Type of the input data.
  */
 @FunctionalInterface
 public interface ReduceFunction<T> extends Function {
