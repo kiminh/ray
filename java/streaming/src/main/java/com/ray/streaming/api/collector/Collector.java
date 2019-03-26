@@ -1,8 +1,10 @@
 package com.ray.streaming.api.collector;
 
 /**
- * collector output and emit to downstream operator.
- * @param <T>
+ * The collector that collects data from an upstream operator, and emits data to downstream
+ * operators.
+ *
+ * @param <T> Type of the data to collect.
  */
 public interface Collector<T> {
 

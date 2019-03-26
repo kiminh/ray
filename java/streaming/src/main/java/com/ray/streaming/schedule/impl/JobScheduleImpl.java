@@ -1,6 +1,6 @@
 package com.ray.streaming.schedule.impl;
 
-import com.ray.streaming.api.partition.impl.BoardCastPartition;
+import com.ray.streaming.api.partition.impl.BroadcastPartition;
 import com.ray.streaming.cluster.ResourceManager;
 import com.ray.streaming.core.graph.ExecutionGraph;
 import com.ray.streaming.core.graph.ExecutionNode;
@@ -80,7 +80,7 @@ public class JobScheduleImpl implements IJobSchedule {
     for (PlanVertex planVertex : planVertices) {
       if (planVertex.getVertexType() == VertexType.SOURCE) {
         PlanEdge planEdge = new PlanEdge(masterVertexId, planVertex.getVertexId(),
-            new BoardCastPartition());
+            new BroadcastPartition());
         plan.getPlanEdgeList().add(planEdge);
       }
     }
