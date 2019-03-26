@@ -1,7 +1,7 @@
 package com.ray.streaming.plan;
 
 
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Lists;
 import com.ray.streaming.api.context.StreamingContext;
 import com.ray.streaming.api.partition.impl.KeyPartition;
 import com.ray.streaming.api.partition.impl.RoundRobinPartition;
