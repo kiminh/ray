@@ -1,15 +1,15 @@
 package com.ray.streaming.core.graph;
 
-import com.ray.streaming.api.partition.IPartition;
+import com.ray.streaming.api.partition.Partition;
 import java.io.Serializable;
 
 public class ExecutionEdge implements Serializable {
 
   private int srcNodeId;
   private int targetNodeId;
-  private IPartition partition;
+  private Partition partition;
 
-  public ExecutionEdge(int srcNodeId, int targetNodeId, IPartition partition) {
+  public ExecutionEdge(int srcNodeId, int targetNodeId, Partition partition) {
     this.srcNodeId = srcNodeId;
     this.targetNodeId = targetNodeId;
     this.partition = partition;
@@ -31,11 +31,11 @@ public class ExecutionEdge implements Serializable {
     this.targetNodeId = targetNodeId;
   }
 
-  public IPartition getPartition() {
+  public Partition getPartition() {
     return partition;
   }
 
-  public void setPartition(IPartition partition) {
+  public void setPartition(Partition partition) {
     this.partition = partition;
   }
 

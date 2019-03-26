@@ -1,6 +1,6 @@
 package com.ray.streaming.plan;
 
-import com.ray.streaming.api.partition.IPartition;
+import com.ray.streaming.api.partition.Partition;
 import java.io.Serializable;
 
 /**
@@ -10,9 +10,9 @@ public class PlanEdge implements Serializable {
 
   private int srcVertexId;
   private int targetVertexId;
-  private IPartition partition;
+  private Partition partition;
 
-  public PlanEdge(int srcVertexId, int targetVertexId, IPartition partition) {
+  public PlanEdge(int srcVertexId, int targetVertexId, Partition partition) {
     this.srcVertexId = srcVertexId;
     this.targetVertexId = targetVertexId;
     this.partition = partition;
@@ -35,11 +35,11 @@ public class PlanEdge implements Serializable {
     this.targetVertexId = targetVertexId;
   }
 
-  public IPartition getPartition() {
+  public Partition getPartition() {
     return partition;
   }
 
-  public void setPartition(IPartition partition) {
+  public void setPartition(Partition partition) {
     this.partition = partition;
   }
 

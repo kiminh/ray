@@ -1,6 +1,6 @@
 package com.ray.streaming.api.partition.impl;
 
-import com.ray.streaming.api.partition.IPartition;
+import com.ray.streaming.api.partition.Partition;
 import com.ray.streaming.message.KeyRecord;
 
 /**
@@ -8,7 +8,7 @@ import com.ray.streaming.message.KeyRecord;
  * @param <K> key partition element type
  * @param <T> input element type
  */
-public class KeyPartition<K, T> implements IPartition<KeyRecord<K, T>> {
+public class KeyPartition<K, T> implements Partition<KeyRecord<K, T>> {
 
   @Override
   public int[] partition(KeyRecord<K, T> keyRecord, int[] taskIds) {
