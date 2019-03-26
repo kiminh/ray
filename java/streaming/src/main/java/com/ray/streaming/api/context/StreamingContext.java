@@ -41,8 +41,8 @@ public class StreamingContext implements Serializable {
     this.plan = planBuilder.buildPlan();
     plan.printPlan();
 
-    IJobSchedule jobSchedule = new JobScheduleImpl(plan);
-    jobSchedule.schedule();
+    IJobSchedule jobSchedule = new JobScheduleImpl();
+    jobSchedule.schedule(plan);
   }
 
   public int generateId() {

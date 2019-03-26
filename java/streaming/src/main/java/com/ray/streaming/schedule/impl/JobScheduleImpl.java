@@ -28,8 +28,7 @@ public class JobScheduleImpl implements IJobSchedule {
   private ResourceManager resourceManager;
   private ITaskAssign taskAssign;
 
-  public JobScheduleImpl(Plan plan) {
-    this.plan = plan;
+  public JobScheduleImpl() {
     this.resourceManager = new ResourceManager();
     this.taskAssign = new TaskAssignImpl();
   }
@@ -39,7 +38,8 @@ public class JobScheduleImpl implements IJobSchedule {
    * and call streaming worker to init and run.
    */
   @Override
-  public void schedule() {
+  public void schedule(Plan plan) {
+    this.plan = plan;
     addJobMaster(plan);
     List<RayActor<StreamWorker>> workers = this.resourceManager.createWorker(getPlanWorker());
     ExecutionGraph executionGraph = this.taskAssign.assign(this.plan, workers);

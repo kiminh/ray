@@ -17,9 +17,9 @@ import org.slf4j.LoggerFactory;
 /**
  * The collector that emits data via Ray remote calls.
  */
-public class RayCollector implements Collector<Record> {
+public class RayCallCollector implements Collector<Record> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(RayCollector.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(RayCallCollector.class);
 
   private int taskId;
   private String stream;
@@ -27,7 +27,7 @@ public class RayCollector implements Collector<Record> {
   private int[] targetTaskIds;
   private Partition partition;
 
-  public RayCollector(int taskId, ExecutionEdge executionEdge, ExecutionGraph executionGraph) {
+  public RayCallCollector(int taskId, ExecutionEdge executionEdge, ExecutionGraph executionGraph) {
     this.taskId = taskId;
     this.stream = executionEdge.getStream();
     int targetNodeId = executionEdge.getTargetNodeId();

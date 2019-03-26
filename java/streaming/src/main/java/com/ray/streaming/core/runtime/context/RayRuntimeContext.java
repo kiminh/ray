@@ -2,7 +2,9 @@ package com.ray.streaming.core.runtime.context;
 
 import com.ray.streaming.core.graph.ExecutionTask;
 
-
+/**
+ * Use Ray to implement RuntimeContext.
+ */
 public class RayRuntimeContext implements RuntimeContext {
 
   private int taskId;

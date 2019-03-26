@@ -9,7 +9,7 @@ import com.ray.streaming.core.graph.ExecutionNode.NodeType;
 import com.ray.streaming.core.graph.ExecutionTask;
 import com.ray.streaming.core.processor.MasterProcessor;
 import com.ray.streaming.core.processor.StreamProcessor;
-import com.ray.streaming.core.runtime.collector.RayCollector;
+import com.ray.streaming.core.runtime.collector.RayCallCollector;
 import com.ray.streaming.core.runtime.context.RayRuntimeContext;
 import com.ray.streaming.core.runtime.context.RuntimeContext;
 import com.ray.streaming.core.runtime.context.WorkerContext;
@@ -22,6 +22,9 @@ import org.ray.api.annotation.RayRemote;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A Stream Worker, it is a ray actor.
+ */
 @RayRemote
 public class StreamWorker implements Serializable {
 
@@ -45,13 +48,13 @@ public class StreamWorker implements Serializable {
 
     this.nodeType = executionNode.getNodeType();
     this.streamProcessor = executionNode.getStreamProcessor();
-    LOGGER.info("taskId:{} init Operator:{}", taskId, streamProcessor);
+    LOGGER.info("StreamWorker init, taskId:{} Operator:{}", taskId, streamProcessor);
 
     List<ExecutionEdge> executionEdges = executionNode.getExecutionEdgeList();
 
     List<Collector> collectors = new ArrayList<>();
     for (ExecutionEdge executionEdge : executionEdges) {
-      collectors.add(new RayCollector(taskId, executionEdge, executionGraph));
+      collectors.add(new RayCallCollector(taskId, executionEdge, executionGraph));
     }
 
     RuntimeContext runtimeContext = new RayRuntimeContext(executionTask,
@@ -65,7 +68,7 @@ public class StreamWorker implements Serializable {
   }
 
   public Boolean process(Message message) {
-    LOGGER.info("taskId:{} process message:{}", taskId, message);
+    LOGGER.info("StreamWorker process, taskId:{} message:{}", taskId, message);
     if (nodeType == NodeType.SOURCE) {
       Record record = message.getRecord(0);
       BatchInfo batchInfo = (BatchInfo) record.getValue();

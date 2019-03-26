@@ -4,6 +4,10 @@ import com.ray.streaming.core.runtime.StreamWorker;
 import java.io.Serializable;
 import org.ray.api.RayActor;
 
+/**
+ * ExecutionTask is minimal execution unit.
+ * ExecutionNode has n ExecutionTasks if parallelism is n.
+ */
 public class ExecutionTask implements Serializable {
 
   private int taskId;

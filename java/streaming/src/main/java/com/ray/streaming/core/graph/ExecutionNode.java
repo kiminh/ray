@@ -6,6 +6,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * ExecutionNode is a execution node in a physical execution plan.
+ */
 public class ExecutionNode implements Serializable {
 
   private int nodeId;

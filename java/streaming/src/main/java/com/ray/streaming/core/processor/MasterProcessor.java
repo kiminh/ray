@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * JobMaster Processor, Responsible for overall control logic.
+ * JobMaster Processor is responsible for overall control logic.
  *
  */
 public class MasterProcessor extends StreamProcessor<BatchInfo, MasterOperator> {

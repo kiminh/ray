@@ -3,6 +3,9 @@ package com.ray.streaming.core.graph;
 import com.ray.streaming.api.partition.Partition;
 import java.io.Serializable;
 
+/**
+ * ExecutionEdge is a description of the upstream and downstream node connections.
+ */
 public class ExecutionEdge implements Serializable {
 
   private int srcNodeId;

@@ -15,6 +15,13 @@ public class StreamSource<T> extends DataStream<T> {
     super(streamingContext, sourceOperator);
   }
 
+  /**
+   * StreamSource build source from collections.
+   * @param context stream context.
+   * @param values collection values.
+   * @param <T> The type of source data.
+   * @return A StreamSource
+   */
   public static <T> StreamSource<T> buildSource(StreamingContext context, List<T> values) {
     return new StreamSource(context, new SourceOperator(new CollectionSourceFunction(values)));
   }

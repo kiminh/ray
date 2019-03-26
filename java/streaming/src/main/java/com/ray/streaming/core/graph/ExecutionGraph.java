@@ -8,8 +8,7 @@ import java.util.Map;
 import org.ray.api.RayActor;
 
 /**
- * Physical execution graph.
- * ExecutionNode is an independent execution units.
+ * ExecutionGraph is physical execution plan.
  */
 public class ExecutionGraph implements Serializable {
 

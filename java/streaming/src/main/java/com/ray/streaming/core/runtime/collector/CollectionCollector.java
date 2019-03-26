@@ -4,6 +4,10 @@ import com.ray.streaming.api.collector.Collector;
 import com.ray.streaming.message.Record;
 import java.util.List;
 
+/**
+ * CollectionCollector is contains multiple collectors.
+ * @param <T> The type of output data.
+ */
 public class CollectionCollector<T> implements Collector<T> {
 
   private List<Collector> collectorList;

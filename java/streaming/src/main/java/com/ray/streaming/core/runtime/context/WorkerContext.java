@@ -3,7 +3,9 @@ package com.ray.streaming.core.runtime.context;
 import com.ray.streaming.core.graph.ExecutionGraph;
 import java.io.Serializable;
 
-
+/**
+ * Encapsulate the context information of a worker init.
+ */
 public class WorkerContext implements Serializable {
 
   private int taskId;
