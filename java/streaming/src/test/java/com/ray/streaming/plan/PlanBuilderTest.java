@@ -2,9 +2,9 @@ package com.ray.streaming.plan;
 
 
 import com.beust.jcommander.internal.Lists;
-import com.ray.streaming.api.context.RayContext;
+import com.ray.streaming.api.context.StreamingContext;
 import com.ray.streaming.api.partition.impl.KeyPartition;
-import com.ray.streaming.api.partition.impl.RRPartition;
+import com.ray.streaming.api.partition.impl.RoundRobinPartition;
 import com.ray.streaming.api.stream.DataStream;
 import com.ray.streaming.api.stream.StreamSink;
 import com.ray.streaming.api.stream.StreamSource;
@@ -28,7 +28,7 @@ public class PlanBuilderTest {
     Assert.assertEquals(planEdgeList.size(), 1);
 
     PlanEdge planEdge = planEdgeList.get(0);
-    Assert.assertEquals(planEdge.getPartition().getClass(), RRPartition.class);
+    Assert.assertEquals(planEdge.getPartition().getClass(), RoundRobinPartition.class);
 
     PlanVertex sinkVertex = planVertexList.get(1);
     PlanVertex sourceVertex = planVertexList.get(0);
@@ -38,8 +38,8 @@ public class PlanBuilderTest {
   }
 
   public Plan buildDataSyncPlan() {
-    RayContext rayContext = RayContext.buildContext();
-    DataStream<String> dataStream = StreamSource.buildSource(rayContext,
+    StreamingContext streamingContext = StreamingContext.buildContext();
+    DataStream<String> dataStream = StreamSource.buildSource(streamingContext,
         Lists.newArrayList("a", "b", "c"));
     StreamSink streamSink = dataStream.sink(x -> LOGGER.info(x));
     PlanBuilder planBuilder = new PlanBuilder(Lists.newArrayList(streamSink));
@@ -69,12 +69,12 @@ public class PlanBuilderTest {
     PlanEdge source2KeyBy = planEdgeList.get(1);
 
     Assert.assertEquals(keyBy2Sink.getPartition().getClass(), KeyPartition.class);
-    Assert.assertEquals(source2KeyBy.getPartition().getClass(), RRPartition.class);
+    Assert.assertEquals(source2KeyBy.getPartition().getClass(), RoundRobinPartition.class);
   }
 
   public Plan buildKeyByPlan() {
-    RayContext rayContext = RayContext.buildContext();
-    DataStream<String> dataStream = StreamSource.buildSource(rayContext,
+    StreamingContext streamingContext = StreamingContext.buildContext();
+    DataStream<String> dataStream = StreamSource.buildSource(streamingContext,
         Lists.newArrayList("1", "2", "3", "4"));
     StreamSink streamSink = dataStream.keyBy(x -> x)
         .sink(x -> LOGGER.info(x));

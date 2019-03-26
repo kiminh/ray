@@ -12,13 +12,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.ray.api.Ray;
 
 /**
- * Ray Job Context.
- */
-
-/**
  * Encapsulate the context information of a streaming Job.
  */
-public class RayContext implements Serializable {
+public class StreamingContext implements Serializable {
 
   private transient AtomicInteger idGenerator;
   private List<StreamSink> streamSinks;
@@ -27,14 +23,14 @@ public class RayContext implements Serializable {
    */
   private Plan plan;
 
-  private RayContext() {
+  private StreamingContext() {
     this.idGenerator = new AtomicInteger(0);
     this.streamSinks = new ArrayList<>();
   }
 
-  public static RayContext buildContext() {
+  public static StreamingContext buildContext() {
     Ray.init();
-    return new RayContext();
+    return new StreamingContext();
   }
 
   /**

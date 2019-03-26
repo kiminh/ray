@@ -1,5 +1,6 @@
 package com.ray.streaming.schedule.impl;
 
+import com.ray.streaming.core.graph.ExecutionEdge;
 import com.ray.streaming.core.graph.ExecutionGraph;
 import com.ray.streaming.core.graph.ExecutionNode;
 import com.ray.streaming.core.graph.ExecutionNode.NodeType;
@@ -41,7 +42,7 @@ public class TaskAssignImplTest {
     Assert.assertEquals(sourceNode.getExecutionTaskList().size(), 1);
     Assert.assertEquals(sourceNode.getExecutionEdgeList().size(), 1);
 
-
+    List<ExecutionEdge> sourceExecutionEdges = sourceNode.getExecutionEdgeList();
 
 
 

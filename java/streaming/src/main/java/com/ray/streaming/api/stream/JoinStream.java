@@ -1,31 +1,41 @@
 package com.ray.streaming.api.stream;
 
-import com.ray.streaming.api.context.RayContext;
+import com.ray.streaming.api.context.StreamingContext;
 import com.ray.streaming.api.function.impl.JoinFunction;
 import com.ray.streaming.api.function.impl.KeyFunction;
 import com.ray.streaming.operator.StreamOperator;
 import java.io.Serializable;
 
 /**
- * Join DataStream.
- * @param <T> left stream element type
- * @param <O> right stream element type
- * @param <R> result stream element type
+ * Represents an DataStream of Two DataStream Joined.
+ * @param <T> The type of left Join Stream Data.
+ * @param <O> The type of right join Stream Data.
+ * @param <R> The type of result joined Stream Data.
  */
 public class JoinStream<T, O, R> extends DataStream<T> {
 
-  public JoinStream(RayContext rayContext, StreamOperator streamOperator) {
-    super(rayContext, streamOperator);
+  public JoinStream(StreamingContext streamingContext, StreamOperator streamOperator) {
+    super(streamingContext, streamOperator);
   }
 
   public JoinStream(DataStream<T> leftStream, DataStream<O> rightStream) {
     super(leftStream, null);
   }
 
+  /**
+   * Apply key-by to left join stream.
+   */
   public <K> Where<T, O, R, K> where(KeyFunction<T, K> keyFunction) {
     return new Where<>(this, keyFunction);
   }
 
+  /**
+   * Where clause of Join Transformation.
+   * @param <T> The type of left Join Stream Data.
+   * @param <O> The type of right Join Stream Data.
+   * @param <R> The type of result joined Stream Data.
+   * @param <K> The type of Join Key.
+   */
   class Where<T, O, R, K> implements Serializable {
 
     private JoinStream<T, O, R> joinStream;
@@ -41,6 +51,13 @@ public class JoinStream<T, O, R> extends DataStream<T> {
     }
   }
 
+  /**
+   * Equal clause of Join Transformation.
+   * @param <T> The type of left Join Stream Data.
+   * @param <O> The type of right Join Stream Data.
+   * @param <R> The type of result joined Stream Data.
+   * @param <K> The type of Join Key.
+   */
   class Equal<T, O, R, K> implements Serializable {
 
     private JoinStream<T, O, R> joinStream;

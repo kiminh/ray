@@ -4,8 +4,8 @@ import com.ray.streaming.api.function.impl.SourceFunction;
 import java.util.List;
 
 /**
- * Collection Source Function.
- * @param <T> output element
+ * Collection Source functions Implementation.
+ * @param <T> Type of the source output data.
  */
 public class CollectionSourceFunction<T> implements SourceFunction<T> {
 
