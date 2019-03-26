@@ -1,16 +1,16 @@
 package com.ray.streaming.api.partition.impl;
 
-import com.ray.streaming.api.partition.IPartition;
+import com.ray.streaming.api.partition.Partition;
 
 /**
- * Random Partition Default Implementation.
+ * Round Robin Partition Record to downstream Tasks.
  * @param <T> input element type
  */
-public class RandomPartition<T> implements IPartition<T> {
+public class RRPartition<T> implements Partition<T> {
 
   private int seq;
 
-  public RandomPartition() {
+  public RRPartition() {
     this.seq = 0;
   }
 

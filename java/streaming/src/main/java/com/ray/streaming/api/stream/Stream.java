@@ -1,8 +1,8 @@
 package com.ray.streaming.api.stream;
 
 import com.ray.streaming.api.context.RayContext;
-import com.ray.streaming.api.partition.IPartition;
-import com.ray.streaming.api.partition.impl.RandomPartition;
+import com.ray.streaming.api.partition.Partition;
+import com.ray.streaming.api.partition.impl.RRPartition;
 import com.ray.streaming.operator.StreamOperator;
 import java.io.Serializable;
 
@@ -14,13 +14,13 @@ public class Stream<T> implements Serializable {
   protected StreamOperator operator;
   protected Stream<T> inputStream;
   protected RayContext rayContext;
-  protected IPartition<T> partition;
+  protected Partition<T> partition;
 
   public Stream(RayContext rayContext, StreamOperator streamOperator) {
     this.rayContext = rayContext;
     this.operator = streamOperator;
     this.id = rayContext.generateId();
-    this.partition = new RandomPartition<>();
+    this.partition = new RRPartition<>();
   }
 
   public Stream(Stream<T> inputStream, StreamOperator streamOperator) {
@@ -29,7 +29,7 @@ public class Stream<T> implements Serializable {
     this.rayContext = this.inputStream.getRayContext();
     this.operator = streamOperator;
     this.id = rayContext.generateId();
-    this.partition = new RandomPartition<>();
+    this.partition = new RRPartition<>();
   }
 
 
@@ -58,11 +58,11 @@ public class Stream<T> implements Serializable {
     return id;
   }
 
-  public IPartition<T> getPartition() {
+  public Partition<T> getPartition() {
     return partition;
   }
 
-  public void setPartition(IPartition<T> partition) {
+  public void setPartition(Partition<T> partition) {
     this.partition = partition;
   }
 }

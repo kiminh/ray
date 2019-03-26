@@ -4,7 +4,7 @@ package com.ray.streaming.plan;
 import com.beust.jcommander.internal.Lists;
 import com.ray.streaming.api.context.RayContext;
 import com.ray.streaming.api.partition.impl.KeyPartition;
-import com.ray.streaming.api.partition.impl.RandomPartition;
+import com.ray.streaming.api.partition.impl.RRPartition;
 import com.ray.streaming.api.stream.DataStream;
 import com.ray.streaming.api.stream.StreamSink;
 import com.ray.streaming.api.stream.StreamSource;
@@ -28,7 +28,7 @@ public class PlanBuilderTest {
     Assert.assertEquals(planEdgeList.size(), 1);
 
     PlanEdge planEdge = planEdgeList.get(0);
-    Assert.assertEquals(planEdge.getPartition().getClass(), RandomPartition.class);
+    Assert.assertEquals(planEdge.getPartition().getClass(), RRPartition.class);
 
     PlanVertex sinkVertex = planVertexList.get(1);
     PlanVertex sourceVertex = planVertexList.get(0);
@@ -69,7 +69,7 @@ public class PlanBuilderTest {
     PlanEdge source2KeyBy = planEdgeList.get(1);
 
     Assert.assertEquals(keyBy2Sink.getPartition().getClass(), KeyPartition.class);
-    Assert.assertEquals(source2KeyBy.getPartition().getClass(), RandomPartition.class);
+    Assert.assertEquals(source2KeyBy.getPartition().getClass(), RRPartition.class);
   }
 
   public Plan buildKeyByPlan() {

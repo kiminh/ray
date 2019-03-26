@@ -1,7 +1,7 @@
 package com.ray.streaming.core.runtime.collector;
 
 import com.ray.streaming.api.collector.Collector;
-import com.ray.streaming.api.partition.IPartition;
+import com.ray.streaming.api.partition.Partition;
 import com.ray.streaming.core.graph.ExecutionEdge;
 import com.ray.streaming.core.graph.ExecutionGraph;
 import com.ray.streaming.core.runtime.StreamWorker;
@@ -26,7 +26,7 @@ public class RayCollector implements Collector<Record> {
   private String stream;
   private Map<Integer, RayActor<StreamWorker>> taskId2Worker;
   private int[] targetTaskIds;
-  private IPartition partition;
+  private Partition partition;
 
   public RayCollector(int taskId, ExecutionEdge executionEdge, ExecutionGraph executionGraph) {
     this.taskId = taskId;

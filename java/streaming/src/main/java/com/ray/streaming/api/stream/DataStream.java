@@ -6,7 +6,7 @@ import com.ray.streaming.api.function.impl.FlatMapFunction;
 import com.ray.streaming.api.function.impl.KeyFunction;
 import com.ray.streaming.api.function.impl.MapFunction;
 import com.ray.streaming.api.function.impl.SinkFunction;
-import com.ray.streaming.api.partition.IPartition;
+import com.ray.streaming.api.partition.Partition;
 import com.ray.streaming.api.partition.impl.BoardCastPartition;
 import com.ray.streaming.operator.StreamOperator;
 import com.ray.streaming.operator.impl.FlatMapOperator;
@@ -62,7 +62,7 @@ public class DataStream<T> extends Stream<T> {
     return this;
   }
 
-  public DataStream<T> partitionBy(IPartition<T> partition) {
+  public DataStream<T> partitionBy(Partition<T> partition) {
     this.partition = partition;
     return this;
   }
