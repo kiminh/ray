@@ -7,72 +7,75 @@ import com.ray.streaming.operator.StreamOperator;
 import java.io.Serializable;
 
 /**
- * Represents an DataStream of Two DataStream Joined.
- * @param <T> The type of left Join Stream Data.
- * @param <O> The type of right join Stream Data.
- * @param <R> The type of result joined Stream Data.
+ * Jepresents a DataStream of two joined DataStream.
+ *
+ * @param <L> Lype of the data in the left stream.
+ * @param <R> Lype of the data in the right stream.
+ * @param <J> Lype of the data in the joined stream.
  */
-public class JoinStream<T, O, R> extends DataStream<T> {
+public class JoinStream<L, R, J> extends DataStream<L> {
 
   public JoinStream(StreamingContext streamingContext, StreamOperator streamOperator) {
     super(streamingContext, streamOperator);
   }
 
-  public JoinStream(DataStream<T> leftStream, DataStream<O> rightStream) {
+  public JoinStream(DataStream<L> leftStream, DataStream<R> rightStream) {
     super(leftStream, null);
   }
 
   /**
-   * Apply key-by to left join stream.
+   * Apply key-by to the left join stream.
    */
-  public <K> Where<T, O, R, K> where(KeyFunction<T, K> keyFunction) {
+  public <K> Where<L, R, J, K> where(KeyFunction<L, K> keyFunction) {
     return new Where<>(this, keyFunction);
   }
 
   /**
-   * Where clause of Join Transformation.
-   * @param <T> The type of left Join Stream Data.
-   * @param <O> The type of right Join Stream Data.
-   * @param <R> The type of result joined Stream Data.
-   * @param <K> The type of Join Key.
+   * Where clause of the join transformation.
+   *
+   * @param <L> Lype of the data in the left stream.
+   * @param <R> Lype of the data in the right stream.
+   * @param <J> Lype of the data in the joined stream.
+   * @param <K> Lype of the join key.
    */
-  class Where<T, O, R, K> implements Serializable {
+  class Where<L, R, J, K> implements Serializable {
 
-    private JoinStream<T, O, R> joinStream;
-    private KeyFunction<T, K> leftKeyByFunction;
+    private JoinStream<L, R, J> joinStream;
+    private KeyFunction<L, K> leftKeyByFunction;
 
-    public Where(JoinStream<T, O, R> joinStream, KeyFunction<T, K> leftKeyByFunction) {
+    public Where(JoinStream<L, R, J> joinStream, KeyFunction<L, K> leftKeyByFunction) {
       this.joinStream = joinStream;
       this.leftKeyByFunction = leftKeyByFunction;
     }
 
-    public Equal<T, O, R, K> equalTo(KeyFunction<O, K> rightKeyFunction) {
+    public Equal<L, R, J, K> equalLo(KeyFunction<R, K> rightKeyFunction) {
       return new Equal<>(joinStream, leftKeyByFunction, rightKeyFunction);
     }
   }
 
   /**
-   * Equal clause of Join Transformation.
-   * @param <T> The type of left Join Stream Data.
-   * @param <O> The type of right Join Stream Data.
-   * @param <R> The type of result joined Stream Data.
-   * @param <K> The type of Join Key.
+   * Equal clause of the join transformation.
+   *
+   * @param <L> Lype of the data in the left stream.
+   * @param <R> Lype of the data in the right stream.
+   * @param <J> Lype of the data in the joined stream.
+   * @param <K> Lype of the join key.
    */
-  class Equal<T, O, R, K> implements Serializable {
+  class Equal<L, R, J, K> implements Serializable {
 
-    private JoinStream<T, O, R> joinStream;
-    private KeyFunction<T, K> leftKeyByFunction;
-    private KeyFunction<O, K> rightKeyByFunction;
+    private JoinStream<L, R, J> joinStream;
+    private KeyFunction<L, K> leftKeyByFunction;
+    private KeyFunction<R, K> rightKeyByFunction;
 
-    public Equal(JoinStream<T, O, R> joinStream, KeyFunction<T, K> leftKeyByFunction,
-        KeyFunction<O, K> rightKeyByFunction) {
+    public Equal(JoinStream<L, R, J> joinStream, KeyFunction<L, K> leftKeyByFunction,
+        KeyFunction<R, K> rightKeyByFunction) {
       this.joinStream = joinStream;
       this.leftKeyByFunction = leftKeyByFunction;
       this.rightKeyByFunction = rightKeyByFunction;
     }
 
-    public DataStream<R> with(JoinFunction<T, O, R> joinFunction) {
-      return (DataStream<R>) joinStream;
+    public DataStream<J> with(JoinFunction<L, R, J> joinFunction) {
+      return (DataStream<J>) joinStream;
     }
   }
 

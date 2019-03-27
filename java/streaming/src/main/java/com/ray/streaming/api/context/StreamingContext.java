@@ -17,6 +17,9 @@ import org.ray.api.Ray;
 public class StreamingContext implements Serializable {
 
   private transient AtomicInteger idGenerator;
+  /**
+   * The sinks of this streaming job.
+   */
   private List<StreamSink> streamSinks;
   /**
    * The logic plan.
@@ -34,7 +37,7 @@ public class StreamingContext implements Serializable {
   }
 
   /**
-   * construct streaming job dag && run streaming job
+   * Construct job DAG, and execute the job.
    */
   public void execute() {
     PlanBuilder planBuilder = new PlanBuilder(this.streamSinks);

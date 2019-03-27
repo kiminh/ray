@@ -7,10 +7,11 @@ import com.ray.streaming.operator.StreamOperator;
 import java.io.Serializable;
 
 /**
- * Represents an abstract stream of data.
- * @param <T>
+ * Abstract base class of all stream types.
+ *
+ * @param <T> Type of the data in the stream.
  */
-public class Stream<T> implements Serializable {
+public abstract class Stream<T> implements Serializable {
 
   protected int id;
   protected int parallelism = 1;

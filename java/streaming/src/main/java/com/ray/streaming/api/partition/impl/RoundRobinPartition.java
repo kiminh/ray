@@ -3,8 +3,9 @@ package com.ray.streaming.api.partition.impl;
 import com.ray.streaming.api.partition.Partition;
 
 /**
- * Round Robin partition record to downstream Tasks.
- * @param <T> Type of the input data.
+ * Partition record to downstream tasks in a round-robin matter.
+ *
+ * @param <T> Type of the input record.
  */
 public class RoundRobinPartition<T> implements Partition<T> {
 

@@ -4,7 +4,8 @@ import com.ray.streaming.api.function.Function;
 
 /**
  * Interface of Source functions.
- * @param <T> Type of the source output data.
+ *
+ * @param <T> Type of the data output by the source.
  */
 public interface SourceFunction<T> extends Function {
 

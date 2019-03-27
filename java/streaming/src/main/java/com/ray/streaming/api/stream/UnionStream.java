@@ -5,7 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Represents an DataStream of Multi DataStream Union.
+ * Represents a union DataStream.
+ *
  * @param <T> The type of union data.
  */
 public class UnionStream<T> extends DataStream<T> {

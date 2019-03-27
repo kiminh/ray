@@ -4,9 +4,10 @@ import com.ray.streaming.api.partition.Partition;
 import com.ray.streaming.message.KeyRecord;
 
 /**
- * Key Partition Default Implementation.
+ * Partition the record by the key.
+ *
  * @param <K> Type of the partition key.
- * @param <T> Type of the input data.
+ * @param <T> Type of the input record.
  */
 public class KeyPartition<K, T> implements Partition<KeyRecord<K, T>> {
 

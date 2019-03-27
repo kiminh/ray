@@ -4,6 +4,7 @@ import com.ray.streaming.api.function.Function;
 
 /**
  * Interface of aggregate functions.
+ *
  * @param <I> Type of the input data.
  * @param <A> Type of the intermediate data.
  * @param <O> Type of the output data.

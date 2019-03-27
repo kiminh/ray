@@ -3,10 +3,12 @@ package com.ray.streaming.api.function.impl;
 import com.ray.streaming.api.function.Function;
 
 /**
- * Interface of Sink functions.
+ * Interface of sink functions.
+ *
  * @param <T> Type of the sink data.
  */
 @FunctionalInterface
 public interface SinkFunction<T> extends Function {
+
   void sink(T value);
 }

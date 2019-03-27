@@ -3,10 +3,11 @@ package com.ray.streaming.api.stream;
 import com.ray.streaming.api.context.StreamingContext;
 import com.ray.streaming.api.function.internal.CollectionSourceFunction;
 import com.ray.streaming.operator.impl.SourceOperator;
-import java.util.List;
+import java.util.Collection;
 
 /**
- * Represents an source of DataStream.
+ * Represents a source of the DataStream.
+ *
  * @param <T> The type of StreamSource data.
  */
 public class StreamSource<T> extends DataStream<T> {
@@ -16,13 +17,14 @@ public class StreamSource<T> extends DataStream<T> {
   }
 
   /**
-   * StreamSource build source from collections.
-   * @param context stream context.
-   * @param values collection values.
+   * Build a StreamSource source from a collection.
+   *
+   * @param context Stream context.
+   * @param values A collection of values.
    * @param <T> The type of source data.
-   * @return A StreamSource
+   * @return A StreamSource.
    */
-  public static <T> StreamSource<T> buildSource(StreamingContext context, List<T> values) {
+  public static <T> StreamSource<T> buildSource(StreamingContext context, Collection<T> values) {
     return new StreamSource(context, new SourceOperator(new CollectionSourceFunction(values)));
   }
 

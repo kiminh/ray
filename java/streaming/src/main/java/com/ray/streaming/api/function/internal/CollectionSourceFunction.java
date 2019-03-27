@@ -1,17 +1,18 @@
 package com.ray.streaming.api.function.internal;
 
 import com.ray.streaming.api.function.impl.SourceFunction;
-import java.util.List;
+import java.util.Collection;
 
 /**
- * Collection Source functions Implementation.
- * @param <T> Type of the source output data.
+ * The SourceFunction that fetch data from a Java Collection object.
+ *
+ * @param <T> Type of the data output by the source.
  */
 public class CollectionSourceFunction<T> implements SourceFunction<T> {
 
-  private List<T> values;
+  private Collection<T> values;
 
-  public CollectionSourceFunction(List<T> values) {
+  public CollectionSourceFunction(Collection<T> values) {
     this.values = values;
   }
 

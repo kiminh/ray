@@ -3,8 +3,7 @@ package com.ray.streaming.api.partition.impl;
 import com.ray.streaming.api.partition.Partition;
 
 /**
- * Shuffle data based on broadcast strategy.
- * @param <T> broad cast element
+ * Broadcast the record to all downstream tasks.
  */
 public class BroadcastPartition<T> implements Partition<T> {
 

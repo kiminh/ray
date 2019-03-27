@@ -3,19 +3,20 @@ package com.ray.streaming.api.partition;
 import com.ray.streaming.api.function.Function;
 
 /**
- * Interface of the shuffling strategy.
+ * Interface of the partitioning strategy.
  *
- * @param <T> partition input element type
+ * @param <T> Type of the input data.
  */
 @FunctionalInterface
 public interface Partition<T> extends Function {
 
   /**
-   * Determine which task(s) should receive the given data.
-   * @param value The data.
-   * @param taskIds IDs of all downstream operators.
-   * @return IDs of the downstream operators that should receive the data.
+   * Given a record and downstream tasks, determine which task(s) should receive the record.
+   *
+   * @param record The record.
+   * @param taskIds IDs of all downstream tasks.
+   * @return IDs of the downstream tasks that should receive the record.
    */
-  int[] partition(T value, int[] taskIds);
+  int[] partition(T record, int[] taskIds);
 
 }
