@@ -8,11 +8,11 @@ import java.util.Map;
  */
 public interface ChannelProducer<T> {
 
-  void createTopic(List<String> topic);
+  void createTopics(List<String> topics);
 
   void close();
 
-  void send(ChannelRecord<T> record);
+  void send(String topic, ChannelRecord<T> record);
 
   Map<String, OffsetAndMetadata> position();
 }

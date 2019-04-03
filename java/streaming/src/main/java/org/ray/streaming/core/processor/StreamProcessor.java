@@ -3,6 +3,8 @@ package org.ray.streaming.core.processor;
 import java.util.List;
 import org.ray.streaming.api.collector.Collector;
 import org.ray.streaming.core.runtime.context.RuntimeContext;
+import org.ray.streaming.io.reader.RecordReader;
+import org.ray.streaming.io.writer.RecordWriter;
 import org.ray.streaming.operator.Operator;
 
 /**
@@ -16,9 +18,15 @@ public abstract class StreamProcessor<T, P extends Operator> implements Processo
   protected List<Collector> collectors;
   protected RuntimeContext runtimeContext;
   protected P operator;
+  protected RecordReader recordReader;
 
   public StreamProcessor(P operator) {
     this.operator = operator;
+  }
+
+  public void open(RecordReader recordReader, List<Collector> collectors, RuntimeContext runtimeContext) {
+    open(collectors, runtimeContext);
+    this.recordReader = recordReader;
   }
 
   @Override

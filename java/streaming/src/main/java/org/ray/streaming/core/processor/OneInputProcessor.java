@@ -26,4 +26,17 @@ public class OneInputProcessor<T> extends StreamProcessor<Record<T>, OneInputOpe
   public void close() {
     this.operator.close();
   }
+
+  public boolean processInput() {
+    try {
+      if (recordReader.hasNext()) {
+        Record<T> record = (Record<T>) recordReader.next();
+        this.operator.processElement(record);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    return true;
+  }
 }

@@ -17,12 +17,14 @@ public class ExecutionNode implements Serializable {
   private StreamProcessor streamProcessor;
   private List<ExecutionTask> executionTaskList;
   private List<ExecutionEdge> executionEdgeList;
+  private List<ExecutionEdge> inputsEdges;
 
   public ExecutionNode(int nodeId, int parallelism) {
     this.nodeId = nodeId;
     this.parallelism = parallelism;
     this.executionTaskList = new ArrayList<>();
     this.executionEdgeList = new ArrayList<>();
+    this.inputsEdges = new ArrayList<>();
   }
 
   public int getNodeId() {
@@ -57,8 +59,16 @@ public class ExecutionNode implements Serializable {
     this.executionEdgeList = executionEdgeList;
   }
 
+  public List<ExecutionEdge> getInputsEdges() {
+    return inputsEdges;
+  }
+
   public void addExecutionEdge(ExecutionEdge executionEdge) {
     this.executionEdgeList.add(executionEdge);
+  }
+
+  public void addInputEdge(ExecutionEdge executionEdge) {
+    this.inputsEdges.add(executionEdge);
   }
 
   public StreamProcessor getStreamProcessor() {

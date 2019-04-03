@@ -57,6 +57,7 @@ public class TaskAssignImpl implements ITaskAssign {
       ExecutionEdge executionEdge = new ExecutionEdge(srcNodeId, targetNodeId,
           planEdge.getPartition());
       idToExecutionNode.get(srcNodeId).addExecutionEdge(executionEdge);
+      idToExecutionNode.get(targetNodeId).addInputEdge(executionEdge);
     }
 
     List<ExecutionNode> executionNodes = idToExecutionNode.values().stream()

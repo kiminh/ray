@@ -46,19 +46,31 @@ public class WordCountTest implements Serializable {
         .keyBy(pair -> pair.word)
         .reduce((ReduceFunction<WordAndCount>) (oldValue, newValue) ->
             new WordAndCount(oldValue.word, oldValue.count + newValue.count))
-        .sink((SinkFunction<WordAndCount>) result -> wordCount.put(result.word, result.count));
+        .sink((SinkFunction<WordAndCount>) result -> {
+          if (0 == result.count % 10000) {
+            LOGGER.info("Word: " + result.word + " , Count: " + result.count);
+          }
+          wordCount.put(result.word, result.count);
+        });
 
     streamingContext.execute();
 
-    // Sleep until the count for every word is computed.
-    while (wordCount.size() < 3) {
+    while (true) {
       try {
         Thread.sleep(100);
       } catch (InterruptedException e) {
         LOGGER.warn("Got an exception while sleeping.", e);
       }
     }
-    Assert.assertEquals(wordCount, ImmutableMap.of("eagle", 3, "hello", 1, "world", 1));
+    // Sleep until the count for every word is computed.
+//    while (wordCount.size() < 3) {
+//      try {
+//        Thread.sleep(100);
+//      } catch (InterruptedException e) {
+//        LOGGER.warn("Got an exception while sleeping.", e);
+//      }
+//    }
+//    Assert.assertEquals(wordCount, ImmutableMap.of("eagle", 3, "hello", 1, "world", 1));
   }
 
   private static class WordAndCount implements Serializable {
