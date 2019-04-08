@@ -589,3 +589,29 @@ genrule(
     """,
     local = 1,
 )
+
+cc_library(
+    name = "streaming_lib",
+    srcs = glob(
+        [
+            "src/streaming/*.cc",
+        ]
+    ),
+    hdrs = glob([
+        "src/streaming/*.h",
+    ]),
+    copts = COPTS,
+    deps = [
+    ],
+)
+
+cc_binary(
+    name = "streaming_default_test",
+    srcs = [
+            "src/streaming/streaming_default_test.cc",
+    ],
+    copts = COPTS,
+    deps = [
+      ":streaming_lib"
+    ],
+)
