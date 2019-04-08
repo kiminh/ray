@@ -2,10 +2,12 @@
 // Created by ashione on 2019/4/1.
 //
 
-#ifndef STREAMING_PROTOTYPE_STREAMING_METRICS_H
-#define STREAMING_PROTOTYPE_STREAMING_METRICS_H
+#ifndef RAY_STREAMING_STREAMING_METRICS_H
+#define RAY_STREAMING_STREAMING_METRICS_H
 #include <iostream>
 
+namespace ray {
+namespace streaming {
 class StreamingMetricsReporter {
  public :
   virtual void Report() = 0;
@@ -47,5 +49,7 @@ class PrometheusReporter: public MetricsReporterDecorator {
     std::cout << "Prometheus Reporter" << std::endl;
   }
 };
+}
+}
 
-#endif //STREAMING_PROTOTYPE_STREAMING_METRICS_H
+#endif //RAY_STREAMING_STREAMING_METRICS_H

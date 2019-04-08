@@ -2,13 +2,14 @@
 // Created by ashione on 2019/4/1.
 //
 
-#ifndef STREAMING_PROTOTYPE_STREAMING_PRODUCER_H
-#define STREAMING_PROTOTYPE_STREAMING_PRODUCER_H
+#ifndef RAY_STREAMING_STREAMING_PRODUCER_H
+#define RAY_STREAMING_STREAMING_PRODUCER_H
 
 #include "streaming_channel.h"
 #include "streaming_message.h"
 #include "streaming_transfer.h"
-
+namespace ray {
+namespace streaming {
 class StreamingProducer : public StreamingChannel {
  public:
   StreamingProducer(std::shared_ptr<StreamingChannelConfig> channel_config,
@@ -32,5 +33,7 @@ class StreamingProducer : public StreamingChannel {
   }
 
 };
+}
+}
 
-#endif //STREAMING_PROTOTYPE_STREAMING_PRODUCER_H
+#endif //RAY_STREAMING_STREAMING_PRODUCER_H

@@ -2,9 +2,10 @@
 // Created by ashione on 2019/4/1.
 //
 
-#ifndef STREAMING_PROTOTYPE_STREAMING_CONFIG_H
-#define STREAMING_PROTOTYPE_STREAMING_CONFIG_H
-
+#ifndef RAY_STREAMING_STREAMING_CONFIG_H
+#define RAY_STREAMING_STREAMING_CONFIG_H
+namespace ray {
+namespace streaming {
 class StreamingConfig {
 
 };
@@ -20,5 +21,7 @@ class StreamingChannelConfig {
 class StreamingDefaultChannelConfig : public StreamingChannelConfig {
 
 };
+}
+}
 
-#endif //STREAMING_PROTOTYPE_STREAMING_CONFIG_H
+#endif //RAY_STREAMING_STREAMING_CONFIG_H
