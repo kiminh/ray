@@ -4,6 +4,7 @@
 #include "streaming_consumer.h"
 
 #include <iostream>
+using namespace ray::streaming;
 
 void hello() {
   std::cout << "Hello, World!" << std::endl;
@@ -11,8 +12,8 @@ void hello() {
 
 int main() {
   hello();
-  std::cout << "channel" << std::endl;
   StreamingChannelIndex index;
+  std::cout << "channel " << index << std::endl;
 
   std::shared_ptr<StreamingChannelConfig> channel_config(new StreamingDefaultChannelConfig);
   std::shared_ptr<StreamingTransfer> producer_transfer(new StreamingDefaultTransfer);

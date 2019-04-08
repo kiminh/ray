@@ -3,4 +3,9 @@
 //
 
 #include "streaming_transfer.h"
+namespace ray {
+namespace streaming {
 std::queue<std::shared_ptr<StreamingMessage>> StreamingDefaultTransfer::message_store_;
+}
+}
+

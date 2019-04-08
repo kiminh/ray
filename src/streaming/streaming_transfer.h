@@ -2,8 +2,8 @@
 // Created by ashione on 2019/4/1.
 //
 
-#ifndef STREAMING_PROTOTYPE_STREAMING_TRANSFORMATION_H
-#define STREAMING_PROTOTYPE_STREAMING_TRANSFORMATION_H
+#ifndef RAY_STREAMING_STREAMING_TRANSFORMATION_H
+#define RAY_STREAMING_STREAMING_TRANSFORMATION_H
 #include <iostream>
 
 #include "streaming_constant.h"
@@ -12,6 +12,8 @@
 
 #include <queue>
 
+namespace ray {
+namespace streaming {
 enum class StreamingTransferRole : uint8_t {
   StreamingProduer = 0,
   StreamingConsumer = 1
@@ -20,7 +22,7 @@ enum class StreamingTransferRole : uint8_t {
 class StreamingChannelInfo;
 
 // divided into two classes
-class StreamingTransfer{
+class StreamingTransfer {
  public:
   StreamingTransfer() : is_init_(false) {}
   virtual StreamingStatus ProduceMessage(StreamingChannelInfo &channel_info,
@@ -56,7 +58,6 @@ class StreamingTransfer{
   virtual StreamingStatus DestoryProducer() = 0;
   virtual StreamingStatus DestoryConsumer() = 0;
 
-
  protected:
   StreamingTransferRole role_;
   bool is_init_;
@@ -65,7 +66,7 @@ class StreamingTransfer{
 
 // StreamingDefaultTransfer
 // Store message in memory stl queue of single process for prototype
-class StreamingDefaultTransfer : public StreamingTransfer{
+class StreamingDefaultTransfer : public StreamingTransfer {
  public:
   StreamingDefaultTransfer() : StreamingTransfer() {}
   ~StreamingDefaultTransfer() {
@@ -107,4 +108,6 @@ class StreamingDefaultTransfer : public StreamingTransfer{
   static std::queue<std::shared_ptr<StreamingMessage>> message_store_;
 
 };
-#endif //STREAMING_PROTOTYPE_STREAMING_TRANSFORMATION_H
+}
+}
+#endif //RAY_STREAMING_STREAMING_TRANSFORMATION_H

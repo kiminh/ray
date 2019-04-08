@@ -2,13 +2,17 @@
 // Created by ashione on 2019/4/1.
 //
 
-#ifndef STREAMING_PROTOTYPE_STREAMING_CONSTANT_H
-#define STREAMING_PROTOTYPE_STREAMING_CONSTANT_H
+#ifndef RAY_STREAMING_STREAMING_CONSTANT_H
+#define RAY_STREAMING_STREAMING_CONSTANT_H
 #include <cstdlib>
+namespace ray {
+namespace streaming {
 enum class StreamingStatus : uint32_t {
   OK = 0,
   MIN = OK,
   MAX = OK
 };
+}
+}
 
-#endif //STREAMING_PROTOTYPE_STREAMING_CONSTANT_H
+#endif //RAY_STREAMING_STREAMING_CONSTANT_H

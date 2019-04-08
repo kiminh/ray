@@ -2,14 +2,17 @@
 // Created by ashione on 2019/4/1.
 //
 
-#ifndef STREAMING_PROTOTYPE_STREAMING_STRATEGY_IMPLEMENTOR_H
-#define STREAMING_PROTOTYPE_STREAMING_STRATEGY_IMPLEMENTOR_H
+#ifndef RAY_STREAMING_STREAMING_STRATEGY_IMPLEMENTOR_H
+#define RAY_STREAMING_STREAMING_STRATEGY_IMPLEMENTOR_H
 
 #include "streaming_constant.h"
 #include "streaming_channel_meta.h"
 
 #include <functional>
 #include <iostream>
+
+namespace ray {
+namespace streaming {
 
 class StreamingChannelInfo;
 
@@ -25,21 +28,23 @@ class StreamingDefaultStrategyImplementor : public StreamingStrategyImplementor 
 
  public:
   StreamingStatus ProduceMessage(StreamingChannelInfo &channel_info, ProduceHandler handler) override {
-    std::cout << "before handle produce message"  << std::endl;
+    std::cout << "before handle produce message" << std::endl;
     handler();
-    std::cout << "after handle produce message"  << std::endl;
+    std::cout << "after handle produce message" << std::endl;
     return StreamingStatus::OK;
   };
 
   StreamingStatus ConsumeMessage(StreamingChannelInfo &channel_info, ProduceHandler handler) override {
-    std::cout << "before handle consume message"  << std::endl;
+    std::cout << "before handle consume message" << std::endl;
     handler();
-    std::cout << "after handle consume message"  << std::endl;
+    std::cout << "after handle consume message" << std::endl;
     return StreamingStatus::OK;
   };
 
-  ~StreamingDefaultStrategyImplementor(){}
+  ~StreamingDefaultStrategyImplementor() {}
 
 };
+}
+}
 
-#endif //STREAMING_PROTOTYPE_STREAMING_STRATEGY_IMPLEMENTOR_H
+#endif //RAY_STREAMING_STREAMING_STRATEGY_IMPLEMENTOR_H

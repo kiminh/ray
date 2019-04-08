@@ -602,15 +602,20 @@ cc_library(
     ]),
     copts = COPTS,
     deps = [
+        ":ray_util",
+        ":ray_common",
     ],
 )
 
 cc_binary(
     name = "streaming_default_test",
     srcs = [
-            "src/streaming/streaming_default_test.cc",
+        "src/streaming/test/streaming_default_test.cc",
     ],
     copts = COPTS,
+    includes = [
+        "src/streaming",
+    ],
     deps = [
       ":streaming_lib"
     ],

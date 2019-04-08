@@ -2,8 +2,8 @@
 // Created by ashione on 2019/4/1.
 //
 
-#ifndef STREAMING_PROTOTYPE_STREAMING_CHANNEL_H
-#define STREAMING_PROTOTYPE_STREAMING_CHANNEL_H
+#ifndef RAY_STREAMING_STREAMING_CHANNEL_H
+#define RAY_STREAMING_STREAMING_CHANNEL_H
 #include <unordered_map>
 #include <string>
 #include <cstring>
@@ -15,15 +15,17 @@
 #include "streaming_metrics.h"
 #include "streaming_strategy_implementor.h"
 
+namespace ray {
+namespace streaming {
 class StreamingTransfer;
 
 class StreamingChannel {
  public:
   StreamingChannel(std::shared_ptr<StreamingChannelConfig> channel_config,
                    std::shared_ptr<StreamingTransfer> transfer)
-                   : channel_config_(channel_config), transfer_(transfer) {
+    : channel_config_(channel_config), transfer_(transfer) {
 
-   strategy_implementor_.reset(new StreamingDefaultStrategyImplementor());
+    strategy_implementor_.reset(new StreamingDefaultStrategyImplementor());
   }
 
   virtual StreamingStatus InitChannel() = 0;
@@ -37,5 +39,7 @@ class StreamingChannel {
   std::shared_ptr<StreamingMetricsReporter> metrics_reporter_;
   std::shared_ptr<StreamingStrategyImplementor> strategy_implementor_;
 };
+}
+}
 
-#endif //STREAMING_PROTOTYPE_STREAMING_CHANNEL_H
+#endif //RAY_STREAMING_STREAMING_CHANNEL_H
