@@ -57,8 +57,9 @@ def profile(event_type, extra_data=None):
     Returns:
         An object that can profile a span of time via a "with" statement.
     """
-    worker = ray.worker.global_worker
-    return RayLogSpanRaylet(worker.profiler, event_type, extra_data=extra_data)
+    return NULL_LOG_SPAN
+    # worker = ray.worker.global_worker
+    # return RayLogSpanRaylet(worker.profiler, event_type, extra_data=extra_data)
 
 
 class Profiler(object):
