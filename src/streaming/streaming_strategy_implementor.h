@@ -27,19 +27,9 @@ class StreamingStrategyImplementor {
 class StreamingDefaultStrategyImplementor : public StreamingStrategyImplementor {
 
  public:
-  StreamingStatus ProduceMessage(StreamingChannelInfo &channel_info, ProduceHandler handler) override {
-    std::cout << "before handle produce message" << std::endl;
-    handler();
-    std::cout << "after handle produce message" << std::endl;
-    return StreamingStatus::OK;
-  };
+  StreamingStatus ProduceMessage(StreamingChannelInfo &channel_info, ProduceHandler handler) override;
 
-  StreamingStatus ConsumeMessage(StreamingChannelInfo &channel_info, ProduceHandler handler) override {
-    std::cout << "before handle consume message" << std::endl;
-    handler();
-    std::cout << "after handle consume message" << std::endl;
-    return StreamingStatus::OK;
-  };
+  StreamingStatus ConsumeMessage(StreamingChannelInfo &channel_info, ProduceHandler handler) override;
 
   ~StreamingDefaultStrategyImplementor() {}
 
