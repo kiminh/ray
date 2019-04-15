@@ -6,6 +6,8 @@
 #define RAY_STREAMING_STREAMING_TRANSFER_H
 #include <iostream>
 #include <mutex>
+#include <unordered_map>
+#include <condition_variable>
 
 #include "streaming_constant.h"
 #include "streaming_message.h"
@@ -65,14 +67,26 @@ class StreamingConsumeTransfer : public StreamingTransfer {
 
 class StreamingDefaultBlockedQueue {
  public:
-  static bool Push(std::shared_ptr<StreamingMessage> msg);
-  static std::shared_ptr<StreamingMessage> Front();
-  static size_t Size();
-  static bool Empty();
-  static void Pop();
+  bool Push(std::shared_ptr<StreamingMessage> msg);
+  std::shared_ptr<StreamingMessage> Front();
+  size_t Size();
+  bool Empty();
+  void Pop();
  private:
-  static std::queue<std::shared_ptr<StreamingMessage>> message_store_;
+  std::queue<std::shared_ptr<StreamingMessage>> message_queue_;
+  std::mutex queue_mutex_;
+};
+
+class StreamingDefaultStore {
+ public:
+  static bool Push(StreamingChannelIndex &index, std::shared_ptr<StreamingMessage> msg);
+  static void Pop(std::shared_ptr<StreamingMessage> &msg);
+ private:
+  static bool Empty();
+ private:
+  static std::unordered_map<StreamingChannelIndex, StreamingDefaultBlockedQueue> message_store_;
   static std::mutex store_mutex_;
+  static std::condition_variable store_cv_;
 };
 
 // StreamingDefaultTransfer

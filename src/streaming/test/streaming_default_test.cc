@@ -43,13 +43,6 @@ void testMultiWriteRead() {
   std::shared_ptr<StreamingConsumer> consumer2(new StreamingConsumer(channel_config, consumer_transfer));
   consumer2->InitChannel();
 
-  std::thread writer_thread([producer, index]() {
-   for(int i = 0; i < 1000; ++i)  {
-     std::shared_ptr<StreamingMessage> msg(new StreamingMessage(reinterpret_cast<const uint8_t *>(&i), sizeof(int)));
-     producer->ProduceMessage(index, msg);
-   }
-  });
-
   std::thread reader_thread1([consumer1]() {
     for(int i= 0; i< 500; ++i) {
       std::shared_ptr<StreamingMessage> recevied_msg;
@@ -72,6 +65,13 @@ void testMultiWriteRead() {
       RAY_LOG(INFO) << "[Reader2] recevied data " << result;
     }
   });
+  std::thread writer_thread([producer, index]() {
+    for(int i = 0; i < 1000; ++i)  {
+      std::shared_ptr<StreamingMessage> msg(new StreamingMessage(reinterpret_cast<const uint8_t *>(&i), sizeof(int)));
+      producer->ProduceMessage(index, msg);
+    }
+  });
+
   writer_thread.join();
   reader_thread1.join();
   reader_thread2.join();
