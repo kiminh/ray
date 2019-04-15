@@ -42,9 +42,10 @@ bool StreamingDefaultStore::Push(ray::streaming::StreamingChannelIndex &index, s
 
 void StreamingDefaultStore::Pop(std::shared_ptr<StreamingMessage> &msg) {
   std::unique_lock<std::mutex> lock(store_mutex_);
-  while(Empty()) {
-    store_cv_.wait(lock);
-  }
+  store_cv_.wait(lock,[]() {
+   return !StreamingDefaultStore::Empty();
+  });
+
   for(auto &it : message_store_) {
     if (!it.second.Empty()) {
       msg = it.second.Front();

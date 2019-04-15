@@ -11,27 +11,13 @@ namespace streaming {
 class StreamingConsumer : public StreamingChannel{
  public:
   StreamingConsumer(std::shared_ptr<StreamingChannelConfig> channel_config,
-                    std::shared_ptr<StreamingConsumeTransfer> transfer)
-    : StreamingChannel(channel_config, transfer) {}
+                    std::shared_ptr<StreamingConsumeTransfer> transfer);
 
-  StreamingStatus InitChannel() override {
-    transfer_->InitTransfer(channel_config_.operator*());
-    return StreamingStatus::OK;
-  }
+  StreamingStatus InitChannel() override;
 
-  StreamingStatus DestoryChannel() override{
-    transfer_->DestoryTransfer();
-    return StreamingStatus::OK;
-  }
+  StreamingStatus DestoryChannel() override;
 
-  StreamingStatus ConsumeMessage(std::shared_ptr<StreamingMessage> &msg) {
-    // return transfer_->ConsumeMessage(msg);
-    StreamingChannelInfo fake_info;
-    return strategy_implementor_->ConsumeMessage(fake_info,
-      std::bind(&StreamingConsumeTransfer::ConsumeMessage,
-        dynamic_cast<StreamingConsumeTransfer*>(transfer_.get()), std::ref(fake_info), std::ref(msg)));
-    // Update channel info by fake info
-  }
+  StreamingStatus ConsumeMessage(std::shared_ptr<StreamingMessage> &msg);
 };
 }
 }

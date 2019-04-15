@@ -13,25 +13,10 @@ namespace streaming {
 class StreamingProducer : public StreamingChannel {
  public:
   StreamingProducer(std::shared_ptr<StreamingChannelConfig> channel_config,
-                    std::shared_ptr<StreamingProduceTransfer> transfer)
-    : StreamingChannel(channel_config, transfer) {}
-
-  StreamingStatus InitChannel() override {
-    transfer_->InitTransfer(channel_config_.operator*());
-    return StreamingStatus::OK;
-  }
-
-  StreamingStatus DestoryChannel() override {
-    transfer_->DestoryTransfer();
-    return StreamingStatus::OK;
-  }
-// Writer -> Strategy Function(Transfer handler
-// Reader -> Strategy Function(Transfer handler）
-  StreamingStatus ProduceMessage(const StreamingChannelIndex &index, std::shared_ptr<StreamingMessage> msg) {
-    return strategy_implementor_->ProduceMessage(channel_map_[index],
-      std::bind(&StreamingProduceTransfer::ProduceMessage,
-        dynamic_cast<StreamingProduceTransfer*>(transfer_.get()), channel_map_[index], msg));
-  }
+                    std::shared_ptr<StreamingProduceTransfer> transfer);
+  StreamingStatus InitChannel() override;
+  StreamingStatus DestoryChannel() override;
+  StreamingStatus ProduceMessage(const StreamingChannelIndex &index, std::shared_ptr<StreamingMessage> msg);
 
 };
 }
