@@ -11,6 +11,11 @@ namespace streaming {
 typedef ray::UniqueID StreamingChannelIndex;
 
 class StreamingChannelInfo {
+ public:
+  StreamingChannelIndex& Index() {
+    return index_;
+  }
+
  private:
   uint64_t seq_id_;
   uint64_t message_id_;
