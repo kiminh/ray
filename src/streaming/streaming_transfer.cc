@@ -40,24 +40,24 @@ bool StreamingDefaultStore::Push(ray::streaming::StreamingChannelIndex &index, s
   return true;
 }
 
-void StreamingDefaultStore::Pop(std::shared_ptr<StreamingMessage> &msg) {
+void StreamingDefaultStore::Pop(std::vector<StreamingChannelIndex> &indexes, std::shared_ptr<StreamingMessage> &msg) {
   std::unique_lock<std::mutex> lock(store_mutex_);
-  store_cv_.wait(lock,[]() {
-   return !StreamingDefaultStore::Empty();
+  store_cv_.wait(lock,[&indexes]() {
+   return !StreamingDefaultStore::Empty(indexes);
   });
 
-  for(auto &it : message_store_) {
-    if (!it.second.Empty()) {
-      msg = it.second.Front();
-      it.second.Pop();
+  for(auto &it : indexes) {
+    if (!message_store_[it].Empty()) {
+      msg = message_store_[it].Front();
+      message_store_[it].Pop();
     }
   }
 }
 
-bool StreamingDefaultStore::Empty() {
+bool StreamingDefaultStore::Empty(std::vector<StreamingChannelIndex> &indexes) {
   size_t store_msg_cnt_ = 0;
-  for(auto &it : message_store_) {
-    store_msg_cnt_ += it.second.Size();
+  for(auto &id : indexes) {
+    store_msg_cnt_ += message_store_[id].Size();
   }
   return store_msg_cnt_ == 0;
 }
@@ -71,7 +71,7 @@ StreamingStatus StreamingDefaultProduceTransfer::ProduceMessage(
   StreamingChannelInfo &channel_info,
   std::shared_ptr<StreamingMessage> msg) {
   StreamingDefaultStore::Push(channel_info.Index(), msg);
-  RAY_LOG(INFO) << "Produce Message";
+  RAY_LOG(INFO) << "Produce Message in " << channel_info.Index();
   return StreamingStatus::OK;
 }
 
@@ -86,6 +86,7 @@ StreamingDefaultProduceTransfer::~StreamingDefaultProduceTransfer() {
 }
 
 StreamingStatus StreamingDefaultConsumeTransfer::InitConsumer(StreamingChannelConfig &channel_config) {
+  channel_indexes_ = channel_config.GetIndexes();
   RAY_LOG(INFO) << "Init Default Transfer Consumer";
   return StreamingStatus::OK;
 };
@@ -93,7 +94,7 @@ StreamingStatus StreamingDefaultConsumeTransfer::InitConsumer(StreamingChannelCo
 StreamingStatus StreamingDefaultConsumeTransfer::ConsumeMessage(
   StreamingChannelInfo &channel_info,
   std::shared_ptr<StreamingMessage> &msg) {
-  StreamingDefaultStore::Pop(msg);
+  StreamingDefaultStore::Pop(channel_indexes_, msg);
   RAY_LOG(INFO) << "Consume Message";
   return StreamingStatus::OK;
 }

@@ -15,10 +15,11 @@ class StreamingChannelInfo {
   StreamingChannelIndex& Index() {
     return index_;
   }
+  StreamingChannelInfo(StreamingChannelIndex &index) : index_(index) {
+  };
+  StreamingChannelInfo(){ };
 
  private:
-  uint64_t seq_id_;
-  uint64_t message_id_;
   StreamingChannelIndex index_;
 
 };

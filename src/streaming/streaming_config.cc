@@ -3,3 +3,17 @@
 //
 
 #include "streaming_config.h"
+namespace ray {
+namespace streaming {
+
+std::vector<StreamingChannelIndex>& StreamingChannelConfig::GetIndexes() {
+  return indexes_;
+}
+
+StreamingDefaultChannelConfig::StreamingDefaultChannelConfig(std::vector<StreamingChannelIndex> &indexes) {
+  indexes_ = indexes;
+}
+
+}
+
+}
