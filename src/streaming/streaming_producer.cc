@@ -11,6 +11,9 @@ StreamingProducer::StreamingProducer(std::shared_ptr<StreamingChannelConfig> cha
   : StreamingChannel(channel_config, transfer) {}
 
 StreamingStatus StreamingProducer::InitChannel() {
+  for(auto &index : channel_config_->GetIndexes()) {
+    channel_map_[index] = StreamingChannelInfo(index);
+  }
   transfer_->InitTransfer(channel_config_.operator*());
   return StreamingStatus::OK;
 }
@@ -25,10 +28,10 @@ StreamingStatus StreamingProducer::DestoryChannel() {
 StreamingStatus StreamingProducer::ProduceMessage(
   const StreamingChannelIndex &index,
   std::shared_ptr<StreamingMessage> msg) {
-  return strategy_implementor_->ProduceMessage(channel_map_[index],
-                                               std::bind(&StreamingProduceTransfer::ProduceMessage,
-                                                         dynamic_cast<StreamingProduceTransfer*>(transfer_.get()),
-                                                         channel_map_[index], msg));
+  return strategy_implementor_->ProduceMessage(
+    channel_map_[index],
+    std::bind(&StreamingProduceTransfer::ProduceMessage,
+              dynamic_cast<StreamingProduceTransfer*>(transfer_.get()), channel_map_[index], msg));
 }
 
 }

@@ -24,10 +24,10 @@ StreamingStatus StreamingConsumer::DestoryChannel() {
 StreamingStatus StreamingConsumer::ConsumeMessage(std::shared_ptr<StreamingMessage> &msg) {
   // return transfer_->ConsumeMessage(msg);
   StreamingChannelInfo fake_info;
-  return strategy_implementor_->ConsumeMessage(fake_info,
-                                               std::bind(&StreamingConsumeTransfer::ConsumeMessage,
-                                                         dynamic_cast<StreamingConsumeTransfer*>(transfer_.get()),
-                                                         std::ref(fake_info), std::ref(msg)));
+  return strategy_implementor_->ConsumeMessage(
+    fake_info, std::bind(&StreamingConsumeTransfer::ConsumeMessage,
+                         dynamic_cast<StreamingConsumeTransfer*>(transfer_.get()),
+                         std::ref(fake_info), std::ref(msg)));
   // Update channel info by fake info
 }
 }

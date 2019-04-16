@@ -80,9 +80,9 @@ class StreamingDefaultBlockedQueue {
 class StreamingDefaultStore {
  public:
   static bool Push(StreamingChannelIndex &index, std::shared_ptr<StreamingMessage> msg);
-  static void Pop(std::shared_ptr<StreamingMessage> &msg);
+  static void Pop(std::vector<StreamingChannelIndex> &indexes, std::shared_ptr<StreamingMessage> &msg);
  private:
-  static bool Empty();
+  static bool Empty(std::vector<StreamingChannelIndex> &indexes);
  private:
   static std::unordered_map<StreamingChannelIndex, StreamingDefaultBlockedQueue> message_store_;
   static std::mutex store_mutex_;
@@ -98,7 +98,6 @@ class StreamingDefaultProduceTransfer : public StreamingProduceTransfer {
   virtual ~StreamingDefaultProduceTransfer();
 
   StreamingStatus DestoryTransfer() override;
-
 
  protected:
   StreamingStatus InitProducer(StreamingChannelConfig &channel_config) override;
@@ -119,6 +118,8 @@ class StreamingDefaultConsumeTransfer : public StreamingConsumeTransfer {
   StreamingStatus InitConsumer(StreamingChannelConfig &channel_config) override;
 
   StreamingStatus ConsumeMessage(StreamingChannelInfo &channel_info, std::shared_ptr<StreamingMessage> &msg) override;
+ private:
+  std::vector<StreamingChannelIndex> channel_indexes_;
 };
 
 }
