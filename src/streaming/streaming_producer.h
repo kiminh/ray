@@ -16,10 +16,10 @@ class StreamingProducer : public StreamingChannel {
                     std::shared_ptr<StreamingProduceTransfer> transfer);
   StreamingStatus InitChannel() override;
   StreamingStatus DestoryChannel() override;
-  StreamingStatus ProduceMessage(const StreamingChannelIndex &index, std::shared_ptr<StreamingMessage> msg);
-
+  StreamingStatus ProduceMessage(const StreamingChannelIndex &index,
+                                 std::shared_ptr<StreamingMessage> msg);
 };
-}
-}
+}  // namespace streaming
+}  // namespace ray
 
-#endif //RAY_STREAMING_STREAMING_PRODUCER_H
+#endif  // RAY_STREAMING_STREAMING_PRODUCER_H

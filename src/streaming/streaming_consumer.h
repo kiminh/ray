@@ -8,7 +8,7 @@
 #include "streaming_transfer.h"
 namespace ray {
 namespace streaming {
-class StreamingConsumer : public StreamingChannel{
+class StreamingConsumer : public StreamingChannel {
  public:
   StreamingConsumer(std::shared_ptr<StreamingChannelConfig> channel_config,
                     std::shared_ptr<StreamingConsumeTransfer> transfer);
@@ -19,6 +19,6 @@ class StreamingConsumer : public StreamingChannel{
 
   StreamingStatus ConsumeMessage(std::shared_ptr<StreamingMessage> &msg);
 };
-}
-}
-#endif //RAY_STREAMING_STREAMING_CONSUMER_H
+}  // namespace streaming
+}  // namespace ray
+#endif  // RAY_STREAMING_STREAMING_CONSUMER_H

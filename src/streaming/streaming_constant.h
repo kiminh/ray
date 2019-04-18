@@ -7,12 +7,8 @@
 #include <cstdlib>
 namespace ray {
 namespace streaming {
-enum class StreamingStatus : uint32_t {
-  OK = 0,
-  MIN = OK,
-  MAX = OK
-};
+enum class StreamingStatus : uint32_t { OK = 0, MIN = OK, MAX = OK };
 }
-}
+}  // namespace ray
 
-#endif //RAY_STREAMING_STREAMING_CONSTANT_H
+#endif  // RAY_STREAMING_STREAMING_CONSTANT_H
