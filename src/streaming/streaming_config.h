@@ -2,25 +2,43 @@
 #define RAY_STREAMING_STREAMING_CONFIG_H
 #include <vector>
 
-#include "streaming_channel_meta.h"
+#include "ray/id.h"
 
 namespace ray {
 namespace streaming {
-class StreamingConfig {};
 
-class StreamingMetricConfig {};
+typedef ray::UniqueID StreamingChannelId;
 
 class StreamingChannelConfig {
  public:
-  std::vector<StreamingChannelIndex> &GetIndexes();
-
- protected:
-  std::vector<StreamingChannelIndex> indexes_;
+  StreamingChannelConfig(std::vector<StreamingChannelId> &channel_id_vec);
+  std::vector<StreamingChannelId> &GetTransferIdVec();
+ private:
+  std::vector<StreamingChannelId> channel_transfer_id_vec_;
 };
 
-class StreamingDefaultChannelConfig : public StreamingChannelConfig {
+class StreamingMetricConfig {};
+
+class StreamingTransferConfig {
  public:
-  StreamingDefaultChannelConfig(std::vector<StreamingChannelIndex> &indexes);
+  std::vector<StreamingChannelId> &GetIndexes();
+
+ protected:
+  std::vector<StreamingChannelId> indexes_;
+};
+
+class StreamingDefaultTransferConfig : public StreamingTransferConfig {
+ public:
+  StreamingDefaultTransferConfig(std::vector<StreamingChannelId> &indexes);
+};
+class StreamingChannelInfo {
+ public:
+  StreamingChannelId &Index() { return index_; }
+  StreamingChannelInfo(StreamingChannelId &index) : index_(index){};
+  StreamingChannelInfo(){};
+
+ private:
+  StreamingChannelId index_;
 };
 }  // namespace streaming
 }  // namespace ray

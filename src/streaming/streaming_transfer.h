@@ -23,7 +23,7 @@ class StreamingTransfer {
  public:
   StreamingTransfer() : is_init_(false){};
   virtual ~StreamingTransfer(){};
-  virtual StreamingStatus InitTransfer(StreamingChannelConfig &channel_config) = 0;
+  virtual StreamingStatus InitTransfer() = 0;
   virtual StreamingStatus DestoryTransfer() = 0;
 
  protected:
@@ -36,15 +36,15 @@ class StreamingProduceTransfer : public StreamingTransfer {
   virtual StreamingStatus ProduceMessage(StreamingChannelInfo &channel_info,
                                          std::shared_ptr<StreamingMessage> msg) = 0;
 
-  virtual StreamingStatus InitTransfer(StreamingChannelConfig &channel_config) {
+  virtual StreamingStatus InitTransfer() {
     is_init_ = true;
-    return this->InitProducer(channel_config);
+    return this->InitProducer();
   };
 
   virtual ~StreamingProduceTransfer() {}
 
  protected:
-  virtual StreamingStatus InitProducer(StreamingChannelConfig &channel_config) = 0;
+  virtual StreamingStatus InitProducer() = 0;
 };
 
 class StreamingConsumeTransfer : public StreamingTransfer {
@@ -53,14 +53,14 @@ class StreamingConsumeTransfer : public StreamingTransfer {
   virtual StreamingStatus ConsumeMessage(StreamingChannelInfo &channel_info,
                                          std::shared_ptr<StreamingMessage> &msg) = 0;
 
-  virtual StreamingStatus InitTransfer(StreamingChannelConfig &channel_config) {
+  virtual StreamingStatus InitTransfer() {
     is_init_ = true;
-    return this->InitConsumer(channel_config);
+    return this->InitConsumer();
   };
   virtual ~StreamingConsumeTransfer() {}
 
  protected:
-  virtual StreamingStatus InitConsumer(StreamingChannelConfig &channel_config) = 0;
+  virtual StreamingStatus InitConsumer() = 0;
 };
 
 class StreamingDefaultBlockedQueue {
@@ -78,15 +78,15 @@ class StreamingDefaultBlockedQueue {
 
 class StreamingDefaultStore {
  public:
-  static bool Push(StreamingChannelIndex &index, std::shared_ptr<StreamingMessage> msg);
-  static void Pop(std::vector<StreamingChannelIndex> &indexes,
+  static bool Push(StreamingChannelId &index, std::shared_ptr<StreamingMessage> msg);
+  static void Pop(std::vector<StreamingChannelId> &indexes,
                   std::shared_ptr<StreamingMessage> &msg);
 
  private:
-  static bool Empty(std::vector<StreamingChannelIndex> &indexes);
+  static bool Empty(std::vector<StreamingChannelId> &indexes);
 
  private:
-  static std::unordered_map<StreamingChannelIndex, StreamingDefaultBlockedQueue>
+  static std::unordered_map<StreamingChannelId, StreamingDefaultBlockedQueue>
       message_store_;
   static std::mutex store_mutex_;
   static std::condition_variable store_cv_;
@@ -103,7 +103,7 @@ class StreamingDefaultProduceTransfer : public StreamingProduceTransfer {
   StreamingStatus DestoryTransfer() override;
 
  protected:
-  StreamingStatus InitProducer(StreamingChannelConfig &channel_config) override;
+  StreamingStatus InitProducer() override;
 
   StreamingStatus ProduceMessage(StreamingChannelInfo &channel_info,
                                  std::shared_ptr<StreamingMessage> msg) override;
@@ -111,20 +111,21 @@ class StreamingDefaultProduceTransfer : public StreamingProduceTransfer {
 
 class StreamingDefaultConsumeTransfer : public StreamingConsumeTransfer {
  public:
-  StreamingDefaultConsumeTransfer() : StreamingConsumeTransfer() {}
+  StreamingDefaultConsumeTransfer(StreamingDefaultTransferConfig &transfer_config);
 
   virtual ~StreamingDefaultConsumeTransfer();
 
   StreamingStatus DestoryTransfer() override;
 
  protected:
-  StreamingStatus InitConsumer(StreamingChannelConfig &channel_config) override;
+  StreamingStatus InitConsumer() override;
 
   StreamingStatus ConsumeMessage(StreamingChannelInfo &channel_info,
                                  std::shared_ptr<StreamingMessage> &msg) override;
 
  private:
-  std::vector<StreamingChannelIndex> channel_indexes_;
+  std::vector<StreamingChannelId> channel_indexes_;
+  StreamingDefaultTransferConfig transfer_config_;
 };
 
 }  // namespace streaming

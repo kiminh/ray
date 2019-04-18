@@ -8,7 +8,6 @@
 #include <string>
 #include <unordered_map>
 
-#include "streaming_channel_meta.h"
 #include "streaming_config.h"
 #include "streaming_constant.h"
 #include "streaming_metrics.h"
@@ -32,7 +31,7 @@ class StreamingChannel {
   virtual ~StreamingChannel(){};
 
  protected:
-  std::unordered_map<StreamingChannelIndex, StreamingChannelInfo> channel_map_;
+  std::unordered_map<StreamingChannelId, StreamingChannelInfo> channel_map_;
   std::shared_ptr<StreamingChannelConfig> channel_config_;
   std::shared_ptr<StreamingTransfer> transfer_;
   std::shared_ptr<StreamingMetricsReporter> metrics_reporter_;
