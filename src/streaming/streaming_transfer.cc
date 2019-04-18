@@ -4,7 +4,7 @@
 
 namespace ray {
 namespace streaming {
-std::unordered_map<StreamingChannelIndex, StreamingDefaultBlockedQueue>
+std::unordered_map<StreamingChannelId, StreamingDefaultBlockedQueue>
     StreamingDefaultStore::message_store_;
 std::mutex StreamingDefaultStore::store_mutex_;
 std::condition_variable StreamingDefaultStore::store_cv_;
@@ -35,14 +35,14 @@ void StreamingDefaultBlockedQueue::Pop() {
   message_queue_.pop();
 }
 
-bool StreamingDefaultStore::Push(ray::streaming::StreamingChannelIndex &index,
+bool StreamingDefaultStore::Push(ray::streaming::StreamingChannelId &index,
                                  std::shared_ptr<StreamingMessage> msg) {
   message_store_[index].Push(msg);
   store_cv_.notify_one();
   return true;
 }
 
-void StreamingDefaultStore::Pop(std::vector<StreamingChannelIndex> &indexes,
+void StreamingDefaultStore::Pop(std::vector<StreamingChannelId> &indexes,
                                 std::shared_ptr<StreamingMessage> &msg) {
   std::unique_lock<std::mutex> lock(store_mutex_);
   store_cv_.wait(lock, [&indexes]() { return !StreamingDefaultStore::Empty(indexes); });
@@ -55,7 +55,7 @@ void StreamingDefaultStore::Pop(std::vector<StreamingChannelIndex> &indexes,
   }
 }
 
-bool StreamingDefaultStore::Empty(std::vector<StreamingChannelIndex> &indexes) {
+bool StreamingDefaultStore::Empty(std::vector<StreamingChannelId> &indexes) {
   size_t store_msg_cnt_ = 0;
   for (auto &id : indexes) {
     store_msg_cnt_ += message_store_[id].Size();
@@ -63,8 +63,7 @@ bool StreamingDefaultStore::Empty(std::vector<StreamingChannelIndex> &indexes) {
   return store_msg_cnt_ == 0;
 }
 
-StreamingStatus StreamingDefaultProduceTransfer::InitProducer(
-    StreamingChannelConfig &channel_config) {
+StreamingStatus StreamingDefaultProduceTransfer::InitProducer() {
   RAY_LOG(INFO) << "Init Default Transfer Producer";
   return StreamingStatus::OK;
 };
@@ -84,9 +83,11 @@ StreamingStatus StreamingDefaultProduceTransfer::DestoryTransfer() {
 }
 StreamingDefaultProduceTransfer::~StreamingDefaultProduceTransfer() { DestoryTransfer(); }
 
-StreamingStatus StreamingDefaultConsumeTransfer::InitConsumer(
-    StreamingChannelConfig &channel_config) {
-  channel_indexes_ = channel_config.GetIndexes();
+StreamingDefaultConsumeTransfer::StreamingDefaultConsumeTransfer(StreamingDefaultTransferConfig &transfer_config)
+  : transfer_config_(transfer_config) {}
+
+StreamingStatus StreamingDefaultConsumeTransfer::InitConsumer() {
+  channel_indexes_ = transfer_config_.GetIndexes();
   RAY_LOG(INFO) << "Init Default Transfer Consumer";
   return StreamingStatus::OK;
 };

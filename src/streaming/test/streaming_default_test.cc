@@ -14,14 +14,16 @@
 using namespace ray::streaming;
 
 TEST(ChannelTest, testWriterReader) {
-  StreamingChannelIndex index;
+  StreamingChannelId index;
   RAY_LOG(INFO) << "channel " << index;
-  std::vector<StreamingChannelIndex> indexes;
+  std::vector<StreamingChannelId> indexes;
   indexes.push_back(index);
 
-  std::shared_ptr<StreamingChannelConfig> channel_config(new StreamingDefaultChannelConfig(indexes));
+  StreamingDefaultTransferConfig transfer_config(indexes);
   std::shared_ptr<StreamingProduceTransfer> producer_transfer(new StreamingDefaultProduceTransfer);
-  std::shared_ptr<StreamingConsumeTransfer> consumer_transfer(new StreamingDefaultConsumeTransfer);
+  std::shared_ptr<StreamingConsumeTransfer> consumer_transfer(new StreamingDefaultConsumeTransfer(transfer_config));
+
+  std::shared_ptr<StreamingChannelConfig> channel_config(new StreamingChannelConfig(indexes));
 
   std::shared_ptr<StreamingProducer> producer(new StreamingProducer(channel_config, producer_transfer));
   producer->InitChannel();
@@ -36,13 +38,14 @@ TEST(ChannelTest, testWriterReader) {
 }
 
 TEST(ChannelTest, testMultiWriteRead) {
-  StreamingChannelIndex index;
-  std::vector<StreamingChannelIndex> indexes;
+  StreamingChannelId index;
+  std::vector<StreamingChannelId> indexes;
   indexes.push_back(index);
 
-  std::shared_ptr<StreamingChannelConfig> channel_config(new StreamingDefaultChannelConfig(indexes));
+  StreamingDefaultTransferConfig transfer_config(indexes);
+  std::shared_ptr<StreamingChannelConfig> channel_config(new StreamingChannelConfig(indexes));
   std::shared_ptr<StreamingProduceTransfer> producer_transfer(new StreamingDefaultProduceTransfer);
-  std::shared_ptr<StreamingConsumeTransfer> consumer_transfer(new StreamingDefaultConsumeTransfer);
+  std::shared_ptr<StreamingConsumeTransfer> consumer_transfer(new StreamingDefaultConsumeTransfer(transfer_config));
 
   std::shared_ptr<StreamingProducer> producer(new StreamingProducer(channel_config, producer_transfer));
   producer->InitChannel();
@@ -95,27 +98,27 @@ TEST(ChannelTest, testMultiWriteRead) {
 }
 
 TEST(ChannelTest, testIndexes) {
-  StreamingChannelIndex index1 = StreamingChannelIndex::from_random();
-  StreamingChannelIndex index2 = StreamingChannelIndex::from_random();
-  std::vector<StreamingChannelIndex> indexes;
+  StreamingChannelId index1 = StreamingChannelId::from_random();
+  StreamingChannelId index2 = StreamingChannelId::from_random();
+  std::vector<StreamingChannelId> indexes;
   indexes.push_back(index1);
   indexes.push_back(index2);
 
-  std::vector<StreamingChannelIndex> r1_indexes;
+  std::vector<StreamingChannelId> r1_indexes;
   r1_indexes.push_back(index1);
-  std::vector<StreamingChannelIndex> r2_indexes;
+  std::vector<StreamingChannelId> r2_indexes;
   r2_indexes.push_back(index2);
 
-  std::shared_ptr<StreamingChannelConfig> channel_config(new StreamingDefaultChannelConfig(indexes));
-  std::shared_ptr<StreamingChannelConfig> r1_channel_config(
-    new StreamingDefaultChannelConfig(r1_indexes));
+  std::shared_ptr<StreamingChannelConfig> channel_config(new StreamingChannelConfig(indexes));
+  std::shared_ptr<StreamingChannelConfig> r1_channel_config(new StreamingChannelConfig(r1_indexes));
+  std::shared_ptr<StreamingChannelConfig> r2_channel_config(new StreamingChannelConfig(r2_indexes));
+  StreamingDefaultTransferConfig r1_transfer_config(r1_indexes);
+  StreamingDefaultTransferConfig r2_transfer_config(r2_indexes);
 
-  std::shared_ptr<StreamingChannelConfig> r2_channel_config(
-    new StreamingDefaultChannelConfig(r2_indexes));
 
   std::shared_ptr<StreamingProduceTransfer> producer_transfer(new StreamingDefaultProduceTransfer);
-  std::shared_ptr<StreamingConsumeTransfer> consumer_transfer1(new StreamingDefaultConsumeTransfer);
-  std::shared_ptr<StreamingConsumeTransfer> consumer_transfer2(new StreamingDefaultConsumeTransfer);
+  std::shared_ptr<StreamingConsumeTransfer> consumer_transfer1(new StreamingDefaultConsumeTransfer(r1_transfer_config));
+  std::shared_ptr<StreamingConsumeTransfer> consumer_transfer2(new StreamingDefaultConsumeTransfer(r2_transfer_config));
 
   std::shared_ptr<StreamingProducer> producer(new StreamingProducer(channel_config, producer_transfer));
   producer->InitChannel();

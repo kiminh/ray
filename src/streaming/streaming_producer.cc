@@ -1,7 +1,4 @@
-//
-// Created by ashione on 2019/4/1.
-//
-
+#include "ray/util/logging.h"
 #include "streaming_producer.h"
 namespace ray {
 namespace streaming {
@@ -12,10 +9,10 @@ StreamingProducer::StreamingProducer(
     : StreamingChannel(channel_config, transfer) {}
 
 StreamingStatus StreamingProducer::InitChannel() {
-  for (auto &index : channel_config_->GetIndexes()) {
+  for (auto &index : channel_config_->GetTransferIdVec()) {
     channel_map_[index] = StreamingChannelInfo(index);
   }
-  transfer_->InitTransfer(channel_config_.operator*());
+  transfer_->InitTransfer();
   return StreamingStatus::OK;
 }
 
@@ -26,7 +23,7 @@ StreamingStatus StreamingProducer::DestoryChannel() {
 
 // Writer -> Strategy Function(Transfer handler
 // Reader -> Strategy Function(Transfer handler）
-StreamingStatus StreamingProducer::ProduceMessage(const StreamingChannelIndex &index,
+StreamingStatus StreamingProducer::ProduceMessage(const StreamingChannelId &index,
                                                   std::shared_ptr<StreamingMessage> msg) {
   return strategy_implementor_->ProduceMessage(
       channel_map_[index],

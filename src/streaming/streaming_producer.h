@@ -12,11 +12,11 @@ namespace ray {
 namespace streaming {
 class StreamingProducer : public StreamingChannel {
  public:
-  StreamingProducer(std::shared_ptr<StreamingChannelConfig> channel_config,
+  StreamingProducer(std::shared_ptr<StreamingChannelConfig> config,
                     std::shared_ptr<StreamingProduceTransfer> transfer);
   StreamingStatus InitChannel() override;
   StreamingStatus DestoryChannel() override;
-  StreamingStatus ProduceMessage(const StreamingChannelIndex &index,
+  StreamingStatus ProduceMessage(const StreamingChannelId &index,
                                  std::shared_ptr<StreamingMessage> msg);
 };
 }  // namespace streaming

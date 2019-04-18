@@ -12,7 +12,7 @@ StreamingConsumer::StreamingConsumer(
     : StreamingChannel(channel_config, transfer) {}
 
 StreamingStatus StreamingConsumer::InitChannel() {
-  transfer_->InitTransfer(channel_config_.operator*());
+  transfer_->InitTransfer();
   return StreamingStatus::OK;
 }
 

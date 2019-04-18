@@ -5,7 +5,6 @@
 #ifndef RAY_STREAMING_STREAMING_STRATEGY_IMPLEMENTOR_H
 #define RAY_STREAMING_STREAMING_STRATEGY_IMPLEMENTOR_H
 
-#include "streaming_channel_meta.h"
 #include "streaming_constant.h"
 
 #include <functional>
