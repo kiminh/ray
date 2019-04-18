@@ -617,6 +617,22 @@ cc_binary(
         "src/streaming",
     ],
     deps = [
-      ":streaming_lib"
+      ":streaming_lib",
+      "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "streaming_metrics_reporter_tests",
+    srcs = [
+        "src/streaming/test/streaming_metrics_reporter_tests.cc",
+    ],
+    copts = COPTS,
+    includes = [
+        "src/streaming",
+    ],
+    deps = [
+      ":streaming_lib",
+      "@com_google_googletest//:gtest_main",
     ],
 )

@@ -6,14 +6,15 @@
 namespace ray {
 namespace streaming {
 
-std::vector<StreamingChannelIndex>& StreamingChannelConfig::GetIndexes() {
+std::vector<StreamingChannelIndex> &StreamingChannelConfig::GetIndexes() {
   return indexes_;
 }
 
-StreamingDefaultChannelConfig::StreamingDefaultChannelConfig(std::vector<StreamingChannelIndex> &indexes) {
+StreamingDefaultChannelConfig::StreamingDefaultChannelConfig(
+    std::vector<StreamingChannelIndex> &indexes) {
   indexes_ = indexes;
 }
 
-}
+}  // namespace streaming
 
-}
+}  // namespace ray

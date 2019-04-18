@@ -4,14 +4,14 @@
 
 #ifndef RAY_STREAMING_STREAMING_TRANSFER_H
 #define RAY_STREAMING_STREAMING_TRANSFER_H
+#include <condition_variable>
 #include <iostream>
 #include <mutex>
 #include <unordered_map>
-#include <condition_variable>
 
+#include "streaming_channel.h"
 #include "streaming_constant.h"
 #include "streaming_message.h"
-#include "streaming_channel.h"
 
 #include <queue>
 
@@ -21,10 +21,11 @@ class StreamingChannelInfo;
 
 class StreamingTransfer {
  public:
-  StreamingTransfer() : is_init_(false) {};
-  virtual ~StreamingTransfer() {};
+  StreamingTransfer() : is_init_(false){};
+  virtual ~StreamingTransfer(){};
   virtual StreamingStatus InitTransfer(StreamingChannelConfig &channel_config) = 0;
   virtual StreamingStatus DestoryTransfer() = 0;
+
  protected:
   bool is_init_;
 };
@@ -44,7 +45,6 @@ class StreamingProduceTransfer : public StreamingTransfer {
 
  protected:
   virtual StreamingStatus InitProducer(StreamingChannelConfig &channel_config) = 0;
-
 };
 
 class StreamingConsumeTransfer : public StreamingTransfer {
@@ -61,9 +61,7 @@ class StreamingConsumeTransfer : public StreamingTransfer {
 
  protected:
   virtual StreamingStatus InitConsumer(StreamingChannelConfig &channel_config) = 0;
-
 };
-
 
 class StreamingDefaultBlockedQueue {
  public:
@@ -72,6 +70,7 @@ class StreamingDefaultBlockedQueue {
   size_t Size();
   bool Empty();
   void Pop();
+
  private:
   std::queue<std::shared_ptr<StreamingMessage>> message_queue_;
   std::mutex queue_mutex_;
@@ -80,11 +79,15 @@ class StreamingDefaultBlockedQueue {
 class StreamingDefaultStore {
  public:
   static bool Push(StreamingChannelIndex &index, std::shared_ptr<StreamingMessage> msg);
-  static void Pop(std::vector<StreamingChannelIndex> &indexes, std::shared_ptr<StreamingMessage> &msg);
+  static void Pop(std::vector<StreamingChannelIndex> &indexes,
+                  std::shared_ptr<StreamingMessage> &msg);
+
  private:
   static bool Empty(std::vector<StreamingChannelIndex> &indexes);
+
  private:
-  static std::unordered_map<StreamingChannelIndex, StreamingDefaultBlockedQueue> message_store_;
+  static std::unordered_map<StreamingChannelIndex, StreamingDefaultBlockedQueue>
+      message_store_;
   static std::mutex store_mutex_;
   static std::condition_variable store_cv_;
 };
@@ -102,8 +105,8 @@ class StreamingDefaultProduceTransfer : public StreamingProduceTransfer {
  protected:
   StreamingStatus InitProducer(StreamingChannelConfig &channel_config) override;
 
-  StreamingStatus ProduceMessage(StreamingChannelInfo &channel_info, std::shared_ptr<StreamingMessage> msg) override;
-
+  StreamingStatus ProduceMessage(StreamingChannelInfo &channel_info,
+                                 std::shared_ptr<StreamingMessage> msg) override;
 };
 
 class StreamingDefaultConsumeTransfer : public StreamingConsumeTransfer {
@@ -117,11 +120,13 @@ class StreamingDefaultConsumeTransfer : public StreamingConsumeTransfer {
  protected:
   StreamingStatus InitConsumer(StreamingChannelConfig &channel_config) override;
 
-  StreamingStatus ConsumeMessage(StreamingChannelInfo &channel_info, std::shared_ptr<StreamingMessage> &msg) override;
+  StreamingStatus ConsumeMessage(StreamingChannelInfo &channel_info,
+                                 std::shared_ptr<StreamingMessage> &msg) override;
+
  private:
   std::vector<StreamingChannelIndex> channel_indexes_;
 };
 
-}
-}
-#endif //RAY_STREAMING_STREAMING_TRANSFER_H
+}  // namespace streaming
+}  // namespace ray
+#endif  // RAY_STREAMING_STREAMING_TRANSFER_H

@@ -1,16 +1,17 @@
-//
-// Created by ashione on 2019/4/1.
-//
+#include "ray/util/logging.h"
 
 #include "streaming_metrics.h"
 namespace ray {
 namespace streaming {
 
-void DefaultMetricsReporter::Report() {
-  std::cout << "Default Reporter" << std::endl;
-}
+void DefaultMetricsReporter::Report() { RAY_LOG(INFO) << "Default Reporter"; }
 
-MetricsReporterDecorator::MetricsReporterDecorator(std::shared_ptr<StreamingMetricsReporter> reporter) {
+DefaultMetricsReporter::~DefaultMetricsReporter() {
+  RAY_LOG(INFO) << "Destroy default reporter";
+};
+
+MetricsReporterDecorator::MetricsReporterDecorator(
+    std::shared_ptr<StreamingMetricsReporter> reporter) {
   reporter_ = reporter;
 }
 
@@ -21,20 +22,26 @@ void MetricsReporterDecorator::Report() {
 }
 
 KmonitorReporter::KmonitorReporter(std::shared_ptr<StreamingMetricsReporter> reporter)
-  : MetricsReporterDecorator(reporter) {}
+    : MetricsReporterDecorator(reporter) {}
 
 void KmonitorReporter::Report() {
   MetricsReporterDecorator::Report();
-  std::cout << "Kmonitor Reporter" << std::endl;
+  RAY_LOG(INFO) << "Kmonitor Reporter";
 }
 
+KmonitorReporter::~KmonitorReporter() { RAY_LOG(INFO) << "Destroy kmonitor reporter"; }
+
 PrometheusReporter::PrometheusReporter(std::shared_ptr<StreamingMetricsReporter> reporter)
-  : MetricsReporterDecorator(reporter) {}
+    : MetricsReporterDecorator(reporter) {}
 
 void PrometheusReporter::Report() {
   MetricsReporterDecorator::Report();
-  std::cout << "Promethues Reporter" << std::endl;
+  RAY_LOG(INFO) << "Promethues Reporter";
 }
 
+PrometheusReporter::~PrometheusReporter() {
+  RAY_LOG(INFO) << "Destroy prometheus reporter";
 }
-}
+
+}  // namespace streaming
+}  // namespace ray
