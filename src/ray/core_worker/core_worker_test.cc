@@ -131,6 +131,11 @@ class SingleNodeTest : public CoreWorkerTest {
   SingleNodeTest() : CoreWorkerTest(1) {}
 };
 
+class TwoNodeTest : public CoreWorkerTest {
+ public:
+  TwoNodeTest() : CoreWorkerTest(2) {}
+};
+
 TEST_F(ZeroNodeTest, TestTaskArg) {
   // Test by-reference argument.
   ObjectID id = ObjectID::FromRandom();
@@ -199,7 +204,7 @@ TEST_F(SingleNodeTest, TestObjectInterface) {
 
   // Test Get().
   std::vector<std::shared_ptr<Buffer>> results;
-  core_worker.Objects().Get(ids, 0, &results);
+  core_worker.Objects().Get(ids, -1, &results);
 
   ASSERT_EQ(results.size(), 2);
   for (int i = 0; i < ids.size(); i++) {
@@ -234,6 +239,74 @@ TEST_F(SingleNodeTest, TestObjectInterface) {
   ASSERT_EQ(results.size(), 2);
   ASSERT_TRUE(!results[0]);
   ASSERT_TRUE(!results[1]);
+}
+
+TEST_F(TwoNodeTest, TestObjectInterfaceCrossMachine) {
+  CoreWorker worker1(WorkerType::DRIVER, Language::PYTHON,
+                     raylet_store_socket_names_[0], raylet_socket_names_[0],
+                     DriverID::FromRandom());
+  RAY_CHECK_OK(worker1.Connect());
+
+  CoreWorker worker2(WorkerType::DRIVER, Language::PYTHON,
+                     raylet_store_socket_names_[1], raylet_socket_names_[1],
+                     DriverID::FromRandom());
+  RAY_CHECK_OK(worker2.Connect());
+
+  uint8_t array1[] = {1, 2, 3, 4, 5, 6, 7, 8};
+  uint8_t array2[] = {10, 11, 12, 13, 14, 15};
+
+  std::vector<LocalMemoryBuffer> buffers;
+  buffers.emplace_back(array1, sizeof(array1));
+  buffers.emplace_back(array2, sizeof(array2));
+
+  std::vector<ObjectID> ids(buffers.size());
+  for (int i = 0; i < ids.size(); i++) {
+    worker1.Objects().Put(buffers[i], &ids[i]);
+  }
+
+  // Test Get() from remote node.
+  std::vector<std::shared_ptr<Buffer>> results;
+  worker2.Objects().Get(ids, -1, &results);
+
+  ASSERT_EQ(results.size(), 2);
+  for (int i = 0; i < ids.size(); i++) {
+    ASSERT_EQ(results[i]->Size(), buffers[i].Size());
+    ASSERT_EQ(memcmp(results[i]->Data(), buffers[i].Data(), buffers[i].Size()), 0);
+  }
+
+  // Test Wait() from remote node.
+  ObjectID non_existent_id = ObjectID::FromRandom();
+  std::vector<ObjectID> all_ids(ids);
+  all_ids.push_back(non_existent_id);
+
+  std::vector<bool> wait_results;
+  worker2.Objects().Wait(all_ids, 2, -1, &wait_results);
+  ASSERT_EQ(wait_results.size(), 3);
+  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
+
+  worker2.Objects().Wait(all_ids, 3, 100, &wait_results);
+  ASSERT_EQ(wait_results.size(), 3);
+  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
+
+  // Test Delete() from all machines.
+  // clear the reference held by PlasmaBuffer.
+  results.clear();
+  worker2.Objects().Delete(ids, false, false);
+
+  // Note that Delete() calls RayletClient::FreeObjects and would not
+  // wait for objects being deleted, so wait a while for plasma store
+  // to process the command.
+  usleep(1000 * 1000);
+  // Verify objects are deleted from both machines.
+  worker2.Objects().Get(ids, 0, &results);
+  ASSERT_EQ(results.size(), 2);
+  ASSERT_TRUE(!results[0]);
+  ASSERT_TRUE(!results[1]);
+
+  worker1.Objects().Get(ids, 0, &results);
+  ASSERT_EQ(results.size(), 2);
+  ASSERT_TRUE(!results[0]);
+  ASSERT_TRUE(!results[1]);  
 }
 
 }  // namespace ray
