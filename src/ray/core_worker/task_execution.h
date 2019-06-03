@@ -24,8 +24,10 @@ class CoreWorkerTaskExecutionInterface {
   /// \param ray_function[in] Information about the function to execute.
   /// \param args[in] Arguments of the task.
   /// \return Status.
-  using TaskExecutor = std::function<Status(const RayFunction &ray_function,
-                                            const std::vector<std::shared_ptr<Buffer>> &args)>;
+  using TaskExecutor = std::function<Status(
+      const RayFunction &ray_function,
+      const std::vector<std::shared_ptr<Buffer>> &args,
+      int num_returns)>;
 
   /// Start receving and executes tasks in a infinite loop.
   void Start(const TaskExecutor &executor);

@@ -20,7 +20,7 @@ void CoreWorkerTaskExecutionInterface::Start(const TaskExecutor &executor) {
     std::vector<std::shared_ptr<Buffer>> args;
     RAY_CHECK_OK(BuildArgsForExecutor(spec, &args)); 
 
-    auto status = executor(func, args);
+    auto status = executor(func, args, spec.NumReturns());
     if (status.ok()) {
         // TODO:
         // 1. Check and handle failure.
