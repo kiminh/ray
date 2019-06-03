@@ -46,8 +46,8 @@ WorkerContext::WorkerContext(WorkerType worker_type, const DriverID &driver_id)
   // For worker main thread which initializes the WorkerContext,
   // set task_id according to whether current worker is a driver.
   // (For other threads it's set to randmom ID via GetThreadContext).
-  GetThreadContext().SetCurrentTask((worker_type == WorkerType::DRIVER) ?
-      TaskID::FromRandom() : TaskID::Nil());
+  GetThreadContext().SetCurrentTask(
+      (worker_type == WorkerType::DRIVER) ? TaskID::FromRandom() : TaskID::Nil());
 }
 
 const WorkerType WorkerContext::GetWorkerType() const { return worker_type; }

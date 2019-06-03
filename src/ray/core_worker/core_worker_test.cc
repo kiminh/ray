@@ -6,7 +6,6 @@
 #include "core_worker.h"
 #include "ray/common/buffer.h"
 #include "ray/raylet/raylet_client.h"
-#include "ray/raylet/task.h"
 
 #include <boost/asio.hpp>
 #include <boost/asio/error.hpp>
