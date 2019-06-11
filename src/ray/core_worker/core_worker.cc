@@ -11,7 +11,7 @@ CoreWorker::CoreWorker(const enum WorkerType worker_type,
       language_(language),
       store_socket_(store_socket),
       raylet_socket_(raylet_socket),
-      worker_context_(worker_type, driver_id),      
+      worker_context_(worker_type, driver_id),
       is_initialized_(false),
       task_interface_(*this),
       object_interface_(*this),
@@ -29,15 +29,13 @@ Status CoreWorker::Connect() {
   // instead of crashing.
   raylet_client_ = std::make_shared<RayletClient>(
       raylet_socket_, worker_context_.GetWorkerID(),
-      (worker_type_ == ray::WorkerType::WORKER),
-      worker_context_.GetCurrentDriverID(),
+      (worker_type_ == ray::WorkerType::WORKER), worker_context_.GetCurrentDriverID(),
       ToTaskLanguage(language_));
   is_initialized_ = true;
   return Status::OK();
 }
 
-::Language CoreWorker::ToTaskLanguage(
-    WorkerLanguage language) {
+::Language CoreWorker::ToTaskLanguage(WorkerLanguage language) {
   switch (language) {
   case ray::WorkerLanguage::JAVA:
     return ::Language::JAVA;
@@ -46,8 +44,7 @@ Status CoreWorker::Connect() {
     return ::Language::PYTHON;
     break;
   default:
-    RAY_LOG(FATAL) << "invalid language specified: "
-                   << static_cast<int>(language);
+    RAY_LOG(FATAL) << "invalid language specified: " << static_cast<int>(language);
     break;
   }
 }

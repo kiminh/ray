@@ -46,7 +46,6 @@ class CoreWorker {
   CoreWorkerTaskExecutionInterface &Execution() { return task_execution_interface_; }
 
  private:
- 
   /// Translate from WorkLanguage to Language type (required by raylet client).
   ///
   /// \param[in] language Language for a task.

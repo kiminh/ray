@@ -1,12 +1,12 @@
 #ifndef RAY_CORE_WORKER_PLASMA_STORE_PROVIDER_H
 #define RAY_CORE_WORKER_PLASMA_STORE_PROVIDER_H
 
-#include "ray/core_worker/common.h"
-#include "ray/core_worker/store_provider/store_provider_interface.h"
 #include "plasma/client.h"
 #include "ray/common/buffer.h"
 #include "ray/common/id.h"
 #include "ray/common/status.h"
+#include "ray/core_worker/common.h"
+#include "ray/core_worker/store_provider/store_provider_interface.h"
 #include "ray/raylet/raylet_client.h"
 
 namespace ray {
@@ -16,10 +16,9 @@ class CoreWorker;
 /// The interface that contains all `CoreWorker` methods that are related to object store.
 class CoreWorkerPlasmaStoreProvider : public CoreWorkerStoreProviderInterface {
  public:
-  CoreWorkerPlasmaStoreProvider(
-      std::shared_ptr<plasma::PlasmaClient> store_client,
-      std::mutex &store_client_mutex,
-      std::shared_ptr<RayletClient> raylet_client);
+  CoreWorkerPlasmaStoreProvider(std::shared_ptr<plasma::PlasmaClient> store_client,
+                                std::mutex &store_client_mutex,
+                                std::shared_ptr<RayletClient> raylet_client);
 
   /// Put an object with specified ID into object store.
   ///
@@ -32,22 +31,23 @@ class CoreWorkerPlasmaStoreProvider : public CoreWorkerStoreProviderInterface {
   ///
   /// \param[in] ids IDs of the objects to get.
   /// \param[in] timeout_ms Timeout in milliseconds, wait infinitely if it's negative.
-  /// \param[in] task_id ID for the current task.    
+  /// \param[in] task_id ID for the current task.
   /// \param[out] results Result list of objects data.
   /// \return Status.
-  Status Get(const std::vector<ObjectID> &ids, int64_t timeout_ms,
-             const TaskID &task_id, std::vector<std::shared_ptr<Buffer>> *results) override;
+  Status Get(const std::vector<ObjectID> &ids, int64_t timeout_ms, const TaskID &task_id,
+             std::vector<std::shared_ptr<Buffer>> *results) override;
 
   /// Wait for a list of objects to appear in the object store.
   ///
   /// \param[in] IDs of the objects to wait for.
   /// \param[in] num_returns Number of objects that should appear.
   /// \param[in] timeout_ms Timeout in milliseconds, wait infinitely if it's negative.
-  /// \param[in] task_id ID for the current task.    
+  /// \param[in] task_id ID for the current task.
   /// \param[out] results A bitset that indicates each object has appeared or not.
   /// \return Status.
   Status Wait(const std::vector<ObjectID> &object_ids, int num_objects,
-              int64_t timeout_ms, const TaskID &task_id, std::vector<bool> *results) override;
+              int64_t timeout_ms, const TaskID &task_id,
+              std::vector<bool> *results) override;
 
   /// Delete a list of objects from the object store.
   ///

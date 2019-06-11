@@ -1,11 +1,11 @@
 #ifndef RAY_CORE_WORKER_OBJECT_INTERFACE_H
 #define RAY_CORE_WORKER_OBJECT_INTERFACE_H
 
-#include "ray/core_worker/common.h"
 #include "plasma/client.h"
 #include "ray/common/buffer.h"
 #include "ray/common/id.h"
 #include "ray/common/status.h"
+#include "ray/core_worker/common.h"
 #include "ray/core_worker/store_provider/store_provider_interface.h"
 
 namespace ray {
@@ -66,8 +66,8 @@ class CoreWorkerObjectInterface {
   CoreWorker &core_worker_;
 
   /// All the store providers supported.
-  std::unordered_map<int,
-      std::unique_ptr<CoreWorkerStoreProviderInterface>> store_providers_;
+  std::unordered_map<int, std::unique_ptr<CoreWorkerStoreProviderInterface>>
+      store_providers_;
 };
 
 }  // namespace ray
