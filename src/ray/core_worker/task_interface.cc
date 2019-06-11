@@ -21,7 +21,7 @@ Status CoreWorkerTaskInterface::SubmitTask(const RayFunction &function,
   }
 
   auto task_arguments = BuildTaskArguments(args);
-  auto language = ToTaskLanguage(function.language);
+  auto language = core_worker_.ToTaskLanguage(function.language);
 
   ray::raylet::TaskSpecification spec(context.GetCurrentDriverID(),
                                       context.GetCurrentTaskID(), next_task_index,
@@ -51,7 +51,7 @@ Status CoreWorkerTaskInterface::CreateActor(
   (*actor_handle)->SetActorCursor(return_ids[0]);
 
   auto task_arguments = BuildTaskArguments(args);
-  auto language = ToTaskLanguage(function.language);
+  auto language = core_worker_.ToTaskLanguage(function.language);
 
   // Note that the caller is supposed to specify required placement resources
   // correctly via actor_creation_options.resources.
@@ -87,7 +87,7 @@ Status CoreWorkerTaskInterface::SubmitActorTask(ActorHandle &actor_handle,
       ObjectID::FromBinary(actor_handle.ActorID().Binary());
 
   auto task_arguments = BuildTaskArguments(args);
-  auto language = ToTaskLanguage(function.language);
+  auto language = core_worker_.ToTaskLanguage(function.language);
 
   std::vector<ActorHandleID> new_actor_handles;
   ray::raylet::TaskSpecification spec(
@@ -126,22 +126,6 @@ CoreWorkerTaskInterface::BuildTaskArguments(const std::vector<TaskArg> &args) {
     }
   }
   return task_arguments;
-}
-
-::Language CoreWorkerTaskInterface::ToTaskLanguage(
-    WorkerLanguage language) {
-  switch (language) {
-  case ray::WorkerLanguage::JAVA:
-    return ::Language::JAVA;
-    break;
-  case ray::WorkerLanguage::PYTHON:
-    return ::Language::PYTHON;
-    break;
-  default:
-    RAY_LOG(FATAL) << "invalid language specified: "
-                   << static_cast<int>(language);
-    break;
-  }
 }
 
 }  // namespace ray

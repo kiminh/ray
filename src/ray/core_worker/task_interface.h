@@ -136,12 +136,6 @@ class CoreWorkerTaskInterface {
   /// \return Arguments as required by task spec.
   std::vector<std::shared_ptr<raylet::TaskArgument>> BuildTaskArguments(
       const std::vector<TaskArg> &args);
-
-  /// Translate from WorkLanguage to Language type (required by taks spec).
-  ///
-  /// \param[in] language Language for a task.
-  /// \return Translated task language.
-  ::Language ToTaskLanguage(WorkerLanguage language);
 };
 
 }  // namespace ray

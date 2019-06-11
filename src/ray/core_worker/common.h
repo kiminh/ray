@@ -66,6 +66,8 @@ class TaskArg {
   const std::shared_ptr<Buffer> data_;
 };
 
+enum class StoreProviderType { PLASMA };
+
 }  // namespace ray
 
 #endif  // RAY_CORE_WORKER_COMMON_H

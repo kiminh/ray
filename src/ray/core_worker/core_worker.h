@@ -46,34 +46,39 @@ class CoreWorker {
   CoreWorkerTaskExecutionInterface &Execution() { return task_execution_interface_; }
 
  private:
+ 
+  /// Translate from WorkLanguage to Language type (required by raylet client).
+  ///
+  /// \param[in] language Language for a task.
+  /// \return Translated task language.
+  ::Language ToTaskLanguage(WorkerLanguage language);
+
   /// Type of this worker.
   const enum WorkerType worker_type_;
 
   /// Language of this worker.
   const enum WorkerLanguage language_;
 
-  /// Language of this worker as specified in flatbuf (used by task spec).
-  ::Language task_language_;
-
-  /// Worker context per thread.
-  WorkerContext worker_context_;
-
   /// Plasma store socket name.
-  std::string store_socket_;
+  const std::string store_socket_;
 
   /// raylet socket name.
-  std::string raylet_socket_;
+  const std::string raylet_socket_;
+
+  /// Worker context.
+  WorkerContext worker_context_;
 
   /// Plasma store client.
-  plasma::PlasmaClient store_client_;
+  std::shared_ptr<plasma::PlasmaClient> store_client_;
 
   /// Mutex to protect store_client_.
   std::mutex store_client_mutex_;
 
   /// Raylet client.
-  std::unique_ptr<RayletClient> raylet_client_;
+  std::shared_ptr<RayletClient> raylet_client_;
 
-  /// Whether this worker has been initialized.
+  /// Whether this worker has been initialized (this refers to
+  /// plasma client and raylet client).
   bool is_initialized_;
 
   /// The `CoreWorkerTaskInterface` instance.
