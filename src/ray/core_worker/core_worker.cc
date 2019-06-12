@@ -14,7 +14,19 @@ CoreWorker::CoreWorker(const enum WorkerType worker_type,
       worker_context_(worker_type, driver_id),
       task_interface_(*this),
       object_interface_(*this),
-      task_execution_interface_(*this) {}
+      task_execution_interface_(*this) {
+  switch (language_) {
+  case ray::WorkerLanguage::JAVA:
+    task_language_ = ::Language::JAVA;
+    break;
+  case ray::WorkerLanguage::PYTHON:
+    task_language_ = ::Language::PYTHON;
+    break;
+  default:
+    RAY_LOG(FATAL) << "Unsupported worker language: " << static_cast<int>(language_);
+    break;
+  }
+}
 
 Status CoreWorker::Connect() {
   // connect to plasma.

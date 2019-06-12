@@ -70,6 +70,9 @@ class CoreWorker {
   /// Ray client (this includes store client, raylet client and potentially gcs client later).
   RayClient ray_client_;
 
+  /// Whether this worker has been initialized.
+  bool is_initialized_;
+
   /// The `CoreWorkerTaskInterface` instance.
   CoreWorkerTaskInterface task_interface_;
 
