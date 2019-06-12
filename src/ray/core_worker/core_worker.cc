@@ -12,26 +12,24 @@ CoreWorker::CoreWorker(const enum WorkerType worker_type,
       store_socket_(store_socket),
       raylet_socket_(raylet_socket),
       worker_context_(worker_type, driver_id),
-      is_initialized_(false),
       task_interface_(*this),
       object_interface_(*this),
       task_execution_interface_(*this) {}
 
 Status CoreWorker::Connect() {
   // connect to plasma.
-  store_client_ = std::make_shared<plasma::PlasmaClient>();
-  RAY_ARROW_RETURN_NOT_OK(store_client_->Connect(store_socket_));
+  RAY_ARROW_RETURN_NOT_OK(ray_client_.store_client_.Connect(store_socket_));
 
   // connect to raylet.
   // TODO: currently RayletClient would crash in its constructor if it cannot
   // connect to Raylet after a number of retries, this needs to be changed
   // so that the worker (java/python .etc) can retrieve and handle the error
   // instead of crashing.
-  raylet_client_ = std::make_shared<RayletClient>(
-      raylet_socket_, worker_context_.GetWorkerID(),
+  ray_client_.raylet_client_ = std::unique_ptr<RayletClient>(
+      new RayletClient(raylet_socket_, worker_context_.GetWorkerID(),
       (worker_type_ == ray::WorkerType::WORKER), worker_context_.GetCurrentDriverID(),
-      ToTaskLanguage(language_));
-  is_initialized_ = true;
+      ToTaskLanguage(language_)));
+
   return Status::OK();
 }
 

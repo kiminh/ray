@@ -6,7 +6,7 @@
 #include "ray/common/id.h"
 #include "ray/common/status.h"
 #include "ray/core_worker/common.h"
-#include "ray/core_worker/store_provider/store_provider_interface.h"
+#include "ray/core_worker/store_provider/store_provider.h"
 #include "ray/raylet/raylet_client.h"
 
 namespace ray {
@@ -14,11 +14,9 @@ namespace ray {
 class CoreWorker;
 
 /// The interface that contains all `CoreWorker` methods that are related to object store.
-class CoreWorkerPlasmaStoreProvider : public CoreWorkerStoreProviderInterface {
+class CoreWorkerPlasmaStoreProvider : public CoreWorkerStoreProvider {
  public:
-  CoreWorkerPlasmaStoreProvider(std::shared_ptr<plasma::PlasmaClient> store_client,
-                                std::mutex &store_client_mutex,
-                                std::shared_ptr<RayletClient> raylet_client);
+  CoreWorkerPlasmaStoreProvider(RayClient &ray_client);
 
   /// Put an object with specified ID into object store.
   ///
@@ -60,14 +58,8 @@ class CoreWorkerPlasmaStoreProvider : public CoreWorkerStoreProviderInterface {
                 bool delete_creating_tasks) override;
 
  private:
-  /// Plasma store client.
-  std::shared_ptr<plasma::PlasmaClient> store_client_;
-
-  /// Mutex to protect store_client_.
-  std::mutex &store_client_mutex_;
-
-  /// Raylet client.
-  std::shared_ptr<RayletClient> raylet_client_;
+  /// Ray client.
+  RayClient &ray_client_;
 };
 
 }  // namespace ray

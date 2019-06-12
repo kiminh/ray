@@ -7,6 +7,7 @@
 #include "ray/common/id.h"
 #include "ray/common/status.h"
 #include "ray/core_worker/common.h"
+#include "ray/core_worker/task_provider/task_provider.h"
 
 namespace ray {
 
@@ -88,7 +89,7 @@ class ActorHandle {
 /// submission.
 class CoreWorkerTaskInterface {
  public:
-  CoreWorkerTaskInterface(CoreWorker &core_worker) : core_worker_(core_worker) {}
+  CoreWorkerTaskInterface(CoreWorker &core_worker);
 
   /// Submit a normal task.
   ///
@@ -135,6 +136,9 @@ class CoreWorkerTaskInterface {
   /// \return Arguments as required by task spec.
   std::vector<std::shared_ptr<raylet::TaskArgument>> BuildTaskArguments(
       const std::vector<TaskArg> &args);
+
+  /// All the task submission providers supported.
+  std::unordered_map<int, std::unique_ptr<CoreWorkerTaskSubmissionProvider>> task_submission_providers_;      
 };
 
 }  // namespace ray

@@ -6,12 +6,12 @@
 #include "ray/common/id.h"
 #include "ray/common/status.h"
 #include "ray/core_worker/common.h"
-#include "ray/core_worker/store_provider/store_provider_interface.h"
+#include "ray/core_worker/store_provider/store_provider.h"
 
 namespace ray {
 
 class CoreWorker;
-class CoreWorkerStoreProviderInterface;
+class CoreWorkerStoreProvider;
 
 /// The interface that contains all `CoreWorker` methods that are related to object store.
 class CoreWorkerObjectInterface {
@@ -66,7 +66,7 @@ class CoreWorkerObjectInterface {
   CoreWorker &core_worker_;
 
   /// All the store providers supported.
-  std::unordered_map<int, std::unique_ptr<CoreWorkerStoreProviderInterface>>
+  std::unordered_map<int, std::unique_ptr<CoreWorkerStoreProvider>>
       store_providers_;
 };
 

@@ -67,18 +67,8 @@ class CoreWorker {
   /// Worker context.
   WorkerContext worker_context_;
 
-  /// Plasma store client.
-  std::shared_ptr<plasma::PlasmaClient> store_client_;
-
-  /// Mutex to protect store_client_.
-  std::mutex store_client_mutex_;
-
-  /// Raylet client.
-  std::shared_ptr<RayletClient> raylet_client_;
-
-  /// Whether this worker has been initialized (this refers to
-  /// plasma client and raylet client).
-  bool is_initialized_;
+  /// Ray client (this includes store client, raylet client and potentially gcs client later).
+  RayClient ray_client_;
 
   /// The `CoreWorkerTaskInterface` instance.
   CoreWorkerTaskInterface task_interface_;

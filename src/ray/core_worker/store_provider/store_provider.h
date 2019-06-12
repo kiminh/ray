@@ -1,5 +1,5 @@
-#ifndef RAY_CORE_WORKER_STORE_PROVIDER_INTERFACE_H
-#define RAY_CORE_WORKER_STORE_PROVIDER_INTERFACE_H
+#ifndef RAY_CORE_WORKER_STORE_PROVIDER_H
+#define RAY_CORE_WORKER_STORE_PROVIDER_H
 
 #include "ray/common/buffer.h"
 #include "ray/common/id.h"
@@ -8,11 +8,11 @@
 
 namespace ray {
 
-class CoreWorkerStoreProviderInterface {
+class CoreWorkerStoreProvider {
  public:
-  CoreWorkerStoreProviderInterface() {}
+  CoreWorkerStoreProvider() {}
 
-  virtual ~CoreWorkerStoreProviderInterface() {}
+  virtual ~CoreWorkerStoreProvider() {}
 
   /// Put an object with specified ID into object store.
   ///
@@ -57,4 +57,4 @@ class CoreWorkerStoreProviderInterface {
 
 }  // namespace ray
 
-#endif  // RAY_CORE_WORKER_STORE_PROVIDER_INTERFACE_H
+#endif  // RAY_CORE_WORKER_STORE_PROVIDER_H
