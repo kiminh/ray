@@ -28,31 +28,29 @@ class CoreWorkerRayletTaskSubmitter : public CoreWorkerTaskSubmitter {
   std::unique_ptr<RayletClient> &raylet_client_;
 };
 
-class CoreWorkerRayletTaskReceiver
-    : public CoreWorkerTaskReceiver,
-      public rpc::WorkerTaskHandler {
+class CoreWorkerRayletTaskReceiver : public CoreWorkerTaskReceiver,
+                                     public rpc::WorkerTaskHandler {
  public:
-  CoreWorkerRayletTaskReceiver(
-    boost::asio::io_service &io_service,
-    rpc::GrpcServer &server);
+  CoreWorkerRayletTaskReceiver(boost::asio::io_service &io_service,
+                               rpc::GrpcServer &server);
 
-  /// Handle a `PushTask` request.
+  /// Handle a `AssignTask` request.
   /// The implementation can handle this request asynchronously. When hanling is done, the
   /// `done_callback` should be called.
   ///
   /// \param[in] request The request message.
   /// \param[out] reply The reply message.
   /// \param[in] done_callback The callback to be called when the request is done.
-  void HandlePushTask(const rpc::PushTaskRequest &request,
-                                 rpc::PushTaskReply *reply,
-                                 rpc::RequestDoneCallback done_callback) override;
+  void HandleAssignTask(const rpc::AssignTaskRequest &request,
+                        rpc::AssignTaskReply *reply,
+                        rpc::RequestDoneCallback done_callback) override;
 
-  Status SetTaskHandler(const TaskHandler &callback) override;                                 
+  Status SetTaskHandler(const TaskHandler &callback) override;
 
  private:
-
+  /// The callback function to process a task.
   TaskHandler task_handler_;
-
+  /// The rpc service for `WorkerTaskService`.
   rpc::WorkerTaskGrpcService task_service_;
 };
 

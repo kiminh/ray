@@ -32,17 +32,6 @@ import ray.tests.utils
 
 logger = logging.getLogger(__name__)
 
-def test_forward(ray_start_cluster):
-    cluster = ray_start_cluster
-    cluster.add_node(num_cpus=1)
-    ray.init(redis_address=cluster.redis_address)
-    cluster.add_node(num_cpus=1, resources={"RemoteResource": 10})
-
-    @ray.remote(resources={"RemoteResource": 1})
-    def f():
-        return 1
-
-    ray.get([f.remote() for _ in range(10)])
 
 def test_simple_serialization(ray_start_regular):
     primitive_objects = [
@@ -2747,15 +2736,17 @@ def test_duplicate_error_messages(shutdown_only):
 
     r = ray.worker.global_worker.redis_client
 
-    r.execute_command("RAY.TABLE_APPEND", ray.gcs_utils.TablePrefix.ERROR_INFO,
-                      ray.gcs_utils.TablePubsub.ERROR_INFO, driver_id.binary(),
-                      error_data)
+    r.execute_command("RAY.TABLE_APPEND",
+                      ray.gcs_utils.TablePrefix.Value("ERROR_INFO"),
+                      ray.gcs_utils.TablePubsub.Value("ERROR_INFO_PUBSUB"),
+                      driver_id.binary(), error_data)
 
     # Before https://github.com/ray-project/ray/pull/3316 this would
     # give an error
-    r.execute_command("RAY.TABLE_APPEND", ray.gcs_utils.TablePrefix.ERROR_INFO,
-                      ray.gcs_utils.TablePubsub.ERROR_INFO, driver_id.binary(),
-                      error_data)
+    r.execute_command("RAY.TABLE_APPEND",
+                      ray.gcs_utils.TablePrefix.Value("ERROR_INFO"),
+                      ray.gcs_utils.TablePubsub.Value("ERROR_INFO_PUBSUB"),
+                      driver_id.binary(), error_data)
 
 
 @pytest.mark.skipif(

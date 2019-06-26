@@ -23,7 +23,7 @@ class WorkerTaskClient {
   /// \param[in] port Port of the worker server.
   /// \param[in] client_call_manager The `ClientCallManager` used for managing requests.
   WorkerTaskClient(const std::string &address, const int port,
-                    ClientCallManager &client_call_manager)
+                   ClientCallManager &client_call_manager)
       : client_call_manager_(client_call_manager) {
     std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(
         address + ":" + std::to_string(port), grpc::InsecureChannelCredentials());
@@ -35,12 +35,12 @@ class WorkerTaskClient {
   /// \param[in] request The request message.
   /// \param[in] callback The callback function that handles reply.
   /// \return if the rpc call succeeds
-  ray::Status PushTask(const PushTaskRequest &request,
-                   const ClientCallback<PushTaskReply> &callback) {
+  ray::Status AssignTask(const AssignTaskRequest &request,
+                         const ClientCallback<AssignTaskReply> &callback) {
     auto call = client_call_manager_
-        .CreateCall<WorkerTaskService, PushTaskRequest, PushTaskReply>(
-            *stub_, &WorkerTaskService::Stub::PrepareAsyncPushTask, request,
-            callback);
+                    .CreateCall<WorkerTaskService, AssignTaskRequest, AssignTaskReply>(
+                        *stub_, &WorkerTaskService::Stub::PrepareAsyncAssignTask, request,
+                        callback);
     return call->GetStatus();
   }
 
