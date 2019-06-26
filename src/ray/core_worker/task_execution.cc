@@ -15,6 +15,11 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
       std::unique_ptr<CoreWorkerRayletTaskReceiver>(
           new CoreWorkerRayletTaskReceiver(
           main_service_, worker_server_)));
+  task_receivers_.emplace(
+      static_cast<int>(TaskTransportType::DIRECT_ACTOR),
+      std::unique_ptr<CoreWorkerDirectActorTaskReceiver>(
+          new CoreWorkerDirectActorTaskReceiver(
+          main_service_, worker_server_)));
 }
 
 Status CoreWorkerTaskExecutionInterface::Run(const TaskExecutor &executor) {
