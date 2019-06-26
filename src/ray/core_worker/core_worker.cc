@@ -32,7 +32,7 @@ CoreWorker::CoreWorker(const enum WorkerType worker_type,
     InitializeRayletClient(0);
   }
 
-  io_thread_ = std::thread(&ObjectManager::RunIOService, this);
+  io_thread_ = std::thread(&CoreWorker::RunIOService, this);
 }
 
 CoreWorker::~CoreWorker() {

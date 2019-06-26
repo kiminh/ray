@@ -3,6 +3,7 @@
 #include "ray/core_worker/core_worker.h"
 #include "ray/core_worker/task_interface.h"
 #include "ray/core_worker/transport/raylet_transport.h"
+#include "ray/core_worker/transport/direct_actor_transport.h"
 
 namespace ray {
 

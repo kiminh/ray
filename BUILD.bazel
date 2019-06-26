@@ -47,6 +47,16 @@ cc_proto_library(
     deps = ["worker_proto"],
 )
 
+proto_library(
+    name = "direct_actor_proto",
+    srcs = ["src/ray/protobuf/direct_actor.proto"],
+)
+
+cc_proto_library(
+    name = "direct_actor_cc_proto",
+    deps = ["direct_actor_proto"],
+)
+
 # === End of protobuf definitions ===
 
 # common gRPC lib
@@ -108,12 +118,37 @@ cc_library(
     name = "worker_rpc",
     hdrs = glob([
         "src/ray/rpc/worker_client.h",
-        "src/ray/rpc/worker_server.h",
+        "src/ray/rpc/worker_server.h",        
     ]),
     copts = COPTS,
     deps = [
         ":common_grpc",
         ":worker_cc_grpc",
+        ":ray_common",
+        "@boost//:asio",
+        "@com_github_grpc_grpc//:grpc++",
+    ],
+)
+
+# worker gRPC lib.
+cc_grpc_library(
+    name = "direct_actor_cc_grpc",
+    srcs = [":direct_actor_proto"],
+    grpc_only = True,
+    deps = [":direct_actor_cc_proto"],
+)
+
+# direct actor call server and client.
+cc_library(
+    name = "direct_actor_rpc",
+    hdrs = glob([
+        "src/ray/rpc/direct_actor_client.h",
+        "src/ray/rpc/direct_actor_server.h",      
+    ]),
+    copts = COPTS,
+    deps = [
+        ":common_grpc",
+        ":direct_actor_cc_grpc",
         ":ray_common",
         "@boost//:asio",
         "@com_github_grpc_grpc//:grpc++",
@@ -245,6 +280,7 @@ cc_library(
         ":ray_util",
         ":raylet_lib",
         ":worker_rpc",
+        ":direct_actor_rpc",
     ],
 )
 
