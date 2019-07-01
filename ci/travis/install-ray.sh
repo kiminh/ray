@@ -5,6 +5,13 @@ set -e
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
 
+if [[ "$TRAVIS" == "TRAVIS" ]]; then
+  local cache_dir="$HOME/ray-bazel-cache"
+  echo "Enabling bazel disk cache at dir $cache_dir."
+  mkdir -p $cache_dir
+  echo "build --disk_cache=$cache_dir" >> .bazelrc
+fi
+
 echo "PYTHON is $PYTHON"
 
 if [[ "$PYTHON" == "2.7" ]]; then
