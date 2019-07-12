@@ -105,9 +105,9 @@ def ray_deps_setup():
     http_archive(
         name = "com_github_grpc_grpc",
         urls = [
-            "https://github.com/grpc/grpc/archive/76a381869413834692b8ed305fbe923c0f9c4472.tar.gz",
+            "https://github.com/grpc/grpc/archive/08fd59f039c7cf62614ab7741b3f34527af103c7.tar.gz",
         ],
-        strip_prefix = "grpc-76a381869413834692b8ed305fbe923c0f9c4472",
+        strip_prefix = "grpc-08fd59f039c7cf62614ab7741b3f34527af103c7",
     )
 
     http_archive(
