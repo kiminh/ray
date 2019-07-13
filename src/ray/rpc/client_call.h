@@ -58,12 +58,12 @@ class ClientCallImpl : public ClientCall {
     }
   }
 
- private:
   /// Constructor.
   ///
   /// \param[in] callback The callback function to handle the reply.
   ClientCallImpl(const ClientCallback<Reply> &callback) : callback_(callback) {}
 
+ private:
   /// The reply message.
   Reply reply_;
 
@@ -81,6 +81,10 @@ class ClientCallImpl : public ClientCall {
   grpc::ClientContext context_;
 
   friend class ClientCallManager;
+};
+
+struct ClientCallTag {
+  std::shared_ptr<ClientCall> call;
 };
 
 /// Peprents the generic signature of a `FooService::Stub::PrepareAsyncBar`
@@ -127,18 +131,18 @@ class ClientCallManager {
   /// \tparam Request Type of the request message.
   /// \tparam Reply Type of the reply message.
   template <class GrpcService, class Request, class Reply>
-  ClientCall *CreateCall(
+  std::shared_ptr<ClientCall> CreateCall(
       typename GrpcService::Stub &stub,
       const PrepareAsyncFunction<GrpcService, Request, Reply> prepare_async_function,
       const Request &request, const ClientCallback<Reply> &callback) {
     // Create a new `ClientCall` object. This object will eventuall be deleted in the
     // `ClientCallManager::PollEventsFromCompletionQueue` when reply is received.
-    auto call = new ClientCallImpl<Reply>(callback);
+    auto call = std::make_shared<ClientCallImpl<Reply>>(callback);
     // Send request.
     call->response_reader_ =
         (stub.*prepare_async_function)(&call->context_, request, &cq_);
     call->response_reader_->StartCall();
-    call->response_reader_->Finish(&call->reply_, &call->status_, (void *)call);
+    call->response_reader_->Finish(&call->reply_, &call->status_, (void *)new ClientCallTag{call});
     return call;
   }
 
@@ -151,16 +155,16 @@ class ClientCallManager {
     bool ok = false;
     // Keep reading events from the `CompletionQueue` until it's shutdown.
     while (cq_.Next(&got_tag, &ok)) {
-      auto *call = reinterpret_cast<ClientCall *>(got_tag);
+      auto *call_tag = reinterpret_cast<ClientCallTag *>(got_tag);
       if (ok) {
         // Post the callback to the main event loop.
-        main_service_.post([call]() {
-          call->OnReplyReceived();
+        main_service_.post([call_tag]() {
+          call_tag->call->OnReplyReceived();
           // The call is finished, we can delete the `ClientCall` object now.
-          delete call;
+          delete call_tag;
         });
       } else {
-        delete call;
+        delete call_tag;
       }
     }
   }
