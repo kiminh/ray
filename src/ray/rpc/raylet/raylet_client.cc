@@ -53,13 +53,20 @@ ray::Status RayletClient::Disconnect() {
   DisconnectClientRequest disconnect_client_request;
   disconnect_client_request.set_worker_id(worker_id_.Binary());
 
-  DisconnectClientReply reply;
-  grpc::ClientContext context;
-  auto status = stub_->DisconnectClient(&context, disconnect_client_request, &reply);
-  if (!status.ok()) {
-    RAY_LOG(ERROR) << "Failed to disconnect from raylet, msg: " << status.error_message();
-  }
-  return GrpcStatusToRayStatus(status);
+  std::promise<Status> p;
+  std::future<Status> f(p.get_future());
+  auto callback = [&p](const Status &status, const DisconnectClientReply &reply) {
+    if (!status.ok()) {
+      RAY_LOG(ERROR) << "Failed to disconnect from raylet, msg: " << status.message();
+    }
+    p.set_value(status);
+  };
+
+  client_call_manager_
+      .CreateCall<RayletService, DisconnectClientRequest, DisconnectClientReply>(
+          *stub_, &RayletService::Stub::PrepareAsyncDisconnectClient,
+          disconnect_client_request, callback);
+  return f.get();
 }
 
 ray::Status RayletClient::SubmitTask(const std::vector<ObjectID> &execution_dependencies,
@@ -87,39 +94,42 @@ ray::Status RayletClient::GetTask(std::unique_ptr<ray::TaskSpecification> *task_
   GetTaskRequest get_task_request;
   get_task_request.set_worker_id(worker_id_.Binary());
 
-  grpc::ClientContext context;
-  GetTaskReply reply;
-  // The actual RPC.
-  auto status = stub_->GetTask(&context, get_task_request, &reply);
+  std::promise<Status> p;
+  std::future<Status> f(p.get_future());
+  auto callback = [this, task_spec, &p](const Status &status, const GetTaskReply &reply) {
+    resource_ids_.clear();
+    if (status.ok()) {
+      // Parse resources that would be used by this assigned task.
+      for (size_t i = 0; i < reply.fractional_resource_ids().size(); ++i) {
+        auto const &fractional_resource_ids = reply.fractional_resource_ids()[i];
+        auto &acquired_resources = resource_ids_[fractional_resource_ids.resource_name()];
 
-  resource_ids_.clear();
-  if (status.ok()) {
-    // Parse resources that would be used by this assigned task.
-    for (size_t i = 0; i < reply.fractional_resource_ids().size(); ++i) {
-      auto const &fractional_resource_ids = reply.fractional_resource_ids()[i];
-      auto &acquired_resources = resource_ids_[fractional_resource_ids.resource_name()];
-
-      // Each resource includes a serial of ids and corresponding fractional numbers.
-      size_t num_resource_ids = fractional_resource_ids.resource_ids().size();
-      size_t num_resource_fractions = fractional_resource_ids.resource_fractions().size();
-      RAY_CHECK(num_resource_ids == num_resource_fractions);
-      RAY_CHECK(num_resource_ids > 0);
-      for (size_t j = 0; j < num_resource_ids; ++j) {
-        int64_t resource_id = fractional_resource_ids.resource_ids()[j];
-        double resource_fraction = fractional_resource_ids.resource_fractions()[j];
-        if (num_resource_ids > 1) {
-          int64_t whole_fraction = resource_fraction;
-          RAY_CHECK(whole_fraction == resource_fraction);
+        // Each resource includes a serial of ids and corresponding fractional numbers.
+        size_t num_resource_ids = fractional_resource_ids.resource_ids().size();
+        size_t num_resource_fractions =
+            fractional_resource_ids.resource_fractions().size();
+        RAY_CHECK(num_resource_ids == num_resource_fractions);
+        RAY_CHECK(num_resource_ids > 0);
+        for (size_t j = 0; j < num_resource_ids; ++j) {
+          int64_t resource_id = fractional_resource_ids.resource_ids()[j];
+          double resource_fraction = fractional_resource_ids.resource_fractions()[j];
+          if (num_resource_ids > 1) {
+            int64_t whole_fraction = resource_fraction;
+            RAY_CHECK(whole_fraction == resource_fraction);
+          }
+          acquired_resources.emplace_back(resource_id, resource_fraction);
         }
-        acquired_resources.emplace_back(resource_id, resource_fraction);
       }
+      task_spec->reset(new ray::TaskSpecification(reply.task_spec()));
+    } else {
+      *task_spec = nullptr;
+      RAY_LOG(INFO) << "Failed to get task, msg: " << status.message();
     }
-    task_spec->reset(new ray::TaskSpecification(reply.task_spec()));
-  } else {
-    *task_spec = nullptr;
-    RAY_LOG(INFO) << "Failed to get task, msg: " << status.error_message();
-  }
-  return GrpcStatusToRayStatus(status);
+    p.set_value(status);
+  };
+  client_call_manager_.CreateCall<RayletService, GetTaskRequest, GetTaskReply>(
+      *stub_, &RayletService::Stub::PrepareAsyncGetTask, get_task_request, callback);
+  return f.get();
 }
 
 ray::Status RayletClient::TaskDone() {
@@ -197,18 +207,21 @@ ray::Status RayletClient::Wait(const std::vector<ObjectID> &object_ids, int num_
   IdVectorToProtobuf<ObjectID, WaitRequest>(object_ids, wait_request,
                                             &WaitRequest::add_object_ids);
 
-  grpc::ClientContext context;
-  WaitReply reply;
-  auto status = stub_->Wait(&context, wait_request, &reply);
+  std::promise<Status> p;
+  std::future<Status> f(p.get_future());
+  auto callback = [result, &p](const Status &status, const WaitReply &reply) {
+    if (status.ok()) {
+      result->first = IdVectorFromProtobuf<ObjectID>(reply.found());
+      result->second = IdVectorFromProtobuf<ObjectID>(reply.remaining());
+    } else {
+      RAY_LOG(INFO) << "Failed to send WaitRequest, msg: " << status.message();
+    }
+    p.set_value(status);
+  };
 
-  if (status.ok()) {
-    result->first = IdVectorFromProtobuf<ObjectID>(reply.found());
-    result->second = IdVectorFromProtobuf<ObjectID>(reply.remaining());
-  } else {
-    RAY_LOG(INFO) << "Failed to send WaitRequest, msg: " << status.error_message();
-  }
-
-  return GrpcStatusToRayStatus(status);
+  client_call_manager_.CreateCall<RayletService, WaitRequest, WaitReply>(
+      *stub_, &RayletService::Stub::PrepareAsyncWait, wait_request, callback);
+  return f.get();
 }
 
 ray::Status RayletClient::PushError(const ray::JobID &job_id, const std::string &type,
@@ -280,19 +293,24 @@ ray::Status RayletClient::PrepareActorCheckpoint(const ActorID &actor_id,
   prepare_actor_checkpoint_request.set_actor_id(actor_id.Binary());
   prepare_actor_checkpoint_request.set_worker_id(worker_id_.Binary());
 
-  grpc::ClientContext context;
-  PrepareActorCheckpointReply reply;
-  auto status =
-      stub_->PrepareActorCheckpoint(&context, prepare_actor_checkpoint_request, &reply);
+  std::promise<Status> p;
+  std::future<Status> f(p.get_future());
+  auto callback = [&checkpoint_id, &p](const Status &status,
+                                       const PrepareActorCheckpointReply &reply) {
+    if (status.ok()) {
+      checkpoint_id = ActorCheckpointID::FromBinary(reply.checkpoint_id());
+    } else {
+      RAY_LOG(INFO) << "Failed to send PrepareActorCheckpointRequest, msg: "
+                    << status.message();
+    }
+    p.set_value(status);
+  };
 
-  if (status.ok()) {
-    checkpoint_id = ActorCheckpointID::FromBinary(reply.checkpoint_id());
-  } else {
-    RAY_LOG(INFO) << "Failed to send PrepareActorCheckpointRequest, msg: "
-                  << status.error_message();
-  }
-
-  return GrpcStatusToRayStatus(status);
+  client_call_manager_.CreateCall<RayletService, PrepareActorCheckpointRequest,
+                                  PrepareActorCheckpointReply>(
+      *stub_, &RayletService::Stub::PrepareAsyncPrepareActorCheckpoint,
+      prepare_actor_checkpoint_request, callback);
+  return f.get();
 }
 
 ray::Status RayletClient::NotifyActorResumedFromCheckpoint(
@@ -348,15 +366,19 @@ ray::Status RayletClient::RegisterClient() {
   register_client_request.set_language(language_);
   register_client_request.set_port(port_);
 
-  grpc::ClientContext context;
-  RegisterClientReply reply;
-  auto status = stub_->RegisterClient(&context, register_client_request, &reply);
-
-  if (!status.ok()) {
-    RAY_LOG(DEBUG) << "Failed to register client, msg: " << status.error_message();
-  }
-
-  return GrpcStatusToRayStatus(status);
+  std::promise<Status> p;
+  std::future<Status> f(p.get_future());
+  auto callback = [&p](const Status &status, const RegisterClientReply &reply) {
+    if (!status.ok()) {
+      RAY_LOG(DEBUG) << "Failed to register client, msg: " << status.message();
+    }
+    p.set_value(status);
+  };
+  client_call_manager_
+      .CreateCall<RayletService, RegisterClientRequest, RegisterClientReply>(
+          *stub_, &RayletService::Stub::PrepareAsyncRegisterClient,
+          register_client_request, callback);
+  return f.get();
 }
 
 // Send heartbeat request to raylet server.
