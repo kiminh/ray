@@ -96,7 +96,7 @@ def ray_deps_setup():
     http_archive(
         name = "com_github_jupp0r_prometheus_cpp",
         strip_prefix = "prometheus-cpp-master",
-        urls = ["https://github.com/jupp0r/prometheus-cpp/archive/master.zip"],
+        urls = ["https://github.com/raulchen/prometheus-cpp/archive/master.zip"],
     )
 
     http_archive(
@@ -105,7 +105,6 @@ def ray_deps_setup():
             "https://github.com/grpc/grpc/archive/08fd59f039c7cf62614ab7741b3f34527af103c7.tar.gz",
         ],
         strip_prefix = "grpc-08fd59f039c7cf62614ab7741b3f34527af103c7",
-        repo_mapping = {"@zlib": "@net_zlib_zlib"},
     )
 
     http_archive(
