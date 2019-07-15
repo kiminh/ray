@@ -95,8 +95,11 @@ def ray_deps_setup():
     # OpenCensus depends on jupp0r/prometheus-cpp
     http_archive(
         name = "com_github_jupp0r_prometheus_cpp",
-        strip_prefix = "prometheus-cpp-master",
-        urls = ["https://github.com/raulchen/prometheus-cpp/archive/master.zip"],
+        strip_prefix = "prometheus-cpp-db5cf33387a8dd029becf9c96722dd953432b3d5",
+
+        # TODO(qwang): We should use the repository of `jupp0r` here when this PR
+        # `https://github.com/jupp0r/prometheus-cpp/pull/225` getting merged.
+        urls = ["https://github.com/raulchen/prometheus-cpp/archive/db5cf33387a8dd029becf9c96722dd953432b3d5.zip"],
     )
 
     http_archive(
