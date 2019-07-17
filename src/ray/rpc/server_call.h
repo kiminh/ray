@@ -294,6 +294,17 @@ class ServerCallFactoryImpl : public ServerCallFactory {
   boost::asio::io_service &io_service_;
 };
 
+#define APPEND_SERVER_CALL_FACTORY(REQUEST, SERVICE_NAME, FACTORIES, CQ, SERVICE,        \
+                                   SERVICE_HANDLER, IO_SERVICE, CONCURRENT)              \
+  do {                                                                                   \
+    std::unique_ptr<ServerCallFactory> REQUEST##Factory(                                 \
+        new ServerCallFactoryImpl<SERVICE_NAME, SERVICE_NAME##Handler, REQUEST##Request, \
+                                  REQUEST##Reply>(                                       \
+            SERVICE, &SERVICE_NAME::AsyncService::Request##REQUEST, SERVICE_HANDLER,     \
+            &SERVICE_NAME##Handler::Handle##REQUEST##Request, CQ, IO_SERVICE));          \
+    FACTORIES->emplace_back(std::move(REQUEST##Factory), CONCURRENT);                    \
+  } while (0)
+
 }  // namespace rpc
 }  // namespace ray
 

@@ -51,6 +51,7 @@ class ObjectManagerGrpcService : public GrpcService {
       std::vector<std::pair<std::unique_ptr<ServerCallFactory>, int>>
           *server_call_factories_and_concurrencies) override {
     // Initialize the factory for `Push` requests.
+    /*
     std::unique_ptr<ServerCallFactory> push_call_factory(
         new ServerCallFactoryImpl<ObjectManagerService, ObjectManagerServiceHandler,
                                   PushRequest, PushReply>(
@@ -58,6 +59,9 @@ class ObjectManagerGrpcService : public GrpcService {
             &ObjectManagerServiceHandler::HandlePushRequest, cq, main_service_));
     server_call_factories_and_concurrencies->emplace_back(std::move(push_call_factory),
                                                           50);
+    */
+    APPEND_SERVER_CALL_FACTORY(Push, ObjectManagerService, server_call_factories_and_concurrencies,
+                cq, service_, service_handler_, main_service_, 50);
 
     // Initialize the factory for `Pull` requests.
     std::unique_ptr<ServerCallFactory> pull_call_factory(
