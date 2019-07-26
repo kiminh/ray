@@ -2,6 +2,7 @@
 #include "ray/common/ray_config.h"
 #include "ray/core_worker/store_provider/local_plasma_provider.h"
 #include "ray/core_worker/store_provider/plasma_store_provider.h"
+#include "ray/core_worker/store_provider/memory_store_provider.h"
 
 namespace ray {
 
@@ -13,6 +14,7 @@ CoreWorkerObjectInterface::CoreWorkerObjectInterface(
       store_socket_(store_socket) {
   AddStoreProvider(StoreProviderType::LOCAL_PLASMA);
   AddStoreProvider(StoreProviderType::PLASMA);
+  AddStoreProvider(StoreProviderType::MEMORY);
 }
 
 Status CoreWorkerObjectInterface::Put(const RayObject &object, ObjectID *object_id) {
@@ -62,6 +64,10 @@ std::unique_ptr<CoreWorkerStoreProvider> CoreWorkerObjectInterface::CreateStoreP
     return std::unique_ptr<CoreWorkerStoreProvider>(
         new CoreWorkerPlasmaStoreProvider(store_socket_, raylet_client_));
     break;
+  case StoreProviderType::MEMORY:
+    return std::unique_ptr<CoreWorkerStoreProvider>(
+        new CoreWorkerMemoryStoreProvider());
+    break;    
   default:
     RAY_LOG(FATAL) << "unknown store provider type " << static_cast<int>(type);
     break;

@@ -124,6 +124,9 @@ class CoreWorkerTest : public ::testing::Test {
 
   void TearDown() {}
 
+  // Test a specific store provider.
+  void TestStoreProvider(StoreProviderType type);
+
   // Test normal tasks.
   void TestNormalTask(const std::unordered_map<std::string, double> &resources);
 
@@ -148,6 +151,76 @@ class CoreWorkerTest : public ::testing::Test {
   std::vector<std::string> raylet_store_socket_names_;
   gcs::GcsClientOptions gcs_options_;
 };
+
+
+void CoreWorkerTest::TestStoreProvider(StoreProviderType type) {
+  CoreWorker driver(WorkerType::DRIVER, Language::PYTHON, raylet_store_socket_names_[0],
+                  raylet_socket_names_[0], JobID::FromInt(1), gcs_options_, nullptr);
+  auto &providers = driver.Objects().store_providers_;
+  RAY_CHECK(providers.count(type) > 0);
+  auto &provider = *providers[type];
+
+  uint8_t array1[] = {1, 2, 3, 4, 5, 6, 7, 8};
+  uint8_t array2[] = {10, 11, 12, 13, 14, 15};
+
+  std::vector<RayObject> buffers;
+  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1)),
+                       std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1) / 2));
+  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2)),
+                       std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2) / 2));
+
+  std::vector<ObjectID> ids(buffers.size());
+  for (size_t i = 0; i < ids.size(); i++) {
+    ids[i] = ObjectID::FromRandom();
+    RAY_CHECK_OK(provider.Put(buffers[i], ids[i]));
+  }
+
+  // Test Get().
+  std::vector<std::shared_ptr<RayObject>> results;
+  RAY_CHECK_OK(provider.Get(ids, -1, TaskID::FromRandom(), &results));
+
+  ASSERT_EQ(results.size(), 2);
+  for (size_t i = 0; i < ids.size(); i++) {
+    ASSERT_EQ(results[i]->GetData()->Size(), buffers[i].GetData()->Size());
+    ASSERT_EQ(memcmp(results[i]->GetData()->Data(), buffers[i].GetData()->Data(),
+                     buffers[i].GetData()->Size()),
+              0);
+    ASSERT_EQ(results[i]->GetMetadata()->Size(), buffers[i].GetMetadata()->Size());
+    ASSERT_EQ(memcmp(results[i]->GetMetadata()->Data(), buffers[i].GetMetadata()->Data(),
+                     buffers[i].GetMetadata()->Size()),
+              0);
+  }
+
+  // Test Wait().
+  ObjectID non_existent_id = ObjectID::FromRandom();
+  std::vector<ObjectID> all_ids(ids);
+  all_ids.push_back(non_existent_id);
+
+  std::vector<bool> wait_results;
+/*
+  RAY_CHECK_OK(provider.Wait(all_ids, 2, -1, TaskID::FromRandom(), &wait_results));
+  ASSERT_EQ(wait_results.size(), 3);
+  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
+*/
+  RAY_CHECK_OK(provider.Wait(all_ids, 3, 100, TaskID::FromRandom(), &wait_results));
+  ASSERT_EQ(wait_results.size(), 3);
+  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
+
+  // Test Delete().
+  // clear the reference held by PlasmaBuffer.
+  results.clear();
+  RAY_CHECK_OK(provider.Delete(ids, true, false));
+
+  // Note that Delete() calls RayletClient::FreeObjects and would not
+  // wait for objects being deleted, so wait a while for plasma store
+  // to process the command.
+  usleep(200 * 1000);
+  RAY_CHECK_OK(provider.Get(ids, 0, TaskID::FromRandom(), &results));
+  ASSERT_EQ(results.size(), 2);
+  ASSERT_TRUE(!results[0]);
+  ASSERT_TRUE(!results[1]);
+}
+
 
 void CoreWorkerTest::TestNormalTask(
     const std::unordered_map<std::string, double> &resources) {
@@ -573,6 +646,14 @@ TEST_F(ZeroNodeTest, TestActorHandle) {
   ASSERT_EQ(handle1.ActorCursor(), handle2.ActorCursor());
   ASSERT_EQ(handle1.TaskCounter(), handle2.TaskCounter());
   ASSERT_EQ(handle1.NumForks(), handle2.NumForks());
+}
+
+TEST_F(SingleNodeTest, TestLocalPlasmaStoreProvider) {
+  TestStoreProvider(StoreProviderType::LOCAL_PLASMA);
+}
+
+TEST_F(SingleNodeTest, TestMemoryStoreProvider) {
+  TestStoreProvider(StoreProviderType::LOCAL_PLASMA);
 }
 
 TEST_F(SingleNodeTest, TestObjectInterface) {

@@ -92,6 +92,8 @@ class CoreWorkerObjectInterface {
   /// `ObjectProviderLayer`, which will encapsulate the functionalities to get or create
   /// a specific `StoreProvider`, and this can be removed then.
   friend class CoreWorkerDirectActorTaskSubmitter;
+
+  friend class CoreWorkerTest;
 };
 
 }  // namespace ray
