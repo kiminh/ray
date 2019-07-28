@@ -39,11 +39,12 @@ class CoreWorkerMemoryStoreProvider : public CoreWorkerStoreProvider {
                 bool delete_creating_tasks = false) override;
 
  private:
-  friend class ReferencedRayObject;
-  friend class ObjectEntry;
   class Impl;
   /// Implementation.
   std::shared_ptr<Impl> impl_;
+
+  friend class ReferencedRayObject;
+  friend class ObjectEntry;
 };
 
 }  // namespace ray

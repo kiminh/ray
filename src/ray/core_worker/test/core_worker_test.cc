@@ -197,23 +197,17 @@ void CoreWorkerTest::TestStoreProvider(StoreProviderType type) {
   all_ids.push_back(non_existent_id);
 
   std::vector<bool> wait_results;
-/*
-  RAY_CHECK_OK(provider.Wait(all_ids, 2, -1, TaskID::FromRandom(), &wait_results));
-  ASSERT_EQ(wait_results.size(), 3);
-  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
-*/
   RAY_CHECK_OK(provider.Wait(all_ids, 3, 100, TaskID::FromRandom(), &wait_results));
   ASSERT_EQ(wait_results.size(), 3);
   ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
 
   // Test Delete().
-  // clear the reference held by PlasmaBuffer.
+  // clear the reference held.
   results.clear();
+
   RAY_CHECK_OK(provider.Delete(ids, true, false));
 
-  // Note that Delete() calls RayletClient::FreeObjects and would not
-  // wait for objects being deleted, so wait a while for plasma store
-  // to process the command.
+  // wait a while for plasma store to process the command.
   usleep(200 * 1000);
   RAY_CHECK_OK(provider.Get(ids, 0, TaskID::FromRandom(), &results));
   ASSERT_EQ(results.size(), 2);
