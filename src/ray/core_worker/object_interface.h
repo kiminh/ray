@@ -13,6 +13,7 @@ namespace ray {
 
 class CoreWorker;
 class CoreWorkerStoreProvider;
+class CoreWorkerMemoryStore;
 
 /// The interface that contains all `CoreWorker` methods that are related to object store.
 class CoreWorkerObjectInterface {
@@ -80,6 +81,9 @@ class CoreWorkerObjectInterface {
 
   /// Store socket name.
   std::string store_socket_;
+
+  // in-memory store.
+  std::shared_ptr<CoreWorkerMemoryStore> memory_store_;
 
   /// All the store providers supported.
   EnumUnorderedMap<StoreProviderType, std::unique_ptr<CoreWorkerStoreProvider>>

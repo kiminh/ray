@@ -40,6 +40,17 @@ class RayObject {
   /// Return the metadata of the ray object.
   const std::shared_ptr<Buffer> &GetMetadata() const { return metadata_; };
 
+  uint64_t GetSize() const {
+    uint64_t size = 0;
+    if (data_ != nullptr) {
+      size += data_->Size();
+    }
+    if (metadata_ != nullptr) {
+      size += metadata_->Size();
+    }
+    return size;
+  }
+
   /// Whether this class holds a data copy.
   bool has_data_copy_;
 

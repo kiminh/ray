@@ -8,6 +8,9 @@
 #include "ray/core_worker/test/constants.h"
 #include "ray/raylet/raylet_client.h"
 
+#include "ray/core_worker/store_provider/local_plasma_provider.h"
+#include "ray/core_worker/store_provider/memory_store_provider.h"
+
 #include <boost/asio.hpp>
 #include <boost/asio/error.hpp>
 #include <boost/bind.hpp>
@@ -152,13 +155,26 @@ class CoreWorkerTest : public ::testing::Test {
   gcs::GcsClientOptions gcs_options_;
 };
 
-
 void CoreWorkerTest::TestStoreProvider(StoreProviderType type) {
-  CoreWorker driver(WorkerType::DRIVER, Language::PYTHON, raylet_store_socket_names_[0],
-                  raylet_socket_names_[0], JobID::FromInt(1), gcs_options_, nullptr);
-  auto &providers = driver.Objects().store_providers_;
-  RAY_CHECK(providers.count(type) > 0);
-  auto &provider = *providers[type];
+  std::unique_ptr<CoreWorkerStoreProvider> provider_ptr;
+  std::shared_ptr<CoreWorkerMemoryStore> memory_store;
+
+  switch (type) {
+  case StoreProviderType::LOCAL_PLASMA:
+    provider_ptr = std::unique_ptr<CoreWorkerStoreProvider>(
+        new CoreWorkerLocalPlasmaStoreProvider(raylet_store_socket_names_[0]));
+    break;
+  case StoreProviderType::MEMORY:
+    memory_store = std::make_shared<CoreWorkerMemoryStore>(100 * 1000);
+    provider_ptr = std::unique_ptr<CoreWorkerStoreProvider>(
+        new CoreWorkerMemoryStoreProvider(memory_store));
+    break;
+  default:
+    RAY_LOG(FATAL) << "unspported store provider type " << static_cast<int>(type);
+    break;
+  }
+
+  auto &provider = *provider_ptr;
 
   uint8_t array1[] = {1, 2, 3, 4, 5, 6, 7, 8};
   uint8_t array2[] = {10, 11, 12, 13, 14, 15};
@@ -214,7 +230,6 @@ void CoreWorkerTest::TestStoreProvider(StoreProviderType type) {
   ASSERT_TRUE(!results[0]);
   ASSERT_TRUE(!results[1]);
 }
-
 
 void CoreWorkerTest::TestNormalTask(
     const std::unordered_map<std::string, double> &resources) {
@@ -640,6 +655,64 @@ TEST_F(ZeroNodeTest, TestActorHandle) {
   ASSERT_EQ(handle1.ActorCursor(), handle2.ActorCursor());
   ASSERT_EQ(handle1.TaskCounter(), handle2.TaskCounter());
   ASSERT_EQ(handle1.NumForks(), handle2.NumForks());
+}
+
+TEST_F(ZeroNodeTest, TestMemoryStoreProviderEviction) {
+
+  auto memory_store = std::make_shared<CoreWorkerMemoryStore>(1000);
+  CoreWorkerMemoryStoreProvider provider(memory_store);
+
+  std::vector<uint8_t> value(100, 1);
+
+  std::vector<RayObject> buffers;
+  for (int i = 0; i < 10; i++) {
+    buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(
+        value.data(), value.size()), nullptr);
+  }
+
+  // Now `buffers` holds 10 `RayObject`s each with size 100.
+  // Write these 10 objects into store, then store should be full after this.
+  std::vector<ObjectID> ids(buffers.size());
+  for (size_t i = 0; i < ids.size(); i++) {
+    ids[i] = ObjectID::FromRandom();
+    RAY_CHECK_OK(provider.Put(buffers[i], ids[i]));
+  }
+
+  // `Get` these 10 objects to make sure all of them are referenced,
+  // thus cannot be evicted automatically from store.
+  std::vector<std::shared_ptr<RayObject>> results;
+  RAY_CHECK_OK(provider.Get(ids, -1, TaskID::FromRandom(), &results));
+  ASSERT_EQ(results.size(), ids.size());
+
+  // Try to write a new object into store, verify this would fail.
+  auto status = provider.Put(buffers[0], ObjectID::FromRandom());
+  ASSERT_FALSE(status.ok());
+
+  // clear the references for all 10 objects.
+  results.clear();
+
+  // write another 10 objects as the original ones have been removed.
+  for (size_t i = 0; i < ids.size(); i++) {
+    ids[i] = ObjectID::FromRandom();
+    RAY_CHECK_OK(provider.Put(buffers[i], ids[i]));
+  }
+
+  std::vector<uint8_t> new_value(350, 2);
+  auto new_buffer = RayObject(std::make_shared<LocalMemoryBuffer>(
+      new_value.data(), new_value.size()), nullptr);
+  RAY_CHECK_OK(provider.Put(new_buffer, ObjectID::FromRandom()));
+
+  // Try to get these 10 objects with a timeout.
+  RAY_CHECK_OK(provider.Get(ids, 2 * 1000, TaskID::FromRandom(), &results));
+  for (size_t i = 0; i < ids.size(); i++) {
+    bool exist = (results[i] != nullptr && results[i]->GetSize() > 0);
+    // Verify the first 4 objects have been evicted.
+    if (i <= 3) {
+      ASSERT_FALSE(exist);
+    } else {
+      ASSERT_TRUE(exist);
+    }
+  }
 }
 
 TEST_F(SingleNodeTest, TestLocalPlasmaStoreProvider) {

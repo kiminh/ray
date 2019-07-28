@@ -12,6 +12,10 @@ CoreWorkerObjectInterface::CoreWorkerObjectInterface(
     : worker_context_(worker_context),
       raylet_client_(raylet_client),
       store_socket_(store_socket) {
+
+  // Limit local memory to 100 MB.
+  memory_store_ = std::make_shared<CoreWorkerMemoryStore>(100 * 1000 * 1000);
+
   AddStoreProvider(StoreProviderType::LOCAL_PLASMA);
   AddStoreProvider(StoreProviderType::PLASMA);
   AddStoreProvider(StoreProviderType::MEMORY);
@@ -66,7 +70,7 @@ std::unique_ptr<CoreWorkerStoreProvider> CoreWorkerObjectInterface::CreateStoreP
     break;
   case StoreProviderType::MEMORY:
     return std::unique_ptr<CoreWorkerStoreProvider>(
-        new CoreWorkerMemoryStoreProvider());
+        new CoreWorkerMemoryStoreProvider(memory_store_));
     break;    
   default:
     RAY_LOG(FATAL) << "unknown store provider type " << static_cast<int>(type);

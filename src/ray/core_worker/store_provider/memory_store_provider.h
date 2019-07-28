@@ -1,13 +1,12 @@
 #ifndef RAY_CORE_WORKER_MEMORY_STORE_PROVIDER_H
 #define RAY_CORE_WORKER_MEMORY_STORE_PROVIDER_H
 
-#include "plasma/client.h"
 #include "ray/common/buffer.h"
 #include "ray/common/id.h"
 #include "ray/common/status.h"
 #include "ray/core_worker/common.h"
 #include "ray/core_worker/store_provider/store_provider.h"
-#include "ray/raylet/raylet_client.h"
+#include "ray/core_worker/store_provider/memory_store/memory_store.h"
 
 namespace ray {
 
@@ -18,7 +17,7 @@ class CoreWorker;
 /// actor call (see direct_actor_transport.cc).
 class CoreWorkerMemoryStoreProvider : public CoreWorkerStoreProvider {
  public:
-  CoreWorkerMemoryStoreProvider();
+  CoreWorkerMemoryStoreProvider(std::shared_ptr<CoreWorkerMemoryStore> store);
 
   /// See `CoreWorkerStoreProvider::Put` for semantics.
   Status Put(const RayObject &object, const ObjectID &object_id) override;
@@ -39,12 +38,9 @@ class CoreWorkerMemoryStoreProvider : public CoreWorkerStoreProvider {
                 bool delete_creating_tasks = false) override;
 
  private:
-  class Impl;
-  /// Implementation.
-  std::shared_ptr<Impl> impl_;
 
-  friend class ReferencedRayObject;
-  friend class ObjectEntry;
+  /// Implementation.
+  std::shared_ptr<CoreWorkerMemoryStore> store_;
 };
 
 }  // namespace ray
