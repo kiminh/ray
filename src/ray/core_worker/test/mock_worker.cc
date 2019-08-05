@@ -38,6 +38,9 @@ class MockWorker {
                      std::vector<std::shared_ptr<RayObject>> *results) {
     // Note that this doesn't include dummy object id.
     RAY_CHECK(num_returns >= 0);
+    if (num_returns > 0) {
+      RAY_CHECK(args.size() > 0);
+    }
 
     // Merge all the content from input args.
     std::vector<uint8_t> buffer;
@@ -50,6 +53,7 @@ class MockWorker {
 
     // Write the merged content to each of return ids.
     for (int i = 0; i < num_returns; i++) {
+      RAY_CHECK(memory_buffer->Size() != 0);
       results->push_back(std::make_shared<RayObject>(memory_buffer, nullptr));
     }
 

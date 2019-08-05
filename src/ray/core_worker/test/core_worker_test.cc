@@ -276,6 +276,15 @@ void CoreWorkerTest::TestActorTask(
       RAY_CHECK_OK(driver.Objects().Get(return_ids, -1, &results));
 
       ASSERT_EQ(results.size(), 1);
+      if (results[0]->GetData()->Size() == 0) {
+        
+        RAY_LOG(ERROR) << "data not exist, metadata size: " << results[0]->GetMetadata()->Size()
+                        << ", metadata: "
+                        << std::string(reinterpret_cast<char *>(const_cast<uint8_t *>(
+                        results[0]->GetMetadata()->Data())), results[0]->GetMetadata()->Size());
+
+      }
+
       ASSERT_EQ(results[0]->GetData()->Size(), buffer1->Size() + buffer2->Size());
       ASSERT_EQ(memcmp(results[0]->GetData()->Data(), buffer1->Data(), buffer1->Size()),
                 0);
@@ -396,7 +405,7 @@ void CoreWorkerTest::TestActorFailure(
   // Test submitting some tasks with by-value args for that actor.
   {
     const int num_tasks = 3000;
-    const int task_index_to_kill_worker = (num_tasks + 1) / 2;
+    const int task_index_to_kill_worker = (num_tasks + 1) / 10;
     std::vector<std::pair<ObjectID, std::shared_ptr<Buffer>>> all_results;
     for (int i = 0; i < num_tasks; i++) {
       if (i == task_index_to_kill_worker) {
@@ -425,6 +434,7 @@ void CoreWorkerTest::TestActorFailure(
       all_results.emplace_back(std::make_pair(return_ids[0], buffer1));
     }
 
+    int failed_tasks = 0;
     for (int i = 0; i < num_tasks; i++) {
       const auto &entry = all_results[i];
       std::vector<ObjectID> return_ids;
@@ -434,15 +444,21 @@ void CoreWorkerTest::TestActorFailure(
       ASSERT_EQ(results.size(), 1);
 
       if (results[0]->HasMetadata()) {
+        failed_tasks++;
         // Verify if this is the desired error.
-        std::string meta = std::to_string(static_cast<int>(rpc::ErrorType::ACTOR_DIED));
-        ASSERT_TRUE(memcmp(results[0]->GetMetadata()->Data(), meta.data(), meta.size()) ==
-                    0);
+        const std::string expected = std::to_string(static_cast<int>(
+            rpc::ErrorType::ACTOR_DIED));
+        const std::string actual(reinterpret_cast<char*>(
+            const_cast<uint8_t*>(results[0]->GetMetadata()->Data())),
+            results[0]->GetMetadata()->Size());
+        ASSERT_EQ(actual, expected);        
       } else {
         // Verify if it's expected data.
         ASSERT_EQ(*results[0]->GetData(), *entry.second);
       }
     }
+    RAY_LOG(INFO) << "TestActorFailure: total tasks: " << num_tasks
+                  << ", failed: " << failed_tasks;
   }
 }
 

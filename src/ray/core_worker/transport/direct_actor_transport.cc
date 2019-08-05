@@ -157,6 +157,8 @@ Status CoreWorkerDirectActorTaskSubmitter::PushTask(rpc::DirectActorClient &clie
 
 void CoreWorkerDirectActorTaskSubmitter::TreatTaskAsFailed(
     const TaskID &task_id, int num_returns, const rpc::ErrorType &error_type) {
+  RAY_LOG(INFO) << "TreatTaskAsFailed: task_id: " << task_id
+                << ", num_returns: " << num_returns;
   for (int i = 0; i < num_returns; i++) {
     const auto object_id = ObjectID::ForTaskReturn(task_id, i + 1);
     std::string meta = std::to_string(static_cast<int>(error_type));
