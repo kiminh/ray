@@ -612,6 +612,7 @@ cc_library(
     ],
     deps = [
         ":sha256",
+        ":rapidjson",
         "@com_github_google_glog//:glog",
         "@plasma//:plasma_client",
     ],
@@ -625,6 +626,15 @@ cc_library(
     hdrs = [
         "src/ray/thirdparty/sha256.h",
     ],
+    includes = ["src/ray/thirdparty"],
+)
+
+cc_library(
+    name = "rapidjson",
+    hdrs = glob([
+        "src/ray/thirdparty/rapidjson/**/*.h",
+    ]),
+    defines = ["RAPIDJSON_HAS_STDSTRING=1"],
     includes = ["src/ray/thirdparty"],
 )
 

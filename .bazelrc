@@ -2,5 +2,7 @@
 build --compilation_mode=opt
 build --action_env=PATH
 build --action_env=PYTHON_BIN_PATH
+build --action_env=BAZEL_USE_CPP_ONLY_TOOLCHAIN=1
+build --incompatible_depset_is_not_iterable=false
 # This workaround is needed due to https://github.com/bazelbuild/bazel/issues/4341
 build --per_file_copt="external/com_github_grpc_grpc/.*@-DGRPC_BAZEL_BUILD"
