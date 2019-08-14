@@ -217,6 +217,40 @@ cc_library(
 # === End of rpc definitions ===
 
 cc_library(
+    name = "ray_http",
+    srcs = glob(
+        [
+            "src/ray/http/**/*.cc",
+        ],
+        exclude = [
+            "src/ray/http/**/*_test.cc",
+        ],
+    ),
+    hdrs = glob(
+        [
+            "src/ray/http/**/*.h",
+        ],
+    ),
+    copts = COPTS,
+    deps = [
+        ":ray_util",
+        "@boost//:asio",
+        "@boost//:beast",
+        "@boost//:thread",
+    ],
+)
+
+cc_test(
+    name = "http_test",
+    srcs = glob(["src/ray/http/**/*_test.cc"]),
+    copts = COPTS,
+    deps = [
+        ":ray_http",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "ray_common",
     srcs = glob(
         [
@@ -260,6 +294,7 @@ cc_binary(
     deps = [
         ":ray_util",
         ":raylet_lib",
+        ":ray_http",
         "@com_github_gflags_gflags//:gflags",
     ],
 )
