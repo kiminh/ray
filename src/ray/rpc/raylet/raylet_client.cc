@@ -172,21 +172,17 @@ ray::Status RayletClient::FetchOrReconstruct(const std::vector<ObjectID> &object
       &FetchOrReconstructRequest::add_object_ids);
 
   // Callback to deal with reply.
-  auto callback = [this](const Status &status, const FetchOrReconstructReply &reply) {
-    if (!status.ok() && is_connected_) {
-      is_connected_ = false;
-      RAY_LOG(INFO) << "Worker " << worker_id_
-                    << " failed to send FetchOrReconstructRequest, msg: "
-                    << status.message();
-    }
-  };
+  grpc::ClientContext context;
+  FetchOrReconstructReply reply;
+  auto status = stub_->FetchOrReconstruct(&context, fetch_or_reconstruct_request, &reply);
 
-  auto call =
-      client_call_manager_
-          .CreateCall<RayletService, FetchOrReconstructRequest, FetchOrReconstructReply>(
-              *stub_, &RayletService::Stub::PrepareAsyncFetchOrReconstruct,
-              fetch_or_reconstruct_request, callback);
-  return call->GetStatus();
+  if (!status.ok()) {
+    is_connected_ = false;
+    RAY_LOG(INFO) << "Worker " << worker_id_
+                  << " failed to send FetchOrReconstructRequest, msg: "
+                  << status.error_message();
+  }
+  return GrpcStatusToRayStatus(status);
 }
 
 ray::Status RayletClient::NotifyUnblocked(const TaskID &current_task_id) {
