@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package ray.rpc;
+
+// The greeting service definition.
+service FailureDetector {
+  // Sends a greeting
+  rpc Ping (BeaconMsg) returns (BeaconAck) {}
+}
+
+// The request message containing the user's name.
+message BeaconMsg {
+  uint64 time = 1;
+  uint64 process_start_time = 2;
+  uint64 node_id = 3;
+  uint64 from_addr = 4;
+  uint64 to_addr = 5;
+  bytes context = 6;
+}
+
+// The response message containing the greetings
+message BeaconAck {
+  uint64 time = 1;
+  uint64 this_node = 2;
+  uint64 primary_node = 3;
+  bool is_master = 4;
+  bool is_paused = 6;
+}
+
+// This enum is needed by asio based rpc. For each method in the rpc service,
+// a message type needs to be defined for the corresponding request in that
+// method, so that receiver side can figure out the exact request message
+// based on this type, deserialize it accordingly, and invoke the corresponding
+// method.
+enum FailureDetectorMessageType {
+  // `ConnectClient` and `DisconnectClient` MUST be defined and their values
+  // MUST be consistent with the ones in `ServiceMessageType` in
+  // "src/ray/protobuf/asio.proto".
+  FailureDetectorConnectClient = 0;
+  FailureDetectorDisconnectClient = 1;
+  // Push task request.
+  BeaconRequestMessage = 2;
+  // Push task reply.
+  BeaconReplyMessage = 3;
+}

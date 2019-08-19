@@ -20,6 +20,9 @@
 #include "ray/raylet/task_dependency_manager.h"
 #include "ray/raylet/worker_pool.h"
 #include "ray/util/ordered_set.h"
+#include "ray/raylet/failover/failover.h"
+#include "ray/failure_detector/failure_detector_slave.h"
+#include "ray/rpc/failover/failover_server.h"
 // clang-format on
 
 namespace ray {
@@ -73,7 +76,8 @@ class NodeManager : public rpc::NodeManagerServiceHandler {
   NodeManager(boost::asio::io_service &io_service, const NodeManagerConfig &config,
               ObjectManager &object_manager,
               std::shared_ptr<gcs::RedisGcsClient> gcs_client,
-              std::shared_ptr<ObjectDirectoryInterface> object_directory_);
+              std::shared_ptr<ObjectDirectoryInterface> object_directory,
+              std::shared_ptr<Failover> failover = nullptr);
 
   /// Process a new client connection.
   ///
@@ -565,11 +569,13 @@ class NodeManager : public rpc::NodeManagerServiceHandler {
   std::unique_ptr<rpc::AsioRpcServer> node_manager_asio_server_;
 
   /// The node manager asio RPC service.
-  std::unique_ptr<rpc::NodeManagerAsioRpcService> node_manager_asio_service_; 
+  std::unique_ptr<rpc::NodeManagerAsioRpcService> node_manager_asio_service_;
 
   /// Map from node ids to clients of the remote node managers.
   std::unordered_map<ClientID, std::unique_ptr<rpc::NodeManagerClient>>
       remote_node_manager_clients_;
+
+  std::shared_ptr<Failover> failover_;
 };
 
 }  // namespace raylet

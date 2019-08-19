@@ -9,6 +9,8 @@
 #include "ray/raylet/format/node_manager_generated.h"
 #include "ray/stats/stats.h"
 
+#include "ray/raylet/failover/l1_failover.h"
+
 namespace {
 
 #define RAY_CHECK_ENUM(x, y) \
@@ -69,7 +71,8 @@ namespace raylet {
 NodeManager::NodeManager(boost::asio::io_service &io_service,
                          const NodeManagerConfig &config, ObjectManager &object_manager,
                          std::shared_ptr<gcs::RedisGcsClient> gcs_client,
-                         std::shared_ptr<ObjectDirectoryInterface> object_directory)
+                         std::shared_ptr<ObjectDirectoryInterface> object_directory,
+                         std::shared_ptr<Failover> failover /* = nullptr*/)
     : client_id_(gcs_client->client_table().GetLocalClientId()),
       io_service_(io_service),
       object_manager_(object_manager),
@@ -102,7 +105,8 @@ NodeManager::NodeManager(boost::asio::io_service &io_service,
       lineage_cache_(gcs_client_->client_table().GetLocalClientId(),
                      gcs_client_->raylet_task_table(), gcs_client_->raylet_task_table(),
                      config.max_lineage_size),
-      actor_registry_() {
+      actor_registry_(),
+      failover_(failover) {
   RAY_CHECK(heartbeat_period_.count() > 0);
   // Initialize the resource map with own cluster resource configuration.
   ClientID local_client_id = gcs_client_->client_table().GetLocalClientId();
@@ -118,22 +122,27 @@ NodeManager::NodeManager(boost::asio::io_service &io_service,
       [this](const ObjectID &object_id) { HandleObjectMissing(object_id); }));
 
   RAY_ARROW_CHECK_OK(store_client_.Connect(config.store_socket_name.c_str()));
+
   // Run the node manger rpc server.
   if (RayConfig::instance().use_asio_rpc_for_worker()) {
     node_manager_asio_server_ = std::unique_ptr<rpc::AsioRpcServer>(
         new rpc::AsioRpcServer("NodeManager", config.node_manager_port, io_service));
+
     node_manager_asio_service_ = std::unique_ptr<rpc::NodeManagerAsioRpcService>(
         new rpc::NodeManagerAsioRpcService(*this));
-    
+
+    if (failover_) {
+      failover_->RegisterServiceTo(*node_manager_asio_server_);
+    }
     node_manager_asio_server_->RegisterService(*node_manager_asio_service_);
-    node_manager_asio_server_->Run();    
+    node_manager_asio_server_->Run();
   } else {
     node_manager_grpc_server_ = std::unique_ptr<rpc::GrpcServer>(
         new rpc::GrpcServer("NodeManager", config.node_manager_port));
     node_manager_grpc_service_ = std::unique_ptr<rpc::NodeManagerGrpcService>(
         new rpc::NodeManagerGrpcService(io_service, *this));
-    client_call_manager_ = std::unique_ptr<rpc::ClientCallManager>(
-        new rpc::ClientCallManager(io_service));
+    client_call_manager_ =
+        std::unique_ptr<rpc::ClientCallManager>(new rpc::ClientCallManager(io_service));
 
     node_manager_grpc_server_->RegisterService(*node_manager_grpc_service_);
     node_manager_grpc_server_->Run();
@@ -405,13 +414,12 @@ void NodeManager::ClientAdded(const GcsNodeInfo &node_info) {
   // Initialize a rpc client to the new node manager.
   std::unique_ptr<rpc::NodeManagerClient> client;
   if (RayConfig::instance().use_asio_rpc_for_worker()) {
-    client = std::unique_ptr<rpc::NodeManagerAsioClient>(
-        new rpc::NodeManagerAsioClient(node_info.node_manager_address(),
-        node_info.node_manager_port(), io_service_));
+    client = std::unique_ptr<rpc::NodeManagerAsioClient>(new rpc::NodeManagerAsioClient(
+        node_info.node_manager_address(), node_info.node_manager_port(), io_service_));
   } else {
-    client = std::unique_ptr<rpc::NodeManagerGrpcClient>(
-        new rpc::NodeManagerGrpcClient(node_info.node_manager_address(),
-        node_info.node_manager_port(), *client_call_manager_));
+    client = std::unique_ptr<rpc::NodeManagerGrpcClient>(new rpc::NodeManagerGrpcClient(
+        node_info.node_manager_address(), node_info.node_manager_port(),
+        *client_call_manager_));
   }
   remote_node_manager_clients_.emplace(client_id, std::move(client));
 
@@ -963,6 +971,11 @@ void NodeManager::ProcessDisconnectClientMessage(
     }
   }
   RAY_CHECK(!(is_worker && is_driver));
+
+  // Process the worker exit event in failover module.
+  if (failover_) {
+    failover_->OnWorkerExit(worker.get());
+  }
 
   // If the client has any blocked tasks, mark them as unblocked. In
   // particular, we are no longer waiting for their dependencies.

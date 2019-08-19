@@ -1,5 +1,7 @@
 #include "raylet.h"
 
+#include <ray/http/http_server.h>
+#include <ray/raylet/failover/l1_failover.h>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -45,25 +47,149 @@ Raylet::Raylet(boost::asio::io_service &main_service, const std::string &socket_
                const NodeManagerConfig &node_manager_config,
                const ObjectManagerConfig &object_manager_config,
                std::shared_ptr<gcs::RedisGcsClient> gcs_client)
-    : gcs_client_(gcs_client),
+    : fd_(std::make_shared<fd::FailureDetectorSlave>(fd_service_)),
+      failover_(std::make_shared<L1Failover>(fd_)),
+      gcs_client_(gcs_client),
       object_directory_(std::make_shared<ObjectDirectory>(main_service, gcs_client_)),
       object_manager_(main_service, object_manager_config, object_directory_),
       node_manager_(main_service, node_manager_config, object_manager_, gcs_client_,
-                    object_directory_),
+                    object_directory_, failover_),
       socket_name_(socket_name),
       acceptor_(main_service, boost::asio::local::stream_protocol::endpoint(socket_name)),
       socket_(main_service) {
+  if (RayConfig::instance().enable_l1_failover()) {
+    InitFd(node_ip_address);
+    RegisterGcsServer([this, node_ip_address, object_manager_config, redis_address,
+                       redis_port, redis_password, node_manager_config] {
+      Start(acceptor_.get_io_context(), node_ip_address, socket_name_,
+            object_manager_config.store_socket_name, redis_address, redis_port,
+            redis_password, node_manager_config);
+    });
+  } else {
+    Start(main_service, node_ip_address, socket_name_,
+          object_manager_config.store_socket_name, redis_address, redis_port,
+          redis_password, node_manager_config);
+  }
+}
+
+Raylet::~Raylet() {
+  fd_->Stop();
+  fd_service_.stop();
+  if (fd_thread_) {
+    fd_thread_->join();
+  }
+}
+
+void Raylet::InitFd(const std::string &node_ip_address) {
+  auto local_address = boost::asio::ip::make_address_v4(node_ip_address);
+  auto port = node_manager_.GetServerPort();
+  boost::asio::ip::detail::endpoint primary_endpoint(local_address, port);
+
+  uint64_t node_id = endpoint_to_uint64(primary_endpoint);
+  auto ppid = getppid();
+  if (ppid != 1) {
+    node_id = (uint64_t(local_address.to_uint()) << 32u) | uint64_t(ppid);
+  }
+
+  ip::detail::endpoint gcs_server_endpoint;
+  for (;;) {
+    auto redis_context = gcs_client_->primary_context();
+    auto reply = redis_context->RunArgvSync({"GET", kGcsServerAddress});
+    if (!reply || reply->IsNil()) {
+      // Maybe the gcs server has not registered to gcs yet.
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      continue;
+    }
+    auto gcs_host_port = reply->ReadAsString();
+    gcs_server_endpoint = endpoint_from_string(gcs_host_port);
+    break;
+  }
+
+  std::promise<bool> connected_promise;
+  auto connected_future = connected_promise.get_future();
+  fd_->OnMasterConnected([&connected_promise](const ip::detail::endpoint &endpoint) {
+    connected_promise.set_value(true);
+  });
+  fd_->SetPrimaryEndpoint(primary_endpoint);
+  fd_->SetNodeId(node_id);
+  fd_->Run(gcs_server_endpoint);
+  fd_thread_.reset(new std::thread([this] { fd_service_.run(); }));
+  auto lease_ms = fd_->GetLeaseMillisecond();
+  auto status = connected_future.wait_for(std::chrono::milliseconds(lease_ms));
+  RAY_CHECK(status == std::future_status::ready) << "[" << __FUNCTION__ << "] failed!";
+}
+
+uint16_t Raylet::StartHttpServer(boost::asio::io_service &ioc) {
+  // Initialize http server
+  auto http_server = std::make_shared<ray::HttpServer>(ioc);
+  http_server->Start("0.0.0.0", 0);
+  return http_server->Port();
+}
+
+void Raylet::RegisterGcsServer(std::function<void()> &&callback) {
+  auto &main_service = acceptor_.get_io_context();
+
+  auto node_manager_port = node_manager_.GetServerPort();
+  auto local_address = get_local_address(main_service);
+  boost::asio::ip::detail::endpoint primary_endpoint(local_address, node_manager_port);
+
+  rpc::RegisterRequest request;
+  request.set_secret(failover_->GetSecret());
+  request.set_address(endpoint_to_uint64(primary_endpoint));
+  request.set_node_id(fd_->GetNodeId());
+
+  auto gcs_server_endpoint = fd_->GetMasterEndpoint();
+  auto gcs_server_address = gcs_server_endpoint.address().to_string();
+  auto gcs_server_port = gcs_server_endpoint.port();
+  auto gcs_asio_client = std::make_shared<rpc::GcsAsioClient>(
+      gcs_server_address, gcs_server_port, main_service);
+  RegisterGcsServerWithRetry(gcs_asio_client, request, callback);
+}
+
+void Raylet::RegisterGcsServerWithRetry(const std::shared_ptr<rpc::GcsAsioClient> &client,
+                                        const rpc::RegisterRequest &req,
+                                        const std::function<void()> &fn) {
+  auto callback = [=](const Status &status, const rpc::RegisterReply &reply) {
+    if (status.ok() && reply.success()) {
+      if (reply.success()) {
+        if (fn) {
+          fn();
+        }
+      } else {
+        execute_after(acceptor_.get_io_context(),
+                      [=] { RegisterGcsServerWithRetry(client, req, fn); }, 1000);
+      }
+    } else {
+      RAY_LOG(FATAL) << "GCS Server " << fd_->GetMasterEndpoint().to_string()
+                     << " may be dead, just exit!";
+    }
+  };
+
+  auto status = client->Register(req, callback);
+  RAY_CHECK(status.ok()) << "GCS Server " << fd_->GetMasterEndpoint().to_string()
+                         << " may be dead, just exit!";
+}
+
+void Raylet::Start(boost::asio::io_service &main_service,
+                   const std::string &node_ip_address,
+                   const std::string &raylet_socket_name,
+                   const std::string &object_store_socket_name,
+                   const std::string &redis_address, int redis_port,
+                   const std::string &redis_password,
+                   const ray::raylet::NodeManagerConfig &node_manager_config) {
+  // Start http server
+  auto http_port = StartHttpServer(main_service);
+  boost::ignore_unused(http_port);
+
   // Start listening for clients.
   DoAccept();
 
-  RAY_CHECK_OK(RegisterGcs(
-      node_ip_address, socket_name_, object_manager_config.store_socket_name,
-      redis_address, redis_port, redis_password, main_service, node_manager_config));
+  RAY_CHECK_OK(RegisterGcs(node_ip_address, raylet_socket_name, object_store_socket_name,
+                           redis_address, redis_port, redis_password, main_service,
+                           node_manager_config));
 
   RAY_CHECK_OK(RegisterPeriodicTimer(main_service));
 }
-
-Raylet::~Raylet() {}
 
 ray::Status Raylet::RegisterPeriodicTimer(boost::asio::io_service &io_service) {
   boost::posix_time::milliseconds timer_period_ms(100);

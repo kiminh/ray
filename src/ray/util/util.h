@@ -1,6 +1,7 @@
 #ifndef RAY_UTIL_UTIL_H
 #define RAY_UTIL_UTIL_H
 
+#include <boost/asio.hpp>
 #include <boost/system/error_code.hpp>
 #include <chrono>
 #include <iterator>
@@ -47,6 +48,13 @@ inline double current_sys_time_seconds() {
   return static_cast<double>(current_sys_time_us()) / microseconds_in_seconds;
 }
 
+inline int64_t current_sys_time_ns() {
+  std::chrono::nanoseconds ns_since_epoch =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now().time_since_epoch());
+  return ns_since_epoch.count();
+}
+
 inline ray::Status boost_to_ray_status(const boost::system::error_code &error) {
   switch (error.value()) {
   case boost::system::errc::success:
@@ -54,6 +62,59 @@ inline ray::Status boost_to_ray_status(const boost::system::error_code &error) {
   default:
     return ray::Status::IOError(strerror(error.value()));
   }
+}
+
+inline boost::asio::ip::detail::endpoint endpoint_from_string(
+    const std::string &host_port) {
+  auto pos = host_port.find(':');
+  if (pos == std::string::npos) {
+    return boost::asio::ip::detail::endpoint();
+  }
+  auto address = boost::asio::ip::make_address_v4(host_port.substr(0, pos));
+  int port = std::stoi(host_port.substr(pos + 1));
+  return boost::asio::ip::detail::endpoint(address, port);
+}
+
+inline boost::asio::ip::detail::endpoint endpoint_from_uint64(uint64_t host_port) {
+  auto host = uint32_t(host_port >> 32u);
+  auto port = uint16_t((host_port << 32u) >> 32u);
+  auto address = boost::asio::ip::make_address_v4(host);
+  return boost::asio::ip::detail::endpoint(address, port);
+}
+
+inline uint64_t endpoint_to_uint64(const boost::asio::ip::detail::endpoint &ep) {
+  auto host = ep.address().to_v4().to_uint();
+  auto port = ep.port();
+  return (uint64_t(host) << 32u) | port;
+}
+
+inline boost::asio::ip::address get_local_address(boost::asio::io_context &ioc) {
+  boost::asio::ip::detail::endpoint primary_endpoint;
+  boost::asio::ip::tcp::resolver resolver(ioc);
+  boost::asio::ip::tcp::resolver::query query(boost::asio::ip::host_name(), "");
+  boost::asio::ip::tcp::resolver::iterator iter = resolver.resolve(query);
+  boost::asio::ip::tcp::resolver::iterator end;  // End marker.
+  while (iter != end) {
+    boost::asio::ip::tcp::endpoint ep = *iter++;
+    if (ep.address().is_v4() && !ep.address().is_loopback() &&
+        !ep.address().is_multicast()) {
+      primary_endpoint.address(ep.address());
+      primary_endpoint.port(ep.port());
+      break;
+    }
+  }
+  return primary_endpoint.address();
+}
+
+inline void execute_after(boost::asio::io_context &ioc, const std::function<void()> &fn,
+                          uint32_t delay_milliseconds) {
+  auto timer = std::make_shared<boost::asio::deadline_timer>(ioc);
+  timer->expires_from_now(boost::posix_time::milliseconds(delay_milliseconds));
+  timer->async_wait([timer, fn](const boost::system::error_code &error) {
+    if (fn) {
+      fn();
+    }
+  });
 }
 
 /// A helper function to split a string by whitespaces.

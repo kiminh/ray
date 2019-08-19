@@ -10,6 +10,7 @@
 #include "ray/raylet/node_manager.h"
 #include "ray/object_manager/object_manager.h"
 #include "ray/common/task/scheduling_resources.h"
+#include "ray/rpc/gcs/gcs_client.h"
 // clang-format on
 
 namespace ray {
@@ -47,6 +48,24 @@ class Raylet {
   ~Raylet();
 
  private:
+  /// Init failure detector
+  void InitFd(const std::string &node_ip_address);
+
+  /// Start http server
+  uint16_t StartHttpServer(boost::asio::io_service &ioc);
+
+  /// Register To GCS Server
+  void RegisterGcsServer(std::function<void()> &&callback);
+  void RegisterGcsServerWithRetry(const std::shared_ptr<rpc::GcsAsioClient> &client,
+                                  const rpc::RegisterRequest &req,
+                                  const std::function<void()> &fn);
+
+  void Start(boost::asio::io_service &main_service, const std::string &node_ip_address,
+             const std::string &raylet_socket_name,
+             const std::string &object_store_socket_name,
+             const std::string &redis_address, int redis_port,
+             const std::string &redis_password, const NodeManagerConfig &);
+
   /// Register GCS client.
   ray::Status RegisterGcs(const std::string &node_ip_address,
                           const std::string &raylet_socket_name,
@@ -63,6 +82,14 @@ class Raylet {
 
   friend class TestObjectManagerIntegration;
 
+  /// io service for failure detector
+  boost::asio::io_service fd_service_;
+  /// Failure detector of slave side
+  std::shared_ptr<fd::FailureDetectorSlave> fd_;
+  /// Failure detector thread
+  std::unique_ptr<std::thread> fd_thread_;
+  /// Failover at raylet side
+  std::shared_ptr<Failover> failover_;
   /// A client connection to the GCS.
   std::shared_ptr<gcs::RedisGcsClient> gcs_client_;
   /// The object table. This is shared between the object manager and node

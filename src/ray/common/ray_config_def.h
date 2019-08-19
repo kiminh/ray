@@ -162,3 +162,23 @@ RAY_CONFIG(uint32_t, object_store_get_max_ids_to_print_in_warning, 20)
 /// Whether to use asio based RPC for raylet-to-worker and worker-to-worker communication.
 /// If this lag is true, then asio based RPC is used; otherwise, GRPC is used.
 RAY_CONFIG(bool, use_asio_rpc_for_worker, true)
+
+/// Used by failure detector
+/// check_interval_seconds -- the frequency to check if worker/master is disconnect
+/// beacon_interval_seconds -- the frequency to send beacon message from worker to master.
+/// lease_seconds -- the master will be marked dead in worker side if no reply was
+/// received from master within lease seconds
+/// grace_seconds -- the worker will be marked dead in master side if no beacon message
+/// received form worker within grace_seconds
+RAY_CONFIG(uint32_t, check_interval_seconds, 3)
+RAY_CONFIG(uint32_t, beacon_interval_seconds, 3)
+RAY_CONFIG(uint32_t, lease_seconds, 14)
+RAY_CONFIG(uint32_t, grace_seconds, 15)
+
+/// Redis configuration
+RAY_CONFIG(std::string, redis_address, "")
+RAY_CONFIG(std::string, redis_password, "")
+RAY_CONFIG(uint32_t, redis_port, 0)
+
+/// Whether to use l1_failover
+RAY_CONFIG(bool, enable_l1_failover, false)

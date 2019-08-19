@@ -6,8 +6,8 @@
 #include <grpcpp/grpcpp.h>
 
 #include "ray/common/status.h"
-#include "ray/rpc/client_call.h"
 #include "ray/rpc/asio_client.h"
+#include "ray/rpc/client_call.h"
 #include "ray/util/logging.h"
 #include "src/ray/protobuf/node_manager.grpc.pb.h"
 #include "src/ray/protobuf/node_manager.pb.h"
@@ -23,7 +23,7 @@ class NodeManagerClient {
   /// \param[in] request The request message.
   /// \param[in] callback The callback function that handles reply.
   virtual void ForwardTask(const ForwardTaskRequest &request,
-                   const ClientCallback<ForwardTaskReply> &callback) = 0;
+                           const ClientCallback<ForwardTaskReply> &callback) = 0;
 };
 
 /// Client used for communicating with a remote node manager server.
@@ -35,7 +35,7 @@ class NodeManagerGrpcClient : public NodeManagerClient {
   /// \param[in] port Port of the node manager server.
   /// \param[in] client_call_manager The `ClientCallManager` used for managing requests.
   NodeManagerGrpcClient(const std::string &address, const int port,
-                    ClientCallManager &client_call_manager)
+                        ClientCallManager &client_call_manager)
       : client_call_manager_(client_call_manager) {
     std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(
         address + ":" + std::to_string(port), grpc::InsecureChannelCredentials());
@@ -80,7 +80,7 @@ class NodeManagerAsioClient : public NodeManagerClient {
   /// \param[in] callback The callback function that handles reply.
   /// \return if the rpc call succeeds
   void ForwardTask(const ForwardTaskRequest &request,
-                       const ClientCallback<ForwardTaskReply> &callback) override {
+                   const ClientCallback<ForwardTaskReply> &callback) override {
     rpc_client_
         .CallMethod<ForwardTaskRequest, ForwardTaskReply, NodeManagerServiceMessageType>(
             NodeManagerServiceMessageType::ForwardTaskRequestMessage,
