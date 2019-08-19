@@ -2,6 +2,7 @@
 #define RAY_UTIL_UTIL_H
 
 #include <boost/system/error_code.hpp>
+#include <boost/asio.hpp>
 #include <chrono>
 #include <iterator>
 #include <mutex>
@@ -54,6 +55,19 @@ inline ray::Status boost_to_ray_status(const boost::system::error_code &error) {
   default:
     return ray::Status::IOError(strerror(error.value()));
   }
+}
+
+inline boost::asio::ip::detail::endpoint endpoint_from_uint64(uint64_t host_port) {
+  auto host = uint32_t(host_port >> 32u);
+  auto port = uint16_t((host_port << 32u) >> 32u);
+  auto address = boost::asio::ip::make_address_v4(host);
+  return boost::asio::ip::detail::endpoint(address, port);
+}
+
+inline uint64_t endpoint_to_uint64(const boost::asio::ip::detail::endpoint &ep) {
+  auto host = ep.address().to_v4().to_uint();
+  auto port = ep.port();
+  return (uint64_t(host) << 32u) | port;
 }
 
 /// A helper function to split a string by whitespaces.

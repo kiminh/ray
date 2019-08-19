@@ -45,6 +45,17 @@ python_proto_compile(
 )
 
 proto_library(
+    name = "gcs_server_proto",
+    srcs = ["src/ray/protobuf/gcs_server.proto"],
+    deps = [":gcs_proto"],
+)
+
+cc_proto_library(
+    name = "gcs_server_cc_proto",
+    deps = [":gcs_server_proto"],
+)
+
+proto_library(
     name = "node_manager_proto",
     srcs = ["src/ray/protobuf/node_manager.proto"],
     deps = [":common_proto"],
@@ -338,6 +349,60 @@ cc_binary(
     deps = [
         ":gcs",
         ":ray_util",
+    ],
+)
+
+cc_library(
+    name = "failure_detect",
+    srcs = glob(
+        [
+            "src/ray/failure_detector/**/*.cc",
+        ],
+    ),
+    hdrs = glob(
+        [
+            "src/ray/failure_detector/**/*.h"
+        ],
+    ),
+    copts = COPTS,
+    deps = [
+        ":ray_util",
+        "@boost//:asio",
+    ],
+)
+
+cc_library(
+    name = "gcs_server_lib",
+    srcs = glob(
+        [
+            "src/ray/gcs/gcs_server/**/*.cc",
+        ],
+        exclude = [
+            "src/ray/gcs/gcs_server/gcs_server_main.cc",
+        ],
+    ),
+    hdrs = glob(
+        [
+            "src/ray/gcs/gcs_server/**/*.h"
+        ],
+    ),
+    copts = COPTS,
+    deps = [
+        ":gcs",
+        ":ray_http",
+        ":gcs_server_cc_proto",
+        ":failure_detect",
+    ],
+)
+
+cc_binary(
+    name = "gcs_server",
+    srcs = [
+        "src/ray/gcs/gcs_server/gcs_server_main.cc",
+    ],
+    copts = COPTS,
+    deps = [
+        ":gcs_server_lib",
     ],
 )
 
@@ -913,6 +978,7 @@ genrule(
         "//:libray_redis_module.so",
         "//:raylet",
         "//:raylet_monitor",
+        "//:gcs_server",
         "@plasma//:plasma_store_server",
     ],
     outs = ["ray_pkg.out"],

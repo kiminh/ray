@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package ray.rpc;
+
+import "src/ray/protobuf/gcs.proto";
+
+message RegisterRequest {
+  // The ID of the registering node
+  string node_id = 1;
+  // The address of the registering node
+  uint64 address = 2;
+  // The secret of the node which is used to check if the node belongs to current cluster.
+  uint64 secret = 3;
+}
+
+message RegisterReply {
+  // success if accepted
+  bool success = 1;
+}
+
+service GcsService {
+  rpc Register(RegisterRequest) returns (RegisterReply);
+}
