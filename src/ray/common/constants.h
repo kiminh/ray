@@ -23,4 +23,8 @@ constexpr char kTaskTablePrefix[] = "TaskTable";
 
 constexpr char kWorkerDynamicOptionPlaceholderPrefix[] = "RAY_WORKER_OPTION_";
 
+constexpr int kExitMasterDisconnected = 100;
+constexpr int kExitWorkerDisconnected = 101;
+constexpr int kExitReset = 102;
+
 #endif  // RAY_CONSTANTS_H_

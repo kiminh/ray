@@ -2,6 +2,8 @@
 build --compilation_mode=opt
 build --action_env=PATH
 build --action_env=PYTHON_BIN_PATH
+build --action_env=BAZEL_USE_CPP_ONLY_TOOLCHAIN=1
+build --incompatible_depset_is_not_iterable=false
 # Warnings should be errors
 build --per_file_copt=-src/ray/thirdparty/hiredis/dict.c,-.*/arrow/util/logging.cc@-Werror
 # Ignore warnings for protobuf generated files and external projects.

@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package ray.rpc;
+
+message RegisterRequest {
+  // The ID of the registering node
+  uint64 node_id = 1;
+  // The address of the registering node
+  uint64 address = 2;
+  // The secret of the node which is used to check if the node belongs to current cluster.
+  uint64 secret = 3;
+}
+
+message RegisterReply {
+  // success if accepted
+  bool success = 1;
+}
+
+service GcsService {
+  rpc Register(RegisterRequest) returns (RegisterReply);
+}
+
+// This enum is needed by asio based rpc. For each method in the rpc service,
+// a message type needs to be defined for the corresponding request in that
+// method, so that receiver side can figure out the exact request message
+// based on this type, deserialize it accordingly, and invoke the corresponding
+// method.
+enum GcsMessageType {
+  // `ConnectClient` and `DisconnectClient` MUST be defined and their values
+  // MUST be consistent with the ones in `ServiceMessageType` in
+  // "src/ray/protobuf/asio.proto".
+  GcsConnectClient = 0;
+  GcsDisconnectClient = 1;
+  // Push task request.
+  RegisterRequestMessage = 2;
+  // Push task reply.
+  RegisterReplyMessage = 3;
+}

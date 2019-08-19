@@ -10,7 +10,10 @@ enum RpcServiceType {
   // refer to `direct_actor.proto` for details of the service.
   DirectActorServiceType = 1;
   // refer to `node_manager.proto` for details of the service.
-  NodeManagerServiceType = 2;  
+  NodeManagerServiceType = 2;
+  GcsServiceType = 3;
+  FailureDetectorServiceType = 4;
+  FailoverServiceType = 5;
 }
 
 // The messages that MUST be defined for all the asio based RPC services.

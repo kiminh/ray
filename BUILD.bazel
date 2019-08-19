@@ -45,6 +45,37 @@ python_proto_compile(
 )
 
 proto_library(
+    name = "gcsx_proto",
+    srcs = ["src/ray/protobuf/gcsx.proto"],
+    deps = [":gcs_proto"],
+)
+
+cc_proto_library(
+    name = "gcsx_cc_proto",
+    deps = [":gcsx_proto"],
+)
+
+proto_library(
+    name = "failure_detector_proto",
+    srcs = ["src/ray/protobuf/failure_detector.proto"],
+)
+
+cc_proto_library(
+    name = "failure_detector_cc_proto",
+    deps = [":failure_detector_proto"],
+)
+
+proto_library(
+    name = "failover_proto",
+    srcs = ["src/ray/protobuf/failover.proto"],
+)
+
+cc_proto_library(
+    name = "failover_cc_proto",
+    deps = [":failover_proto"],
+)
+
+proto_library(
     name = "node_manager_proto",
     srcs = ["src/ray/protobuf/node_manager.proto"],
     deps = [":common_proto"],
@@ -106,7 +137,7 @@ proto_library(
 
 cc_proto_library(
     name = "asio_cc_proto",
-    deps = ["asio_proto"],
+    deps = [":asio_proto"],
 )
 
 # === End of protobuf definitions ===
@@ -126,7 +157,7 @@ cc_library(
     deps = [
         ":ray_common",
         "@boost//:asio",
-        "asio_cc_proto",
+        ":asio_cc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_protobuf//:protobuf",
     ],
@@ -150,6 +181,78 @@ cc_library(
     deps = [
         ":grpc_common_lib",
         ":node_manager_cc_grpc",
+        ":ray_common",
+        "@boost//:asio",
+        "@com_github_grpc_grpc//:grpc++",
+    ],
+)
+
+# gcs gRPC lib.
+cc_grpc_library(
+    name = "gcsx_cc_grpc",
+    srcs = [":gcsx_proto"],
+    grpc_only = True,
+    deps = [":gcsx_cc_proto"],
+)
+
+# gcs gRPC lib.
+cc_grpc_library(
+    name = "failover_cc_grpc",
+    srcs = [":failover_proto"],
+    grpc_only = True,
+    deps = [":failover_cc_proto"],
+)
+
+# gcs server and client.
+cc_library(
+    name = "gcs_rpc",
+    hdrs = glob([
+        "src/ray/rpc/gcs/*.h",
+    ]),
+    copts = COPTS,
+    deps = [
+        ":gcsx_cc_grpc",
+        ":grpc_common_lib",
+        ":ray_common",
+        "@boost//:asio",
+        "@com_github_grpc_grpc//:grpc++",
+    ],
+)
+
+# failure detector gRPC lib.
+cc_grpc_library(
+    name = "failure_detector_cc_grpc",
+    srcs = [":failure_detector_proto"],
+    grpc_only = True,
+    deps = [":failure_detector_cc_proto"],
+)
+
+# gcs server and client.
+cc_library(
+    name = "failure_detector_rpc",
+    hdrs = glob([
+        "src/ray/rpc/failure_detector/*.h",
+    ]),
+    copts = COPTS,
+    deps = [
+        ":failure_detector_cc_grpc",
+        ":grpc_common_lib",
+        ":ray_common",
+        "@boost//:asio",
+        "@com_github_grpc_grpc//:grpc++",
+    ],
+)
+
+# failover server and client.
+cc_library(
+    name = "failover_rpc",
+    hdrs = glob([
+        "src/ray/rpc/failover/*.h",
+    ]),
+    copts = COPTS,
+    deps = [
+        ":failover_cc_grpc",
+        ":grpc_common_lib",
         ":ray_common",
         "@boost//:asio",
         "@com_github_grpc_grpc//:grpc++",
@@ -204,8 +307,8 @@ cc_library(
     ]),
     copts = COPTS,
     deps = [
-        "asio_cc_proto",
-        "direct_actor_cc_grpc",
+        ":asio_cc_proto",
+        ":direct_actor_cc_grpc",
         ":grpc_common_lib",
         ":ray_common",
         ":worker_cc_grpc",
@@ -314,6 +417,62 @@ cc_binary(
 )
 
 cc_library(
+    name = "failure_detector",
+    srcs = glob(
+        [
+            "src/ray/failure_detector/**/*.cc",
+        ],
+    ),
+    hdrs = glob(
+        [
+            "src/ray/failure_detector/**/*.h"
+        ],
+    ),
+    copts = COPTS,
+    deps = [
+        ":failure_detector_rpc",
+        ":ray_common",
+        ":failure_detector_cc_proto",
+        "@boost//:asio",
+    ],
+)
+
+cc_library(
+    name = "gcs_server_lib",
+    srcs = glob(
+        [
+            "src/ray/gcs/gcs_server/**/*.cc",
+        ],
+        exclude = [
+            "src/ray/gcs/gcs_server/gcs_server_main.cc",
+        ],
+    ),
+    hdrs = glob(
+        [
+            "src/ray/gcs/gcs_server/**/*.h"
+        ],
+    ),
+    copts = COPTS,
+    deps = [
+        ":gcs_rpc",
+        ":failover_rpc",
+        ":ray_http",
+        ":failure_detector",
+    ],
+)
+
+cc_binary(
+    name = "gcs_server",
+    srcs = [
+        "src/ray/gcs/gcs_server/gcs_server_main.cc",
+    ],
+    copts = COPTS,
+    deps = [
+        ":gcs_server_lib",
+    ],
+)
+
+cc_library(
     name = "stats_lib",
     srcs = glob(
         [
@@ -352,6 +511,7 @@ cc_library(
     srcs = glob(
         [
             "src/ray/raylet/*.cc",
+            "src/ray/raylet/failover/*.cc",
         ],
         exclude = [
             "src/ray/raylet/mock_gcs_client.cc",
@@ -362,6 +522,7 @@ cc_library(
     ),
     hdrs = glob([
         "src/ray/raylet/*.h",
+        "src/ray/raylet/failover/*.h",
     ]),
     copts = COPTS,
     linkopts = ["-pthread"],
@@ -373,6 +534,8 @@ cc_library(
         ":object_manager",
         ":ray_common",
         ":ray_util",
+        ":failover_rpc",
+        ":failure_detector",
         ":stats_lib",
         ":worker_rpc",
         "@boost//:asio",
@@ -501,7 +664,7 @@ cc_test(
     srcs = ["src/ray/common/id_test.cc"],
     copts = COPTS,
     deps = [
-        "ray_common",
+        ":ray_common",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -621,6 +784,7 @@ cc_library(
     ],
     deps = [
         ":sha256",
+        ":rapidjson",
         "@com_github_google_glog//:glog",
         "@plasma//:plasma_client",
     ],
@@ -634,6 +798,15 @@ cc_library(
     hdrs = [
         "src/ray/thirdparty/sha256.h",
     ],
+    includes = ["src/ray/thirdparty"],
+)
+
+cc_library(
+    name = "rapidjson",
+    hdrs = glob([
+        "src/ray/thirdparty/rapidjson/**/*.h",
+    ]),
+    defines = ["RAPIDJSON_HAS_STDSTRING=1"],
     includes = ["src/ray/thirdparty"],
 )
 
@@ -895,6 +1068,7 @@ genrule(
         "//:libray_redis_module.so",
         "//:raylet",
         "//:raylet_monitor",
+        "//:gcs_server",
         "@plasma//:plasma_store_server",
     ],
     outs = ["ray_pkg.out"],

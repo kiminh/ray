@@ -74,6 +74,7 @@ enum class StatusCode : char {
   TypeError = 3,
   Invalid = 4,
   IOError = 5,
+  Timeout = 6,
   UnknownError = 9,
   NotImplemented = 10,
   RedisError = 11
@@ -126,6 +127,10 @@ class RAY_EXPORT Status {
 
   static Status IOError(const std::string &msg) {
     return Status(StatusCode::IOError, msg);
+  }
+
+  static Status Timeout(const std::string &msg) {
+    return Status(StatusCode::Timeout, msg);
   }
 
   static Status RedisError(const std::string &msg) {
