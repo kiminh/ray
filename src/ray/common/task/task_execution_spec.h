@@ -6,6 +6,7 @@
 #include "ray/common/grpc_util.h"
 #include "ray/common/id.h"
 #include "ray/common/task/task_common.h"
+#include "ray/util/json.h"
 
 namespace ray {
 
@@ -38,6 +39,12 @@ class TaskExecutionSpecification : public MessageWrapper<rpc::TaskExecutionSpec>
   void IncrementNumForwards();
 
   std::string DebugString() const;
+
+  /// Returns json document for class.
+  ///
+  /// \param allocator Optional allocator for allocating memory.
+  /// \return A rapidjson::Document.
+  rapidjson::Document ToJson(rapidjson::Document::AllocatorType *allocator = 0) const;
 };
 
 }  // namespace ray

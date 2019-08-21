@@ -13,7 +13,7 @@ using FailureDetectMaster = ray::fd::FailureDetectorMaster;
 namespace ray {
 namespace gcs {
 
-class GcsServer : public rpc::GcsServerHandler {
+class GcsServer final : public rpc::GcsServerHandler {
  public:
   explicit GcsServer(const std::string &name, uint16_t port,
                      boost::asio::io_context &ioc);

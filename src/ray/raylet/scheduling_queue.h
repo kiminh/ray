@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "ray/common/task/task.h"
+#include "ray/http/http_router.h"
+#include "ray/util/json.h"
 #include "ray/util/logging.h"
 #include "ray/util/ordered_set.h"
 
@@ -163,6 +165,12 @@ class SchedulingQueue {
         task_queues_[static_cast<int>(task_state)] = std::make_shared<TaskQueue>();
       }
     }
+    HttpRouter::Register(
+        "/scheduling_queue", "get SchedulingQueue info",
+        [this](HttpParams &&params, const std::string &data, HttpReply &r) {
+          auto doc = ToJson();
+          r.SetJsonContent(rapidjson::to_string(doc, true));
+        });
   }
 
   /// SchedulingQueue destructor.
@@ -306,6 +314,12 @@ class SchedulingQueue {
   ///
   /// \return string.
   std::string DebugString() const;
+
+  /// Returns json document for class.
+  ///
+  /// \param allocator Optional allocator for allocating memory.
+  /// \return A rapidjson::Document.
+  rapidjson::Document ToJson(rapidjson::Document::AllocatorType *allocator = 0) const;
 
   /// Record metrics.
   void RecordMetrics() const;

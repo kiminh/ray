@@ -138,6 +138,12 @@ class ActorRegistration {
   std::shared_ptr<ActorCheckpointData> GenerateCheckpointData(const ActorID &actor_id,
                                                               const Task &task);
 
+  /// Returns json document for class.
+  ///
+  /// \param allocator Optional allocator for allocating memory.
+  /// \return A rapidjson::Document.
+  rapidjson::Document ToJson(rapidjson::Document::AllocatorType *allocator = 0) const;
+
  private:
   /// Information from the global actor table about this actor, including the
   /// node manager location.

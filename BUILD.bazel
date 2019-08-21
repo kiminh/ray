@@ -536,6 +536,7 @@ cc_library(
         ":ray_util",
         ":failover_rpc",
         ":failure_detector",
+        ":ray_http",
         ":stats_lib",
         ":worker_rpc",
         "@boost//:asio",

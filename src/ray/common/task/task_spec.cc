@@ -180,4 +180,44 @@ std::string TaskSpecification::DebugString() const {
   return stream.str();
 }
 
+rapidjson::Document TaskSpecification::ToJson(
+    rapidjson::Document::AllocatorType *allocator) const {
+  rapidjson::Document doc(rapidjson::kObjectType, allocator);
+  rapidjson::Document::AllocatorType &alloc = doc.GetAllocator();
+
+  doc.AddMember("language", Language_Name(message_->language()), alloc);
+  doc.AddMember("task id", TaskId().Hex(), alloc);
+  doc.AddMember("job id", JobId().Hex(), alloc);
+  doc.AddMember("num args", static_cast<uint64_t>(NumArgs()), alloc);
+  doc.AddMember("num returns", static_cast<uint64_t>(NumReturns()), alloc);
+
+  rapidjson::Document function_descriptor_doc(rapidjson::kArrayType, &alloc);
+  // Print function descriptor.
+  const auto list = VectorFromProtobuf(message_->function_descriptor());
+  // The 4th is the code hash which is binary bits. No need to output it.
+  const size_t size = std::min(static_cast<size_t>(3), list.size());
+  for (int i = 0; i < size; ++i) {
+    rapidjson::Value v(list[i], alloc);
+    function_descriptor_doc.PushBack(v, alloc);
+  }
+  doc.AddMember("function descriptor", function_descriptor_doc, alloc);
+
+  if (IsActorCreationTask()) {
+    // Print actor creation task spec.
+    rapidjson::Document actor_creation_doc(rapidjson::kObjectType, &alloc);
+    actor_creation_doc.AddMember("actor id", ActorCreationId().Hex(), alloc);
+    actor_creation_doc.AddMember("max reconstructions", MaxActorReconstructions(), alloc);
+    doc.AddMember("actor creation task spec", actor_creation_doc, alloc);
+  } else if (IsActorTask()) {
+    // Print actor task spec.
+    rapidjson::Document actor_doc(rapidjson::kObjectType, &alloc);
+    actor_doc.AddMember("actor id", ActorId().Hex(), alloc);
+    actor_doc.AddMember("actor handle id", ActorHandleId().Hex(), alloc);
+    actor_doc.AddMember("actor counter", ActorCounter(), alloc);
+    doc.AddMember("actor task spec", actor_doc, alloc);
+  }
+
+  return doc;
+}
+
 }  // namespace ray

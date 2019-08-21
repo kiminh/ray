@@ -9,6 +9,7 @@
 #include "ray/common/task/task.h"
 #include "ray/common/task/task_common.h"
 #include "ray/rpc/worker/worker_client.h"
+#include "ray/util/json.h"
 
 namespace ray {
 
@@ -67,6 +68,12 @@ class Worker {
   bool UsePush() const;
   void AssignTask(const Task &task, const ResourceIdSet &resource_id_set,
                   const std::function<void(Status)> finish_assign_callback);
+
+  /// Returns json document for class.
+  ///
+  /// \param allocator Optional allocator for allocating memory.
+  /// \return A rapidjson::Document.
+  rapidjson::Document ToJson(rapidjson::Document::AllocatorType *allocator = 0) const;
 
  private:
   Worker(const WorkerID &worker_id, pid_t pid, const Language &language, int port,

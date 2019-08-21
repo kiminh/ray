@@ -155,6 +155,8 @@ class HttpServer : public std::enable_shared_from_this<HttpServer> {
     DoAccept();
   }
 
+  int32_t Port() const { return acceptor_.local_endpoint().port(); }
+
  private:
   void Init(const tcp::endpoint &endpoint) {
     beast::error_code ec;
@@ -177,6 +179,10 @@ class HttpServer : public std::enable_shared_from_this<HttpServer> {
     acceptor_.listen(boost::asio::socket_base::max_listen_connections, ec);
     RAY_CHECK(!ec) << "listen failed"
                    << ", ep: " << endpoint << ", err: " << ec.message();
+
+    RAY_LOG(INFO) << "HttpServer server started, listening on "
+                  << acceptor_.local_endpoint().address().to_string() << ":"
+                  << acceptor_.local_endpoint().port();
   }
 
   void DoAccept() {

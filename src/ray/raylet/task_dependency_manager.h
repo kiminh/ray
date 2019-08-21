@@ -7,6 +7,7 @@
 #include "ray/object_manager/object_manager.h"
 #include "ray/raylet/reconstruction_policy.h"
 #include "ray/util/util.h"
+#include "ray/util/json.h"
 // clang-format on
 
 namespace ray {
@@ -146,6 +147,12 @@ class TaskDependencyManager {
   ///
   /// \return string.
   std::string DebugString() const;
+
+  /// Returns json document for class.
+  ///
+  /// \param allocator Optional allocator for allocating memory.
+  /// \return A rapidjson::Document.
+  rapidjson::Document ToJson(rapidjson::Document::AllocatorType *allocator = 0) const;
 
   /// Record metrics.
   void RecordMetrics() const;
