@@ -9,6 +9,7 @@
 #include "ray/common/task/task_common.h"
 #include "ray/protobuf/common.pb.h"
 #include "ray/rpc/worker/worker_client.h"
+#include "ray/util/json.h"
 #include "src/ray/protobuf/gcs.pb.h"
 #include "src/ray/protobuf/raylet.pb.h"
 #include "src/ray/rpc/server_call.h"
@@ -72,6 +73,12 @@ class Worker {
 
   bool UsePush() const;
   void AssignTask(const Task &task, const ResourceIdSet &resource_id_set);
+
+  /// Returns json document for class.
+  ///
+  /// \param allocator Optional allocator for allocating memory.
+  /// \return A rapidjson::Document.
+  rapidjson::Document ToJson(rapidjson::Document::AllocatorType* allocator = 0) const;
 
  private:
   /// The worker's ID.

@@ -31,7 +31,9 @@ class HttpTest : public ::testing::Test {
 TEST_F(HttpTest, ServerParseParams) {
   {
     StartServer();
-    HttpRouter::Register("/test/parse/params", [](HttpParams&& params, const std::string& data, HttpReply& r){
+    HttpRouter::Register("/test/parse/params",
+                         "get with any key value, e.g. http://127.0.0.1/test/parse/params?k1=v1&k2=v2",
+                         [](HttpParams&& params, const std::string& data, HttpReply& r){
       rapidjson::Document doc(rapidjson::kObjectType);
       for (auto& param : params) {
         rapidjson::Value key;
@@ -66,7 +68,9 @@ TEST_F(HttpTest, ServerParseParams) {
 TEST_F(HttpTest, ServerParseData) {
   {
     StartServer();
-    HttpRouter::Register("/test/parse/data", [](HttpParams&& params, const std::string& data, HttpReply& r){
+    HttpRouter::Register("/test/parse/data",
+                         "post any json string",
+                         [](HttpParams&& params, const std::string& data, HttpReply& r){
       rapidjson::Document doc;
       doc.Parse(data);
       r.SetJsonContent(rapidjson::to_string(doc));

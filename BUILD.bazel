@@ -465,6 +465,7 @@ cc_library(
         ":object_manager",
         ":ray_common",
         ":ray_util",
+        ":ray_http",
         ":raylet_rpc",
         ":stats_lib",
         ":worker_rpc",

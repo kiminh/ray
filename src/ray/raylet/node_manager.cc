@@ -8,6 +8,7 @@
 #include "ray/common/common_protocol.h"
 #include "ray/common/id.h"
 #include "ray/stats/stats.h"
+#include "ray/http/http_router.h"
 
 namespace {
 
@@ -139,6 +140,27 @@ NodeManager::NodeManager(boost::asio::io_service &io_service,
   // Run the node manger rpc server.
   node_manager_server_.RegisterService(node_manager_service_);
   node_manager_server_.Run();
+
+  HttpRouter::Register("/node_manager",
+                      "get NodeManager info",
+                      [this](HttpParams&& params, const std::string& data, HttpReply& r) {
+                        auto s = DebugString();
+                        r.SetPlainContent(s);
+                      });
+  HttpRouter::Register("/dump_actor",
+                      "get actor info",
+                      [this](HttpParams&& params, const std::string& data, HttpReply& r) {
+                        if (params.size() != 1) {
+                          r.SetJsonContent(std::string("{\"success\": false, \"result\": \"incorrect args count\"}"));
+                          return;
+                        }
+                        auto it = params.find("actor_id");
+                        if (it != params.end()) {
+                          r.SetJsonContent(rapidjson::to_string(DumpActorInfo(it->second), true));
+                        } else {
+                          r.SetJsonContent(std::string("{\"success\": false, \"result\": \"incorrect args name\"}"));
+                        }
+                      });
 }
 
 ray::Status NodeManager::RegisterGcs() {
@@ -2435,6 +2457,39 @@ void NodeManager::RecordMetrics() const {
                              {{stats::ValueTypeKey, "dead_actors"}});
   stats::ActorStats().Record(statistical_data.max_num_handles,
                              {{stats::ValueTypeKey, "max_num_handles"}});
+}
+
+rapidjson::Document NodeManager::DumpActorInfo(
+    const std::string &actor_id_hex,
+    rapidjson::Document::AllocatorType* allocator) const {
+  rapidjson::Document doc(rapidjson::kObjectType, allocator);
+  rapidjson::Document::AllocatorType &alloc = doc.GetAllocator();
+  bool success = false;
+
+  auto actor_id = ActorID::FromHex(actor_id_hex);
+  if (actor_id.IsNil()) {
+    doc.AddMember("result", "invalid actor id", alloc);
+  } else {
+    rapidjson::Document result_doc(rapidjson::kObjectType, &alloc);
+    {
+      auto it = actor_registry_.find(actor_id);
+      if (it != actor_registry_.end()) {
+        result_doc = it->second.ToJson(&alloc);
+        success = true;
+      }
+    }
+    {
+      auto it = checkpoint_id_to_restore_.find(actor_id);
+      if (it != checkpoint_id_to_restore_.end()) {
+        result_doc.AddMember("checkpoint id", it->second.Hex(), alloc);
+        success = true;
+      }
+    }
+    doc.AddMember("result", result_doc, alloc);
+  }
+  doc.AddMember("success", success, alloc);
+
+  return doc;
 }
 
 }  // namespace raylet

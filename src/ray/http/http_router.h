@@ -12,6 +12,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "ray/util/json.h"
+
 namespace beast = boost::beast;
 namespace http = beast::http;
 
@@ -43,41 +45,41 @@ class HttpReply {
     : response_(response) {
   }
 
-  void SetJsonContent(std::string&& content) {
-    response_.content_length(content.size());
-    response_.body() = std::move(content);
-    response_.set(http::field::content_type, "application/json");
-  }
+  template<typename T>
+  void SetJsonContent(T && content) {
+    SetContentWithType(std::forward<T>(content), "application/json");
+  };
 
-  void SetJsonContent(const std::string& content) {
-    response_.content_length(content.size());
-    response_.body() = content;
-    response_.set(http::field::content_type, "application/json");
-  }
-
-  void SetPlainContent(std::string&& content) {
-    response_.content_length(content.size());
-    response_.body() = std::move(content);
-    response_.set(http::field::content_type, "text/plain");
-  }
-
-  void SetPlainContent(const std::string& content) {
-    response_.content_length(content.size());
-    response_.body() = content;
-    response_.set(http::field::content_type, "text/plain");
-  }
+  template<typename T>
+  void SetPlainContent(T && content) {
+    SetContentWithType(std::forward<T>(content), "text/plain");
+  };
 
  private:
+  template<typename T, typename F>
+  void SetContentWithType(T && content, F && content_type) {
+    response_.content_length(content.size());
+    response_.body() = std::forward<T>(content);
+    response_.set(http::field::content_type, std::forward<F>(content_type));
+  }
+
   http::response<http::string_body>& response_;
 };
 
 typedef std::unordered_map<std::string, std::string> HttpParams;
 typedef std::function<void(HttpParams&&, const std::string&, HttpReply&)> HttpHandler;
+typedef struct {
+  std::string help;
+  HttpHandler handler;
+} HttpURI;
 
 class HttpRouter {
  public:
-  static bool Register(const std::string& uri, HttpHandler&& handler) {
-    return HttpRouter::Instance().RegisterHandler(uri, std::move(handler));
+  static bool Register(const std::string& uri, const std::string& help, HttpHandler&& handler) {
+    HttpURI obj;
+    obj.help = help;
+    obj.handler = std::move(handler);
+    return HttpRouter::Instance().RegisterHandler(uri, std::move(obj));
   }
 
   static http::response<http::string_body> Route(http::request<http::string_body> &&req) {
@@ -90,14 +92,17 @@ class HttpRouter {
     return router;
   }
 
-  bool RegisterHandler(const std::string& uri, HttpHandler&& handler) {
+  bool RegisterHandler(const std::string& uri, HttpURI&& obj, bool is_default=false) {
     boost::unique_lock<boost::shared_mutex> lock(mutex_);
-    auto itr = handlers_.find(uri);
-    if (itr != handlers_.end()) {
+    auto itr = uri_map_.find(uri);
+    if (itr != uri_map_.end()) {
       return false;
     }
 
-    handlers_.emplace(uri, std::move(handler));
+    uri_map_.emplace(uri, std::move(obj));
+    if (is_default) {
+      default_uri_ = uri;
+    }
     return false;
   }
 
@@ -183,12 +188,17 @@ class HttpRouter {
     }
 
     boost::shared_lock<boost::shared_mutex> lock(mutex_);
-    auto itr = handlers_.find(path);
-    if (itr == handlers_.end()) {
+    auto itr = uri_map_.find(path);
+    if (itr == uri_map_.end()) {
       http::response<http::string_body> resp{http::status::not_found, req.version()};
       HttpReply reply(resp);
-      std::string msg = "uri " + path + " is not registered!";
-      reply.SetJsonContent(HttpResult(404, std::move(msg)).toJson());
+      auto it = uri_map_.find(default_uri_);
+      if (it != uri_map_.end()) {
+        it->second.handler(std::move(params), req.body(), reply);
+      } else {
+        std::string msg = "uri " + path + " is not registered!";
+        reply.SetJsonContent(HttpResult(404, std::move(msg)).toJson());
+      }
       resp.prepare_payload();
       return resp;
     }
@@ -198,16 +208,33 @@ class HttpRouter {
     resp.keep_alive(req.keep_alive());
 
     HttpReply reply(resp);
-    itr->second(std::move(params), req.body(), reply);
+    itr->second.handler(std::move(params), req.body(), reply);
     resp.prepare_payload();
     return resp;
   }
 
  private:
-  HttpRouter() = default;
+  HttpRouter() {
+    HttpURI obj;
+    obj.help = "print all routes with help";
+    obj.handler = [this] (HttpParams&& params, const std::string& data, HttpReply& r) {
+      rapidjson::Document doc(rapidjson::kObjectType);
+      rapidjson::Document::AllocatorType &alloc = doc.GetAllocator();
+
+      for (auto &kv : uri_map_) {
+        doc.AddMember(rapidjson::StringRef(kv.first.c_str()),
+                      rapidjson::StringRef(kv.second.help.c_str()),
+                      alloc);
+      }
+
+      r.SetJsonContent(rapidjson::to_string(doc, true));
+    };
+    RegisterHandler("/help", std::move(obj), true);
+  }
   ~HttpRouter() = default;
 
  private:
   boost::shared_mutex mutex_{};
-  std::unordered_map<std::string, HttpHandler> handlers_;
+  std::unordered_map<std::string, HttpURI> uri_map_;
+  std::string default_uri_;
 };

@@ -10,6 +10,7 @@
 #include "ray/common/id.h"
 #include "ray/common/task/scheduling_resources.h"
 #include "ray/common/task/task_common.h"
+#include "ray/util/json.h"
 
 extern "C" {
 #include "ray/thirdparty/sha256.h"
@@ -130,6 +131,12 @@ class TaskSpecification : public MessageWrapper<rpc::TaskSpec> {
   ObjectID ActorDummyObject() const;
 
   std::string DebugString() const;
+
+  /// Returns json document for class.
+  ///
+  /// \param allocator Optional allocator for allocating memory.
+  /// \return A rapidjson::Document.
+  rapidjson::Document ToJson(rapidjson::Document::AllocatorType* allocator = 0) const;
 
  private:
   void ComputeResources();

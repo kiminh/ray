@@ -61,7 +61,8 @@ def _parse_client_table(redis_client):
                 "NodeManagerPort": item.node_manager_port,
                 "ObjectManagerPort": item.object_manager_port,
                 "ObjectStoreSocketName": item.object_store_socket_name,
-                "RayletSocketName": item.raylet_socket_name
+                "RayletSocketName": item.raylet_socket_name,
+                "RayletHttpPort": item.raylet_http_port,
             }
 
         # If this node is being removed, then it must

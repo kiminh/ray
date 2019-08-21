@@ -1,6 +1,7 @@
 #include "task_dependency_manager.h"
 
 #include "ray/stats/stats.h"
+#include "ray/http/http_router.h"
 
 namespace ray {
 
@@ -17,7 +18,14 @@ TaskDependencyManager::TaskDependencyManager(
       io_service_(io_service),
       client_id_(client_id),
       initial_lease_period_ms_(initial_lease_period_ms),
-      task_lease_table_(task_lease_table) {}
+      task_lease_table_(task_lease_table) {
+  HttpRouter::Register("/task_dependency_manager", 
+                       "get TaskDependencyManager info",
+                       [this](HttpParams&& params, const std::string& data, HttpReply& r) {
+                         auto doc = ToJson();
+                         r.SetJsonContent(rapidjson::to_string(doc, true));
+                       });
+}
 
 bool TaskDependencyManager::CheckObjectLocal(const ObjectID &object_id) const {
   return local_objects_.count(object_id) == 1;
@@ -433,6 +441,19 @@ std::string TaskDependencyManager::DebugString() const {
   result << "\n- local objects map size: " << local_objects_.size();
   result << "\n- pending tasks map size: " << pending_tasks_.size();
   return result.str();
+}
+
+rapidjson::Document TaskDependencyManager::ToJson(rapidjson::Document::AllocatorType* allocator) const {
+  rapidjson::Document doc(rapidjson::kObjectType, allocator);
+  rapidjson::Document::AllocatorType &alloc = doc.GetAllocator();
+
+  doc.AddMember("task dep map size", static_cast<uint64_t>(task_dependencies_.size()), alloc);
+  doc.AddMember("task req map size", static_cast<uint64_t>(required_tasks_.size()), alloc);
+  doc.AddMember("req objects map size", static_cast<uint64_t>(required_objects_.size()), alloc);
+  doc.AddMember("local objects map size", static_cast<uint64_t>(local_objects_.size()), alloc);
+  doc.AddMember("pending tasks map size", static_cast<uint64_t>(pending_tasks_.size()), alloc);
+
+  return doc;
 }
 
 void TaskDependencyManager::RecordMetrics() const {

@@ -11,6 +11,7 @@
 #include "ray/common/task/task_common.h"
 #include "ray/gcs/redis_gcs_client.h"
 #include "ray/raylet/worker.h"
+#include "ray/util/json.h"
 
 namespace ray {
 
@@ -124,6 +125,12 @@ class WorkerPool {
   ///
   /// \return string.
   std::string DebugString() const;
+
+  /// Returns json document for class.
+  ///
+  /// \param allocator Optional allocator for allocating memory.
+  /// \return A rapidjson::Document.
+  rapidjson::Document ToJson(rapidjson::Document::AllocatorType* allocator = 0) const;
 
   /// Record metrics.
   void RecordMetrics() const;

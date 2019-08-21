@@ -45,12 +45,18 @@
 #include "src/ray/thirdparty/rapidjson/reader.h"
 #include "src/ray/thirdparty/rapidjson/writer.h"
 #include "src/ray/thirdparty/rapidjson/stringbuffer.h"
+#include "src/ray/thirdparty/rapidjson/prettywriter.h"
 
 namespace rapidjson {
-inline std::string to_string(const rapidjson::Document &doc) {
+inline std::string to_string(const rapidjson::Document &doc, bool pretty=false) {
   rapidjson::StringBuffer buffer;
-  rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-  doc.Accept(writer);
+  if (pretty) {
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+    doc.Accept(writer);
+  } else {
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    doc.Accept(writer);
+  }
   return buffer.GetString();
 }
 }

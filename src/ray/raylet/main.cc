@@ -6,6 +6,7 @@
 #include "ray/common/task/task_common.h"
 #include "ray/raylet/raylet.h"
 #include "ray/stats/stats.h"
+#include "ray/http/http_server.h"
 
 #include "gflags/gflags.h"
 
@@ -152,6 +153,10 @@ int main(int argc, char *argv[]) {
   // Initialize the node manager.
   boost::asio::io_service main_service;
 
+  // Initialize http server
+  auto http_server = std::make_shared<HttpServer>(main_service);
+  http_server->Start("0.0.0.0", 0);
+
   // Initialize gcs client
   ray::gcs::GcsClientOptions client_options(redis_address, redis_port, redis_password);
   auto gcs_client = std::make_shared<ray::gcs::RedisGcsClient>(client_options);
@@ -159,7 +164,7 @@ int main(int argc, char *argv[]) {
 
   std::unique_ptr<ray::raylet::Raylet> server(new ray::raylet::Raylet(
       main_service, raylet_socket_name, node_ip_address, redis_address, redis_port,
-      redis_password, node_manager_config, object_manager_config, gcs_client));
+      redis_password, http_server->Port(), node_manager_config, object_manager_config, gcs_client));
 
   // Destroy the Raylet on a SIGTERM. The pointer to main_service is
   // guaranteed to be valid since this function will run the event loop
@@ -187,7 +192,6 @@ int main(int argc, char *argv[]) {
   };
   boost::asio::signal_set signals(main_service, SIGTERM);
   signals.async_wait(handler);
-
   main_service.run();
 }
 #endif

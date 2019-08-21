@@ -426,6 +426,37 @@ std::string SchedulingQueue::DebugString() const {
   return result.str();
 }
 
+rapidjson::Document SchedulingQueue::ToJson(rapidjson::Document::AllocatorType* allocator) const {
+  rapidjson::Document doc(rapidjson::kObjectType, allocator);
+  rapidjson::Document::AllocatorType &alloc = doc.GetAllocator();
+
+  rapidjson::Document queue_doc(rapidjson::kObjectType, &alloc);
+  for (size_t i = 0; i < static_cast<int>(ray::raylet::TaskState::kNumTaskQueues); i++) {
+    TaskState task_state = static_cast<TaskState>(i);
+    queue_doc.AddMember(rapidjson::StringRef(GetTaskStateString(task_state)),
+                    static_cast<uint64_t>(GetTaskQueue(task_state)->GetTasks().size()),
+                    alloc);
+  }
+
+  rapidjson::Document running_doc(rapidjson::kArrayType, &alloc);
+  auto &queue = GetTaskQueue(TaskState::RUNNING);
+  auto tasks = queue->GetTasks();
+  for (auto it = tasks.begin(); it != tasks.end(); ++it) {
+    running_doc.PushBack(it->ToJson(&alloc), alloc);
+  }
+
+  rapidjson::Document blocking_doc(rapidjson::kArrayType, &alloc);
+  for (auto it = blocked_task_ids_.begin(); it != blocked_task_ids_.end(); ++it) {
+    blocking_doc.PushBack(rapidjson::Value(it->Hex(), alloc), alloc);
+  }
+
+  doc.AddMember("scheduling queue tasks", queue_doc, alloc);
+  doc.AddMember("blocking tasks", blocking_doc, alloc);
+  doc.AddMember("running tasks", running_doc, alloc);
+
+  return doc;
+}
+
 void SchedulingQueue::RecordMetrics() const {
   for (size_t i = 0; i < static_cast<int>(ray::raylet::TaskState::kNumTaskQueues); i++) {
     TaskState task_state = static_cast<TaskState>(i);

@@ -38,4 +38,14 @@ std::string Task::DebugString() const {
   return stream.str();
 }
 
+rapidjson::Document Task::ToJson(rapidjson::Document::AllocatorType* allocator) const {
+  rapidjson::Document doc(rapidjson::kObjectType, allocator);
+  rapidjson::Document::AllocatorType &alloc = doc.GetAllocator();
+
+  doc.AddMember("task spec", task_spec_.ToJson(&alloc), alloc);
+  doc.AddMember("task execution spec", task_execution_spec_.ToJson(&alloc), alloc);
+
+  return doc;
+}
+
 }  // namespace ray

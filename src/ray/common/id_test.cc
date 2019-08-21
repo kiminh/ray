@@ -47,6 +47,9 @@ TEST(ActorIDTest, TestActorID) {
     const auto actor_id_1_binary = actor_id_1.Binary();
     const auto actor_id_2 = ActorID::FromBinary(actor_id_1_binary);
     ASSERT_EQ(actor_id_1, actor_id_2);
+    const auto actor_id_1_hex = actor_id_1.Hex();
+    const auto actor_id_3 = ActorID::FromHex(actor_id_1_hex);
+    ASSERT_EQ(actor_id_1, actor_id_3);
   }
 
   {
