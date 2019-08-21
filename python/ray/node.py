@@ -88,6 +88,7 @@ class Node(object):
         self._redis_address = ray_params.redis_address
         self._config = (json.loads(ray_params._internal_config)
                         if ray_params._internal_config else None)
+        self._curr_restart_retry_times = 0
 
         if head:
             redis_client = None
@@ -766,6 +767,48 @@ class Node(object):
             True if any process that wasn't explicitly killed is still alive.
         """
         return not any(self.dead_processes())
+
+    def check_processes_alive(self):
+        """Check and protect the plasma store and raylet processes.
+
+           Restart the unexpectedly terminated processes.
+        """
+        if self._curr_restart_retry_times > ray_constants. \
+                RESTART_MAX_TIMES_WITHIN_MIN_SECONDS_BEFORE_DEAD:
+            logger.warning("Exceed the max retry times "
+                           "within min restart seconds. ")
+            return
+        process_types = (ray_constants.PROCESS_TYPE_PLASMA_STORE,
+                         ray_constants.PROCESS_TYPE_RAYLET)
+        for process_type in process_types:
+            if process_type not in self.all_processes:
+                continue
+            for process_info in self.all_processes[process_type]:
+                pid = process_info.process.pid
+                returncode = process_info.process.poll()
+                if returncode is None:
+                    continue
+                logger.warning("The process (pid:{}) of type {} is dead "
+                               "with returncode {}.".format(
+                                   pid, process_type, returncode))
+                if returncode in (ray_constants.EXIT_CODE_NORMAL,
+                                  ray_constants.EXIT_CODE_KILLED,
+                                  ray_constants.EXIT_CODE_FAULT_INJECTION):
+                    continue
+                fork_time = process_info.fork_time
+                if time.time() - fork_time < \
+                        ray_constants.RESTART_MIN_TIME_SECONDS:
+                    self._curr_restart_retry_times += 1
+                logger.warning(
+                    "Detected some errors in "
+                    "process(pid:{}) of type {}. return code {}.".format(
+                        pid, process_type, returncode))
+                self.kill_plasma_store(check_alive=False)
+                self.start_plasma_store()
+                self.kill_raylet(check_alive=False)
+                self.start_raylet()
+                logger.warning("Restart raylet and plasma store process")
+                return
 
 
 class LocalNode(object):

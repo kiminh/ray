@@ -69,7 +69,7 @@ logger = logging.getLogger(__name__)
 
 ProcessInfo = collections.namedtuple("ProcessInfo", [
     "process", "stdout_file", "stderr_file", "use_valgrind", "use_gdb",
-    "use_valgrind_profiler", "use_perftools_profiler", "use_tmux"
+    "use_valgrind_profiler", "use_perftools_profiler", "use_tmux", "fork_time"
 ])
 
 
@@ -407,7 +407,8 @@ def start_ray_process(command,
         use_gdb=use_gdb,
         use_valgrind_profiler=use_valgrind_profiler,
         use_perftools_profiler=use_perftools_profiler,
-        use_tmux=use_tmux)
+        use_tmux=use_tmux,
+        fork_time=time.time())
 
 
 def wait_for_redis_to_start(redis_ip_address,
