@@ -179,14 +179,13 @@ void Raylet::Start(boost::asio::io_service &main_service,
                    const ray::raylet::NodeManagerConfig &node_manager_config) {
   // Start http server
   auto http_port = StartHttpServer(main_service);
-  boost::ignore_unused(http_port);
 
   // Start listening for clients.
   DoAccept();
 
   RAY_CHECK_OK(RegisterGcs(node_ip_address, raylet_socket_name, object_store_socket_name,
-                           redis_address, redis_port, redis_password, main_service,
-                           node_manager_config));
+                           redis_address, redis_port, redis_password, http_port,
+                           main_service, node_manager_config));
 
   RAY_CHECK_OK(RegisterPeriodicTimer(main_service));
 }
@@ -201,7 +200,7 @@ ray::Status Raylet::RegisterGcs(const std::string &node_ip_address,
                                 const std::string &raylet_socket_name,
                                 const std::string &object_store_socket_name,
                                 const std::string &redis_address, int redis_port,
-                                const std::string &redis_password,
+                                const std::string &redis_password, int http_port,
                                 boost::asio::io_service &io_service,
                                 const NodeManagerConfig &node_manager_config) {
   GcsNodeInfo node_info = gcs_client_->client_table().GetLocalClient();
@@ -210,12 +209,14 @@ ray::Status Raylet::RegisterGcs(const std::string &node_ip_address,
   node_info.set_object_store_socket_name(object_store_socket_name);
   node_info.set_object_manager_port(object_manager_.GetServerPort());
   node_info.set_node_manager_port(node_manager_.GetServerPort());
+  node_info.set_raylet_http_port(http_port);
 
   RAY_LOG(DEBUG) << "Node manager " << gcs_client_->client_table().GetLocalClientId()
                  << " started on " << node_info.node_manager_address() << ":"
                  << node_info.node_manager_port() << " object manager at "
                  << node_info.node_manager_address() << ":"
-                 << node_info.object_manager_port();
+                 << node_info.object_manager_port() << " http server listen at "
+                 << node_info.node_manager_address() << ":" << http_port;
   ;
   RAY_RETURN_NOT_OK(gcs_client_->client_table().Connect(node_info));
 

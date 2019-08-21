@@ -8,6 +8,7 @@
 #include "ray/common/constants.h"
 #include "ray/common/ray_config.h"
 #include "ray/common/status.h"
+#include "ray/http/http_router.h"
 #include "ray/stats/stats.h"
 #include "ray/util/logging.h"
 #include "ray/util/util.h"
@@ -66,6 +67,12 @@ WorkerPool::WorkerPool(int num_worker_processes, int num_workers_per_process,
       StartWorkerProcess(entry.first);
     }
   }
+  HttpRouter::Register(
+      "/worker_pool", "get WorkerPool info",
+      [this](HttpParams &&params, std::string &&data, std::shared_ptr<HttpReply> r) {
+        auto doc = ToJson();
+        r->SetJsonContent(rapidjson::to_string(doc, true));
+      });
 }
 
 WorkerPool::~WorkerPool() {
@@ -394,6 +401,36 @@ std::string WorkerPool::DebugString() const {
     result << "\n- num drivers: " << entry.second.registered_drivers.size();
   }
   return result.str();
+}
+
+rapidjson::Document WorkerPool::ToJson(
+    rapidjson::Document::AllocatorType *allocator) const {
+  rapidjson::Document doc(rapidjson::kObjectType, allocator);
+  rapidjson::Document::AllocatorType &alloc = doc.GetAllocator();
+
+  for (const auto &entry : states_by_lang_) {
+    rapidjson::Document entry_doc(rapidjson::kObjectType, &alloc);
+    entry_doc.AddMember("num workers",
+                        static_cast<uint64_t>(entry.second.registered_workers.size()),
+                        alloc);
+    entry_doc.AddMember("num drivers",
+                        static_cast<uint64_t>(entry.second.registered_drivers.size()),
+                        alloc);
+    rapidjson::Document workers_doc(rapidjson::kArrayType, &alloc);
+    for (auto &w : entry.second.registered_workers) {
+      workers_doc.PushBack(w->ToJson(&alloc), alloc);
+    }
+    entry_doc.AddMember("workers", workers_doc, alloc);
+    rapidjson::Document drivers_doc(rapidjson::kArrayType, &alloc);
+    for (auto &w : entry.second.registered_drivers) {
+      drivers_doc.PushBack(w->ToJson(&alloc), alloc);
+    }
+    entry_doc.AddMember("drivers", drivers_doc, alloc);
+    doc.AddMember(rapidjson::StringRef(Language_Name(entry.first).c_str()), entry_doc,
+                  alloc);
+  }
+
+  return doc;
 }
 
 void WorkerPool::RecordMetrics() const {

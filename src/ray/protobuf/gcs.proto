@@ -178,6 +178,8 @@ message GcsNodeInfo {
   // The port at which the object manager is listening for TCP
   // connections from other object managers.
   int32 object_manager_port = 6;
+  // The port at which the node http server is listening at.
+  int32 raylet_http_port = 8;
 
   // Current state of this node.
   GcsNodeState state = 7;

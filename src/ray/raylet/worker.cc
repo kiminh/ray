@@ -171,6 +171,21 @@ void Worker::AssignTask(const Task &task, const ResourceIdSet &resource_id_set,
   }
 }
 
+rapidjson::Document Worker::ToJson(rapidjson::Document::AllocatorType *allocator) const {
+  rapidjson::Document doc(rapidjson::kObjectType, allocator);
+  rapidjson::Document::AllocatorType &alloc = doc.GetAllocator();
+
+  doc.AddMember("worker id", worker_id_.Hex(), alloc);
+  doc.AddMember("language", rapidjson::StringRef(Language_Name(language_)), alloc);
+  doc.AddMember("pid", pid_, alloc);
+  doc.AddMember("port", pid_, alloc);
+  doc.AddMember("job id", assigned_job_id_.Hex(), alloc);
+  doc.AddMember("actor id", actor_id_.Hex(), alloc);
+  doc.AddMember("task id", assigned_task_id_.Hex(), alloc);
+
+  return doc;
+}
+
 }  // namespace raylet
 
 }  // end namespace ray

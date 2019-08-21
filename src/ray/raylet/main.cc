@@ -187,7 +187,6 @@ int main(int argc, char *argv[]) {
   };
   boost::asio::signal_set signals(main_service, SIGTERM);
   signals.async_wait(handler);
-
   main_service.run();
 }
 #endif

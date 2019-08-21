@@ -502,6 +502,15 @@ class NodeManager : public rpc::NodeManagerServiceHandler {
                          rpc::ForwardTaskReply *reply,
                          rpc::SendReplyCallback send_reply_callback) override;
 
+  /// Get actor info by actor id
+  ///
+  /// \param actor_id_hex Actor Id
+  /// \param allocator Optional allocator for allocating memory.
+  /// \return A rapidjson::Document.
+  rapidjson::Document DumpActorInfo(
+      const std::string &actor_id_hex,
+      rapidjson::Document::AllocatorType *allocator = 0) const;
+
   // GCS client ID for this node.
   ClientID client_id_;
   boost::asio::io_service &io_service_;

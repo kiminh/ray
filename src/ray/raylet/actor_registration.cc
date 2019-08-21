@@ -126,6 +126,35 @@ std::shared_ptr<ActorCheckpointData> ActorRegistration::GenerateCheckpointData(
   return checkpoint_data;
 }
 
+rapidjson::Document ActorRegistration::ToJson(
+    rapidjson::Document::AllocatorType *allocator) const {
+  rapidjson::Document doc(rapidjson::kObjectType, allocator);
+  rapidjson::Document::AllocatorType &alloc = doc.GetAllocator();
+
+  doc.AddMember("actor id", ActorID::FromBinary(actor_table_data_.actor_id()).Hex(),
+                alloc);
+  doc.AddMember("parent actor id",
+                ActorID::FromBinary(actor_table_data_.parent_actor_id()).Hex(), alloc);
+  doc.AddMember(
+      "actor creation dummy object id",
+      ObjectID::FromBinary(actor_table_data_.actor_creation_dummy_object_id()).Hex(),
+      alloc);
+  doc.AddMember("job id", JobID::FromBinary(actor_table_data_.job_id()).Hex(), alloc);
+  doc.AddMember("node manager id",
+                ClientID::FromBinary(actor_table_data_.node_manager_id()).Hex(), alloc);
+  doc.AddMember(
+      "state",
+      rapidjson::StringRef(ActorTableData::ActorState_Name(actor_table_data_.state())),
+      alloc);
+  doc.AddMember("max reconstructions", actor_table_data_.max_reconstructions(), alloc);
+  doc.AddMember("remaining reconstructions",
+                actor_table_data_.remaining_reconstructions(), alloc);
+  doc.AddMember("ip address", actor_table_data_.ip_address(), alloc);
+  doc.AddMember("port", actor_table_data_.port(), alloc);
+
+  return doc;
+}
+
 }  // namespace raylet
 
 }  // namespace ray

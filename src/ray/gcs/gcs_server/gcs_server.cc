@@ -1,6 +1,8 @@
 #include "gcs_server.h"
 #include <ray/common/ray_config.h>
 #include "failover/l1_failover.h"
+#include "ray/common/ray_config.h"
+#include "ray/util/json.h"
 
 namespace ray {
 namespace gcs {
@@ -46,6 +48,10 @@ void GcsServer::Start() {
 
     // Update gcs server address to gcs
     UpdateGcsServerAddress();
+
+    // Auto Route Uri
+    AutoRouteUri(boost::system::errc::make_error_code(boost::system::errc::success),
+                 std::make_shared<boost::asio::deadline_timer>(ioc_));
   } else {
     StartMonitor();
   }
@@ -138,6 +144,99 @@ void GcsServer::ClearnGcs() {
   if (gcs_gc_manager_) {
     auto status = gcs_gc_manager_->CleanForLevelOneFailover();
     RAY_LOG(FATAL) << "[" << __FUNCTION__ << "] failed! error: " << status;
+  }
+}
+
+void GcsServer::AutoRouteUri(boost::system::error_code err,
+                             std::shared_ptr<boost::asio::deadline_timer> timer) {
+  if (has_route_table_) {
+    return;
+  }
+
+  RAY_LOG(INFO) << "[" << __FUNCTION__ << "] get route table";
+  auto iter_alive = [this](std::function<bool(const GcsNodeInfo &)> cb) {
+    auto client_infos = gcs_client_->client_table().GetAllClients();
+    for (auto &client_info : client_infos) {
+      if (client_info.second.state() == GcsNodeInfo::ALIVE) {
+        if (cb(client_info.second)) break;
+      }
+    }
+  };
+
+  iter_alive([this](const GcsNodeInfo &node) {
+    auto &host = node.node_manager_address();
+    auto port = node.raylet_http_port();
+    auto http_client = std::make_shared<HttpSyncClient>();
+    if (http_client->Connect(host, port)) {
+      auto all_uris =
+          http_client->Get("/help", std::unordered_map<std::string, std::string>());
+      if (all_uris.first.value() == boost::system::errc::errc_t::success) {
+        try {
+          rapidjson::Document doc;
+          doc.Parse(all_uris.second);
+          for (auto it = doc.MemberBegin(); it != doc.MemberEnd(); ++it) {
+            auto uri = it->name.GetString();
+            auto help = it->value.GetString();
+            HttpRouter::Register(uri, help,
+                                 [this, uri](HttpParams &&params, std::string &&data,
+                                             std::shared_ptr<HttpReply> r) {
+                                   CollectRayletInfo(uri, std::move(params),
+                                                     std::move(data), r);
+                                 });
+          }
+          has_route_table_ = true;
+          return true;
+        } catch (const std::exception &exc) {
+          RAY_LOG(ERROR) << "AutoRouteUri parse /help result as json failed: "
+                         << exc.what();
+        }
+      }
+    }
+    return false;
+  });
+
+  if (!has_route_table_) {
+    timer->expires_from_now(boost::posix_time::seconds(5));
+    timer->async_wait(boost::bind(&GcsServer::AutoRouteUri, this,
+                                  boost::asio::placeholders::error, timer));
+  }
+}
+
+void GcsServer::CollectRayletInfo(const std::string &uri, HttpParams &&params,
+                                  std::string &&data, std::shared_ptr<HttpReply> r) {
+  auto client_infos = gcs_client_->client_table().GetAllClients();
+  auto doc = std::make_shared<rapidjson::Document>(rapidjson::kObjectType);
+  auto counter = std::make_shared<int>(client_infos.size());
+  for (auto &i : client_infos) {
+    auto host = i.second.node_manager_address();
+    auto port = i.second.raylet_http_port();
+    auto it = http_clients_.find(i.first);
+    if (it == http_clients_.end() || !it->second->IsConnected()) {
+      auto http_client = std::make_shared<HttpAsyncClient>(ioc_);
+      http_client->Connect(host, port);
+      if (it == http_clients_.end()) {
+        it = http_clients_.emplace(i.first, http_client).first;
+      } else {
+        http_clients_[i.first] = http_client;
+      }
+    }
+    auto cid = i.first.Hex();
+    it->second->Get(
+        uri, params,
+        [cid, doc, r, counter](boost::system::error_code ec, const std::string &s) {
+          rapidjson::Document::AllocatorType &alloc = doc->GetAllocator();
+          try {
+            rapidjson::Document doc_r(&alloc);
+            doc_r.Parse(s);
+            doc->AddMember(rapidjson::Value(cid.c_str(), alloc), doc_r, alloc);
+          } catch (const std::exception &exc) {
+            doc->AddMember(rapidjson::Value(cid.c_str(), alloc),
+                           rapidjson::Value(s, alloc), alloc);
+          }
+          if (--(*counter) == 0) {
+            r->SetJsonContent(rapidjson::to_string(*doc, true));
+          }
+        });
   }
 }
 

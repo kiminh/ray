@@ -71,7 +71,7 @@ class Raylet {
                           const std::string &raylet_socket_name,
                           const std::string &object_store_socket_name,
                           const std::string &redis_address, int redis_port,
-                          const std::string &redis_password,
+                          const std::string &redis_password, int http_port,
                           boost::asio::io_service &io_service, const NodeManagerConfig &);
 
   ray::Status RegisterPeriodicTimer(boost::asio::io_service &io_service);
