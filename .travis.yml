@@ -216,4 +216,7 @@ deploy:
 
 cache:
   directories:
+    # Cache built contents
     - $HOME/ray-bazel-cache
+    # Cache downloaded external dependencies.
+    - $HOME/.cache/bazel
