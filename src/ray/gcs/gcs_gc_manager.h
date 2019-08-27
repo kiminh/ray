@@ -13,7 +13,7 @@ class GcsGCManager {
 
   ~GcsGCManager() {}
 
-  /// Clean all job from GCS synchronously. Those data includes job informations,
+  /// Clean all jobs from GCS synchronously. Those data includes job informations,
   /// task informations, actor informations, object informations and so on.
   ///
   /// \return Status
