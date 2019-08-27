@@ -10,6 +10,9 @@
 #include "ray/gcs/redis_gcs_client.h"
 #include "ray/raylet/raylet_client.h"
 
+#include "ray/core_worker/store_provider/store_provider.h"
+#include "ray/core_worker/transport/transport.h"
+
 namespace ray {
 
 /// The root class that contains all the core and language-independent functionalities
@@ -58,11 +61,19 @@ class CoreWorker {
  private:
   void StartIOService();
 
+  void InitializeStoreProviders();
+  void InitializeTaskSubmitters(bool use_asio_rpc);
+
+  std::unique_ptr<CoreWorkerStoreProvider> CreateStoreProvider(StoreProviderType type);
+
   /// Type of this worker.
   const WorkerType worker_type_;
 
   /// Language of this worker.
   const Language language_;
+
+  /// plasma store socket name.
+  const std::string store_socket_;
 
   /// raylet socket name.
   const std::string raylet_socket_;
@@ -84,6 +95,21 @@ class CoreWorker {
 
   /// GCS client.
   std::unique_ptr<gcs::RedisGcsClient> gcs_client_;
+
+  /// In-memory store for return objects. This is used for `MEMORY` store provider.
+  std::shared_ptr<CoreWorkerMemoryStore> memory_store_;
+
+  /// All the store providers supported.
+  EnumUnorderedMap<StoreProviderType, std::unique_ptr<CoreWorkerStoreProvider>>
+      store_providers_;
+
+  /// All the task submitters supported.
+  EnumUnorderedMap<TaskTransportType, std::unique_ptr<CoreWorkerTaskSubmitter>>
+      task_submitters_;
+
+  /// All the task task receivers supported.
+  EnumUnorderedMap<TaskTransportType, std::unique_ptr<CoreWorkerTaskReceiver>>
+      task_receivers_;
 
   /// The `CoreWorkerTaskInterface` instance.
   std::unique_ptr<CoreWorkerTaskInterface> task_interface_;

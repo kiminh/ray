@@ -15,9 +15,9 @@ Status CoreWorkerRayletTaskSubmitter::SubmitTask(const TaskSpecification &task) 
 
 CoreWorkerRayletTaskReceiver::CoreWorkerRayletTaskReceiver(
     std::unique_ptr<RayletClient> &raylet_client,
-    CoreWorkerObjectInterface &object_interface, const TaskHandler &task_handler)
+    CoreWorkerStoreProviderMap &store_providers, const TaskHandler &task_handler)
     : raylet_client_(raylet_client),
-      object_interface_(object_interface),
+      store_providers_(store_providers),
       task_handler_(task_handler) {}
 
 void CoreWorkerRayletTaskReceiver::HandleAssignTask(
@@ -42,7 +42,7 @@ void CoreWorkerRayletTaskReceiver::HandleAssignTask(
     ObjectID id = ObjectID::ForTaskReturn(
         task_spec.TaskId(), /*index=*/i + 1,
         /*transport_type=*/static_cast<int>(TaskTransportType::RAYLET));
-    Status status = object_interface_.Put(*results[i], id);
+    Status status = store_providers_[StoreProviderType::PLASMA]->Put(*results[i], id);
     if (!status.ok()) {
       // NOTE(hchen): `PlasmaObjectExists` error is already ignored inside
       // `ObjectInterface::Put`, we treat other error types as fatal here.
@@ -72,18 +72,18 @@ void CoreWorkerRayletTaskReceiver::HandleAssignTask(
 
 RayletGrpcTaskReceiver::RayletGrpcTaskReceiver(
     std::unique_ptr<RayletClient> &raylet_client,
-    CoreWorkerObjectInterface &object_interface, boost::asio::io_service &io_service,
+    CoreWorkerStoreProviderMap &store_providers, boost::asio::io_service &io_service,
     rpc::GrpcServer &server, const TaskHandler &task_handler)
-    : CoreWorkerRayletTaskReceiver(raylet_client, object_interface, task_handler),
+    : CoreWorkerRayletTaskReceiver(raylet_client, store_providers, task_handler),
       task_service_(io_service, *this) {
   server.RegisterService(task_service_);
 }
 
 RayletAsioTaskReceiver::RayletAsioTaskReceiver(
     std::unique_ptr<RayletClient> &raylet_client,
-    CoreWorkerObjectInterface &object_interface, rpc::AsioRpcServer &server,
+    CoreWorkerStoreProviderMap &store_providers, rpc::AsioRpcServer &server,
     const TaskHandler &task_handler)
-    : CoreWorkerRayletTaskReceiver(raylet_client, object_interface, task_handler),
+    : CoreWorkerRayletTaskReceiver(raylet_client, store_providers, task_handler),
       task_service_(*this) {
   server.RegisterService(task_service_);
 }

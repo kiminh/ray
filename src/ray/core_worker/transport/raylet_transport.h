@@ -33,7 +33,7 @@ class CoreWorkerRayletTaskReceiver : public CoreWorkerTaskReceiver,
                                      public rpc::WorkerTaskHandler {
  public:
   CoreWorkerRayletTaskReceiver(std::unique_ptr<RayletClient> &raylet_client,
-                               CoreWorkerObjectInterface &object_interface,
+                               CoreWorkerStoreProviderMap &store_providers,
                                const TaskHandler &task_handler);
 
   /// Handle a `AssignTask` request.
@@ -51,7 +51,7 @@ class CoreWorkerRayletTaskReceiver : public CoreWorkerTaskReceiver,
   /// Raylet client.
   std::unique_ptr<RayletClient> &raylet_client_;
   // Object interface.
-  CoreWorkerObjectInterface &object_interface_;
+  CoreWorkerStoreProviderMap &store_providers_;
   /// The callback function to process a task.
   TaskHandler task_handler_;
 };
@@ -59,7 +59,7 @@ class CoreWorkerRayletTaskReceiver : public CoreWorkerTaskReceiver,
 class RayletGrpcTaskReceiver : public CoreWorkerRayletTaskReceiver {
  public:
   RayletGrpcTaskReceiver(std::unique_ptr<RayletClient> &raylet_client,
-                         CoreWorkerObjectInterface &object_interface,
+                         CoreWorkerStoreProviderMap &store_providers,
                          boost::asio::io_service &io_service, rpc::GrpcServer &server,
                          const TaskHandler &task_handler);
 
@@ -71,7 +71,7 @@ class RayletGrpcTaskReceiver : public CoreWorkerRayletTaskReceiver {
 class RayletAsioTaskReceiver : public CoreWorkerRayletTaskReceiver {
  public:
   RayletAsioTaskReceiver(std::unique_ptr<RayletClient> &raylet_client,
-                         CoreWorkerObjectInterface &object_interface,
+                         CoreWorkerStoreProviderMap &store_providers,
                          rpc::AsioRpcServer &server, const TaskHandler &task_handler);
 
  private:

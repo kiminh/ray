@@ -2,8 +2,7 @@
 #include "ray/core_worker/context.h"
 #include "ray/core_worker/core_worker.h"
 #include "ray/core_worker/task_interface.h"
-#include "ray/core_worker/transport/direct_actor_transport.h"
-#include "ray/core_worker/transport/raylet_transport.h"
+
 
 namespace ray {
 
@@ -99,26 +98,10 @@ std::vector<ray::ActorHandleID> ActorHandle::NewActorHandles() const {
 void ActorHandle::ClearNewActorHandles() { new_actor_handles_.clear(); }
 
 CoreWorkerTaskInterface::CoreWorkerTaskInterface(
-    WorkerContext &worker_context, std::unique_ptr<RayletClient> &raylet_client,
-    CoreWorkerObjectInterface &object_interface, boost::asio::io_service &io_service,
-    gcs::RedisGcsClient &gcs_client, bool use_asio_rpc)
-    : worker_context_(worker_context) {
-  task_submitters_.emplace(TaskTransportType::RAYLET,
-                           std::unique_ptr<CoreWorkerRayletTaskSubmitter>(
-                               new CoreWorkerRayletTaskSubmitter(raylet_client)));
-
-  auto memory_store_provider =
-      object_interface.CreateStoreProvider(StoreProviderType::MEMORY);
-
-  task_submitters_.emplace(
-      TaskTransportType::DIRECT_ACTOR,
-      use_asio_rpc ? std::unique_ptr<CoreWorkerDirectActorTaskSubmitter>(
-                         new DirectActorAsioTaskSubmitter(
-                             io_service, gcs_client, std::move(memory_store_provider)))
-                   : std::unique_ptr<CoreWorkerDirectActorTaskSubmitter>(
-                         new DirectActorGrpcTaskSubmitter(
-                             io_service, gcs_client, std::move(memory_store_provider))));
-}
+    WorkerContext &worker_context,
+    CoreWorkerTaskSubmitterMap &task_submitters)
+    : worker_context_(worker_context),
+      task_submitters_(task_submitters) {}
 
 void CoreWorkerTaskInterface::BuildCommonTaskSpec(
     TaskSpecBuilder &builder, const TaskID &task_id, const int task_index,

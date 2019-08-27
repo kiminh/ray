@@ -10,10 +10,10 @@ namespace ray {
 
 CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
     WorkerContext &worker_context, std::unique_ptr<RayletClient> &raylet_client,
-    CoreWorkerObjectInterface &object_interface, const TaskExecutor &executor,
+    CoreWorkerStoreProviderMap &store_providers, const TaskExecutor &executor,
     bool use_asio_rpc)
     : worker_context_(worker_context),
-      object_interface_(object_interface),
+      store_providers_(store_providers),
       execution_callback_(executor),
       main_service_(std::make_shared<boost::asio::io_service>()),
       main_work_(*main_service_) {
@@ -41,18 +41,18 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
       TaskTransportType::RAYLET,
       use_asio_rpc
           ? std::unique_ptr<CoreWorkerRayletTaskReceiver>(new RayletAsioTaskReceiver(
-                raylet_client, object_interface_, asio_server.get(), func))
+                raylet_client, store_providers_, asio_server.get(), func))
           : std::unique_ptr<CoreWorkerRayletTaskReceiver>(
-                new RayletGrpcTaskReceiver(raylet_client, object_interface_,
+                new RayletGrpcTaskReceiver(raylet_client, store_providers_,
                                            *main_service_, grpc_server.get(), func)));
   task_receivers_.emplace(
       TaskTransportType::DIRECT_ACTOR,
       use_asio_rpc
           ? std::unique_ptr<CoreWorkerDirectActorTaskReceiver>(
-                new DirectActorAsioTaskReceiver(object_interface_, asio_server.get(),
+                new DirectActorAsioTaskReceiver(asio_server.get(),
                                                 func))
           : std::unique_ptr<CoreWorkerDirectActorTaskReceiver>(
-                new DirectActorGrpcTaskReceiver(object_interface_, *main_service_,
+                new DirectActorGrpcTaskReceiver(*main_service_,
                                                 grpc_server.get(), func)));
 
   // Start RPC server after all the task receivers are properly initialized.
@@ -123,7 +123,8 @@ Status CoreWorkerTaskExecutionInterface::BuildArgsForExecutor(
   }
 
   std::vector<std::shared_ptr<RayObject>> results;
-  auto status = object_interface_.Get(object_ids_to_fetch, -1, &results);
+  auto status = store_providers_[StoreProviderType::PLASMA]->Get(
+      object_ids_to_fetch, -1, task.TaskId(), &results);
   if (status.ok()) {
     for (size_t i = 0; i < results.size(); i++) {
       (*args)[indices[i]] = results[i];

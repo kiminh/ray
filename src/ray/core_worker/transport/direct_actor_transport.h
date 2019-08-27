@@ -160,8 +160,7 @@ class DirectActorAsioTaskSubmitter : public CoreWorkerDirectActorTaskSubmitter {
 class CoreWorkerDirectActorTaskReceiver : public CoreWorkerTaskReceiver,
                                           public rpc::DirectActorHandler {
  public:
-  CoreWorkerDirectActorTaskReceiver(CoreWorkerObjectInterface &object_interface,
-                                    const TaskHandler &task_handler);
+  CoreWorkerDirectActorTaskReceiver(const TaskHandler &task_handler);
 
   /// Handle a `PushTask` request.
   /// The implementation can handle this request asynchronously. When hanling is done, the
@@ -185,16 +184,13 @@ class CoreWorkerDirectActorTaskReceiver : public CoreWorkerTaskReceiver,
                                      rpc::SendReplyCallback send_reply_callback) = 0;
 
  private:
-  // Object interface.
-  CoreWorkerObjectInterface &object_interface_;
   /// The callback function to process a task.
   TaskHandler task_handler_;
 };
 
 class DirectActorGrpcTaskReceiver : public CoreWorkerDirectActorTaskReceiver {
  public:
-  DirectActorGrpcTaskReceiver(CoreWorkerObjectInterface &object_interface,
-                              boost::asio::io_service &io_service,
+  DirectActorGrpcTaskReceiver(boost::asio::io_service &io_service,
                               rpc::GrpcServer &server, const TaskHandler &task_handler);
 
  private:
@@ -209,8 +205,7 @@ class DirectActorGrpcTaskReceiver : public CoreWorkerDirectActorTaskReceiver {
 
 class DirectActorAsioTaskReceiver : public CoreWorkerDirectActorTaskReceiver {
  public:
-  DirectActorAsioTaskReceiver(CoreWorkerObjectInterface &object_interface,
-                              rpc::AsioRpcServer &server,
+  DirectActorAsioTaskReceiver(rpc::AsioRpcServer &server,
                               const TaskHandler &task_handler);
 
  private:
