@@ -92,8 +92,9 @@ format_changed() {
 
     if which clang-format >/dev/null; then
         if ! git diff --diff-filter=ACM --quiet --exit-code "$MERGEBASE" -- '*.cc' '*.h' &>/dev/null; then
-            git diff --name-only --diff-filter=ACM "$MERGEBASE" -- '*.cc' '*.h' | xargs -P 5 \
-                 clang-format -i
+            git diff --name-only --diff-filter=ACM "$MERGEBASE" -- '*.cc' '*.h' \
+                ':!src/ray/thirdparty/rapidjson' \
+                | xargs -P 5 clang-format -i
         fi
     fi
 }
