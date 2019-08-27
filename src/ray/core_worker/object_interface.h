@@ -19,8 +19,7 @@ class CoreWorkerMemoryStore;
 class CoreWorkerObjectInterface {
  public:
   CoreWorkerObjectInterface(WorkerContext &worker_context,
-                            std::unique_ptr<RayletClient> &raylet_client,
-                            const std::string &store_socket);
+                            CoreWorkerStoreProviderMap &store_providers);
 
   /// Put an object into object store.
   ///
@@ -120,18 +119,9 @@ class CoreWorkerObjectInterface {
 
   /// Reference to the parent CoreWorker's context.
   WorkerContext &worker_context_;
-  /// Reference to the parent CoreWorker's raylet client.
-  std::unique_ptr<RayletClient> &raylet_client_;
-
-  /// Store socket name.
-  std::string store_socket_;
-
-  /// In-memory store for return objects. This is used for `MEMORY` store provider.
-  std::shared_ptr<CoreWorkerMemoryStore> memory_store_;
 
   /// All the store providers supported.
-  EnumUnorderedMap<StoreProviderType, std::unique_ptr<CoreWorkerStoreProvider>>
-      store_providers_;
+  CoreWorkerStoreProviderMap &store_providers_;
 
   friend class CoreWorkerTaskInterface;
 

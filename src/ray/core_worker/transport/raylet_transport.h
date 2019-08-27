@@ -33,7 +33,7 @@ class CoreWorkerRayletTaskReceiver : public CoreWorkerTaskReceiver,
                                      public rpc::WorkerTaskHandler {
  public:
   CoreWorkerRayletTaskReceiver(std::unique_ptr<RayletClient> &raylet_client,
-                               CoreWorkerObjectInterface &object_interface,
+                               CoreWorkerStoreProviderMap &store_providers,
                                boost::asio::io_service &io_service,
                                rpc::GrpcServer &server, const TaskHandler &task_handler);
 
@@ -52,7 +52,7 @@ class CoreWorkerRayletTaskReceiver : public CoreWorkerTaskReceiver,
   /// Raylet client.
   std::unique_ptr<RayletClient> &raylet_client_;
   // Object interface.
-  CoreWorkerObjectInterface &object_interface_;
+  CoreWorkerStoreProviderMap &store_providers_;
   /// The rpc service for `WorkerTaskService`.
   rpc::WorkerTaskGrpcService task_service_;
   /// The callback function to process a task.

@@ -8,9 +8,9 @@ namespace ray {
 
 CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
     WorkerContext &worker_context, std::unique_ptr<RayletClient> &raylet_client,
-    CoreWorkerObjectInterface &object_interface, const TaskExecutor &executor)
+    CoreWorkerStoreProviderMap &store_providers, const TaskExecutor &executor)
     : worker_context_(worker_context),
-      object_interface_(object_interface),
+      store_providers_(store_providers),
       execution_callback_(executor),
       worker_server_("Worker", 0 /* let grpc choose port */),
       main_service_(std::make_shared<boost::asio::io_service>()),
@@ -22,11 +22,11 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
   task_receivers_.emplace(
       TaskTransportType::RAYLET,
       std::unique_ptr<CoreWorkerRayletTaskReceiver>(new CoreWorkerRayletTaskReceiver(
-          raylet_client, object_interface_, *main_service_, worker_server_, func)));
+          raylet_client, store_providers_, *main_service_, worker_server_, func)));
   task_receivers_.emplace(
       TaskTransportType::DIRECT_ACTOR,
       std::unique_ptr<CoreWorkerDirectActorTaskReceiver>(
-          new CoreWorkerDirectActorTaskReceiver(object_interface_, *main_service_,
+          new CoreWorkerDirectActorTaskReceiver(*main_service_,
                                                 worker_server_, func)));
 
   // Start RPC server after all the task receivers are properly initialized.
@@ -97,7 +97,8 @@ Status CoreWorkerTaskExecutionInterface::BuildArgsForExecutor(
   }
 
   std::vector<std::shared_ptr<RayObject>> results;
-  auto status = object_interface_.Get(object_ids_to_fetch, -1, &results);
+  auto status = store_providers_[StoreProviderType::PLASMA]->Get(
+      object_ids_to_fetch, -1, task.TaskId(), &results);
   if (status.ok()) {
     for (size_t i = 0; i < results.size(); i++) {
       (*args)[indices[i]] = results[i];

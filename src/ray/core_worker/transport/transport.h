@@ -42,6 +42,9 @@ class CoreWorkerTaskReceiver {
   virtual ~CoreWorkerTaskReceiver() {}
 };
 
+using CoreWorkerTaskSubmitterMap =
+    EnumUnorderedMap<TaskTransportType, std::unique_ptr<CoreWorkerTaskSubmitter>>;
+
 }  // namespace ray
 
 #endif  // RAY_CORE_WORKER_TRANSPORT_H

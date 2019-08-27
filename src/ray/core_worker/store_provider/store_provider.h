@@ -110,6 +110,9 @@ class CoreWorkerStoreProvider {
                         bool delete_creating_tasks = false) = 0;
 };
 
+using CoreWorkerStoreProviderMap =
+    EnumUnorderedMap<StoreProviderType, std::unique_ptr<CoreWorkerStoreProvider>>;
+
 }  // namespace ray
 
 #endif  // RAY_CORE_WORKER_STORE_PROVIDER_H

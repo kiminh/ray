@@ -2,9 +2,6 @@
 
 #include "ray/common/ray_config.h"
 #include "ray/core_worker/object_interface.h"
-#include "ray/core_worker/store_provider/local_plasma_provider.h"
-#include "ray/core_worker/store_provider/memory_store_provider.h"
-#include "ray/core_worker/store_provider/plasma_store_provider.h"
 
 namespace ray {
 
@@ -37,16 +34,10 @@ void GroupObjectIdsByStoreProvider(
 }
 
 CoreWorkerObjectInterface::CoreWorkerObjectInterface(
-    WorkerContext &worker_context, std::unique_ptr<RayletClient> &raylet_client,
-    const std::string &store_socket)
+    WorkerContext &worker_context,
+    CoreWorkerStoreProviderMap &store_providers)
     : worker_context_(worker_context),
-      raylet_client_(raylet_client),
-      store_socket_(store_socket),
-      memory_store_(std::make_shared<CoreWorkerMemoryStore>()) {
-  AddStoreProvider(StoreProviderType::LOCAL_PLASMA);
-  AddStoreProvider(StoreProviderType::PLASMA);
-  AddStoreProvider(StoreProviderType::MEMORY);
-}
+      store_providers_(store_providers) {}
 
 Status CoreWorkerObjectInterface::Put(const RayObject &object, ObjectID *object_id) {
   ObjectID put_id = ObjectID::ForPut(worker_context_.GetCurrentTaskID(),
@@ -244,29 +235,6 @@ Status CoreWorkerObjectInterface::Delete(const std::vector<ObjectID> &object_ids
   }
 
   return Status::OK();
-}
-
-void CoreWorkerObjectInterface::AddStoreProvider(StoreProviderType type) {
-  store_providers_.emplace(type, CreateStoreProvider(type));
-}
-
-std::unique_ptr<CoreWorkerStoreProvider> CoreWorkerObjectInterface::CreateStoreProvider(
-    StoreProviderType type) const {
-  switch (type) {
-  case StoreProviderType::LOCAL_PLASMA:
-    return std::unique_ptr<CoreWorkerStoreProvider>(
-        new CoreWorkerLocalPlasmaStoreProvider(store_socket_));
-  case StoreProviderType::PLASMA:
-    return std::unique_ptr<CoreWorkerStoreProvider>(
-        new CoreWorkerPlasmaStoreProvider(store_socket_, raylet_client_));
-  case StoreProviderType::MEMORY:
-    return std::unique_ptr<CoreWorkerStoreProvider>(
-        new CoreWorkerMemoryStoreProvider(memory_store_));
-    break;
-  default:
-    RAY_LOG(FATAL) << "unknown store provider type " << static_cast<int>(type);
-    return nullptr;
-  }
 }
 
 }  // namespace ray
