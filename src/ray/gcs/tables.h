@@ -216,6 +216,11 @@ class Log : public LogInterface<ID, Data>, virtual public PubsubInterface<ID> {
   /// \return Void.
   void Delete(const JobID &job_id, const std::vector<ID> &ids);
 
+  /// Delete all data from redis synchronously.
+  ///
+  /// \return Status
+  Status DeleteAll();
+
   /// Returns debug string for class.
   ///
   /// \return string.
@@ -226,6 +231,18 @@ class Log : public LogInterface<ID, Data>, virtual public PubsubInterface<ID> {
     static std::hash<ID> index;
     return shard_contexts_[index(id) % shard_contexts_.size()];
   }
+
+  std::shared_ptr<RedisContext> GetRedisContext(const std::string &key) {
+    static std::hash<std::string> index;
+    return shard_contexts_[index(key) % shard_contexts_.size()];
+  }
+
+  /// Delete several keys from redis synchronously.
+  ///
+  /// \param keys Keys that to delete from GCS.
+  /// \param skip_first_key Whether to skip the first key when deleting.
+  /// \return Status
+  Status Delete(const std::vector<std::string> &keys, bool skip_first_key);
 
   /// Subscribe to any modifications to the key. The caller may choose
   /// to subscribe to all modifications, or to subscribe only to keys that it
@@ -362,6 +379,8 @@ class Table : private Log<ID, Data>,
     Log<ID, Data>::Delete(job_id, ids);
   }
 
+  Status DeleteAll() { return Log<ID, Data>::DeleteAll(); }
+
   /// Returns debug string for class.
   ///
   /// \return string.
@@ -444,6 +463,8 @@ class Set : private Log<ID, Data>,
                    const SubscriptionCallback &done) {
     return Log<ID, Data>::Subscribe(job_id, client_id, subscribe, done);
   }
+
+  Status DeleteAll() { return Log<ID, Data>::DeleteAll(); }
 
   /// Returns debug string for class.
   ///
@@ -790,6 +811,8 @@ class ErrorTable : private Log<JobID, ErrorTableData> {
   Status PushErrorToDriver(const JobID &job_id, const std::string &type,
                            const std::string &error_message, double timestamp);
 
+  Status DeleteAll() { return Log<JobID, ErrorTableData>::DeleteAll(); }
+
   /// Returns debug string for class.
   ///
   /// \return string.
@@ -809,6 +832,8 @@ class ProfileTable : private Log<UniqueID, ProfileTableData> {
   /// \param profile_events The profile events to record.
   /// \return Status.
   Status AddProfileEventBatch(const ProfileTableData &profile_events);
+
+  Status DeleteAll() { return Log<UniqueID, ProfileTableData>::DeleteAll(); }
 
   /// Returns debug string for class.
   ///

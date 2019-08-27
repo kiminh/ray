@@ -46,11 +46,18 @@ namespace ray {
 
 namespace gcs {
 
-CallbackReply::CallbackReply(redisReply *redis_reply) {
+CallbackReply::CallbackReply(redisReply *redis_reply, bool own_reply) {
   RAY_CHECK(nullptr != redis_reply);
   RAY_CHECK(redis_reply->type != REDIS_REPLY_ERROR)
       << "Got an error in redis reply: " << redis_reply->str;
   this->redis_reply_ = redis_reply;
+  this->own_reply_ = own_reply;
+}
+
+CallbackReply::~CallbackReply() {
+  if (own_reply_) {
+    freeReplyObject(redis_reply_);
+  }
 }
 
 bool CallbackReply::IsNil() const { return REDIS_REPLY_NIL == redis_reply_->type; }
@@ -255,6 +262,26 @@ Status RedisContext::Connect(const std::string &address, int port, bool sharding
   SetDisconnectCallback(async_redis_subscribe_context_.get());
 
   return Status::OK();
+}
+
+std::unique_ptr<CallbackReply> RedisContext::RunArgvSync(
+    const std::vector<std::string> &args) {
+  RAY_CHECK(context_);
+  // Build the arguments.
+  std::vector<const char *> argv;
+  std::vector<size_t> argc;
+  for (size_t i = 0; i < args.size(); ++i) {
+    argv.push_back(args[i].data());
+    argc.push_back(args[i].size());
+  }
+  void *redis_reply = redisCommandArgv(context_, args.size(), argv.data(), argc.data());
+  if (redis_reply == nullptr) {
+    RAY_LOG(INFO) << "Run redis command failed , err is " << context_->err;
+    return nullptr;
+  } else {
+    return std::unique_ptr<CallbackReply>(new CallbackReply(
+        reinterpret_cast<redisReply *>(redis_reply), /*own_reply*/ true));
+  }
 }
 
 Status RedisContext::RunArgvAsync(const std::vector<std::string> &args) {
