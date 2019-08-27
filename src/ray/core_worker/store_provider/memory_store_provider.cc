@@ -18,7 +18,10 @@ CoreWorkerMemoryStoreProvider::CoreWorkerMemoryStoreProvider(
 
 Status CoreWorkerMemoryStoreProvider::Put(const RayObject &object,
                                           const ObjectID &object_id) {
-  return store_->Put(object_id, object);
+  auto status = store_->Put(object_id, object);
+  // TODO(zhijunfu): check for duplicate object ids has been done
+  // in the asio rpc changes.
+  return Status::OK();
 }
 
 Status CoreWorkerMemoryStoreProvider::Get(

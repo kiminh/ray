@@ -8,6 +8,7 @@
 #include "ray/core_worker/common.h"
 #include "ray/core_worker/context.h"
 #include "ray/core_worker/store_provider/store_provider.h"
+#include "ray/core_worker/transport/transport.h"
 
 namespace ray {
 
@@ -19,7 +20,8 @@ class CoreWorkerMemoryStore;
 class CoreWorkerObjectInterface {
  public:
   CoreWorkerObjectInterface(WorkerContext &worker_context,
-                            CoreWorkerStoreProviderMap &store_providers);
+                            CoreWorkerStoreProviderMap &store_providers,
+                            const CoreWorkerTaskSubmitterMap &task_submitters);
 
   /// Put an object into object store.
   ///
@@ -122,6 +124,8 @@ class CoreWorkerObjectInterface {
 
   /// All the store providers supported.
   CoreWorkerStoreProviderMap &store_providers_;
+
+  const CoreWorkerTaskSubmitterMap &task_submitters_;
 
   friend class CoreWorkerTaskInterface;
 
