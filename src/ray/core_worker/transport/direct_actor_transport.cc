@@ -52,6 +52,7 @@ Status CoreWorkerDirectActorTaskSubmitter::SubmitTask(
     // to have a timeout to mark it as invalid if it doesn't show up in the
     // specified time.
     pending_requests_[actor_id].emplace_back(std::move(request));
+    pending_tasks_[actor_id].insert(std::make_pair(task_id, num_returns));
     return Status::OK();
   } else if (iter->second.state_ == ActorTableData::ALIVE) {
     // Actor is alive, submit the request.
@@ -63,7 +64,7 @@ Status CoreWorkerDirectActorTaskSubmitter::SubmitTask(
 
     // Submit request.
     auto &client = rpc_clients_[actor_id];
-    PushTask(*client, *request, task_id, num_returns);
+    PushTask(*client, *request, actor_id, task_id, num_returns);
     return Status::OK();
   } else {
     // Actor is dead, treat the task as failure.
@@ -103,7 +104,21 @@ Status CoreWorkerDirectActorTaskSubmitter::SubscribeActorUpdates() {
                             rpc::ErrorType::ACTOR_DIED);
         }
         pending_requests_.erase(actor_id);
+        pending_tasks_.erase(actor_id);
       }
+
+      // For tasks that have been sent and are waiting for replies, treat them
+      // as failed when the destination actor is dead or reconstructing.
+      auto iter = waiting_reply_tasks_.find(actor_id);
+      if (iter != waiting_reply_tasks_.end()) {
+        for (const auto &entry : iter->second) {
+          const auto &task_id = entry.first;
+          const auto num_returns = entry.second;
+          TreatTaskAsFailed(task_id, num_returns, rpc::ErrorType::ACTOR_DIED);
+        }
+        waiting_reply_tasks_.erase(actor_id);
+      }
+
     }
 
     RAY_LOG(INFO) << "received notification on actor, state="
@@ -125,21 +140,29 @@ void CoreWorkerDirectActorTaskSubmitter::ConnectAndSendPendingTasks(
   auto &requests = pending_requests_[actor_id];
   while (!requests.empty()) {
     const auto &request = *requests.front();
-    PushTask(*client, request, TaskID::FromBinary(request.task_spec().task_id()),
+    PushTask(*client, request, actor_id, TaskID::FromBinary(request.task_spec().task_id()),
              request.task_spec().num_returns());
     requests.pop_front();
   }
+
+  pending_tasks_.erase(actor_id);
 }
 
 void CoreWorkerDirectActorTaskSubmitter::PushTask(rpc::DirectActorClient &client,
                                                   const rpc::PushTaskRequest &request,
+                                                  const ActorID &actor_id,
                                                   const TaskID &task_id,
                                                   int num_returns) {
+  if (num_returns > 1) {
+    waiting_reply_tasks_[actor_id].insert(std::make_pair(task_id, num_returns));
+  }                                                   
   auto status = client.PushTask(
       request,
-      [this, task_id, num_returns](Status status, const rpc::PushTaskReply &reply) {
+      [this, actor_id, task_id, num_returns](Status status, const rpc::PushTaskReply &reply) {
         if (!status.ok()) {
           TreatTaskAsFailed(task_id, num_returns, rpc::ErrorType::ACTOR_DIED);
+          // Remove the waiting reply task *after* the exception is written into store.
+          waiting_reply_tasks_[actor_id].erase(task_id);
           return;
         }
         for (int i = 0; i < reply.return_objects_size(); i++) {
@@ -161,10 +184,16 @@ void CoreWorkerDirectActorTaskSubmitter::PushTask(rpc::DirectActorClient &client
           }
           RAY_CHECK_OK(
               store_provider_->Put(RayObject(data_buffer, metadata_buffer), object_id));
+
+          // Remove the waiting reply task *after* the object data is written into store.
+          std::unique_lock<std::mutex> guard(mutex_);
+          waiting_reply_tasks_[actor_id].erase(task_id);
         }
       });
   if (!status.ok()) {
     TreatTaskAsFailed(task_id, num_returns, rpc::ErrorType::ACTOR_DIED);
+    // Remove the waiting reply task *after* the exception is written into store.
+    waiting_reply_tasks_[actor_id].erase(task_id);
   }
 }
 
@@ -185,6 +214,107 @@ bool CoreWorkerDirectActorTaskSubmitter::IsActorAlive(const ActorID &actor_id) c
   std::unique_lock<std::mutex> guard(mutex_);
   auto iter = actor_states_.find(actor_id);
   return (iter != actor_states_.end() && iter->second.state_ == ActorTableData::ALIVE);
+}
+
+bool CoreWorkerDirectActorTaskSubmitter::ShouldWaitObjects(
+    const std::vector<ObjectID> &object_ids) {
+  for (const auto &object_id : object_ids) {
+    bool task_finished = IsTaskFinished(object_id.TaskId());
+    if (!task_finished) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool CoreWorkerDirectActorTaskSubmitter::IsTaskFinished(const TaskID &task_id) const {
+  std::unique_lock<std::mutex> guard(mutex_);
+  auto actor_id = task_id.ActorId();
+  auto iter = pending_tasks_.find(actor_id);
+  if (iter != pending_tasks_.end() && iter->second.count(task_id) > 0) {
+    return false;
+  }
+
+  iter = waiting_reply_tasks_.find(actor_id);
+  if (iter != waiting_reply_tasks_.end() && iter->second.count(task_id) > 0) {
+    return false;
+  }
+
+  return true;
+}
+
+Status CoreWorkerDirectActorTaskSubmitter::GetReturnObjects(
+    const std::unordered_set<ObjectID> &object_ids, int64_t timeout_ms,
+    const TaskID &task_id,
+    std::unordered_map<ObjectID, std::shared_ptr<RayObject>> *results) {
+  if (object_ids.empty()) {
+    return Status::OK();
+  }
+
+  std::unordered_set<ObjectID> unready(object_ids);
+
+  int num_attempts = 0;
+  bool should_break = false;
+  int64_t remaining_timeout = timeout_ms;
+  // Repeat until we get all objects.
+  while (!unready.empty() && !should_break) {
+    std::vector<ObjectID> unready_ids;
+    for (const auto &entry : unready) {
+      unready_ids.push_back(entry);
+    }
+
+    // Check whether we should wait for objects to be created/reconstructed,
+    // or just fetch from store.
+    bool should_wait = ShouldWaitObjects(unready_ids);
+
+    // Get the objects from the object store, and parse the result.
+    int64_t get_timeout = RayConfig::instance().get_timeout_milliseconds();
+    if (!should_wait) {
+      get_timeout = 0;
+      remaining_timeout = 0;
+      should_break = true;
+    } else if (remaining_timeout >= 0) {
+      get_timeout = std::min(remaining_timeout, get_timeout);
+      remaining_timeout -= get_timeout;
+      should_break = remaining_timeout <= 0;
+    }
+
+    std::vector<std::shared_ptr<RayObject>> result_objects;
+    RAY_RETURN_NOT_OK(
+        store_provider_->Get(unready_ids, get_timeout, task_id, &result_objects));
+
+    for (size_t i = 0; i < result_objects.size(); i++) {
+      if (result_objects[i] != nullptr) {
+        const auto &object_id = unready_ids[i];
+        (*results).emplace(object_id, result_objects[i]);
+        unready.erase(object_id);
+        if (result_objects[i]->IsException()) {
+          should_break = true;
+        }
+      }
+    }
+
+    num_attempts += 1;
+    CoreWorkerStoreProvider::WarnIfAttemptedTooManyTimes(num_attempts, unready);
+
+    if (!should_wait && !unready.empty()) {
+      // If the tasks that created these objects have already finished, but we are still
+      // not able to get some of the objects from store, it's likely that these objects
+      // have been evicted from store, so them as unreconstructable.
+      std::string meta =
+          std::to_string(static_cast<int>(rpc::ErrorType::OBJECT_UNRECONSTRUCTABLE));
+      auto metadata =
+          const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(meta.data()));
+      auto meta_buffer = std::make_shared<LocalMemoryBuffer>(metadata, meta.size(), true);
+      auto object = std::make_shared<RayObject>(nullptr, meta_buffer);
+      for (const auto &entry : unready) {
+        (*results).emplace(entry, object);
+      }
+    }
+  }
+
+  return Status::OK();
 }
 
 /*

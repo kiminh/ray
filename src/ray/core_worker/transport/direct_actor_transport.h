@@ -38,6 +38,18 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   /// \return Status.
   Status SubmitTask(const TaskSpecification &task_spec) override;
 
+  /// Get a list of return objects for tasks submitted from this transport.
+  ///
+  /// \param[in] object_ids IDs of the objects to get.
+  /// \param[in] timeout_ms Timeout in milliseconds, wait infinitely if it's -1.
+  /// \param[in] task_id ID for the current task.
+  /// \param[out] results Result list of objects data.
+  /// \return Status.
+  Status GetReturnObjects(
+    const std::unordered_set<ObjectID> &object_ids, int64_t timeout_ms,
+    const TaskID &task_id,
+    std::unordered_map<ObjectID, std::shared_ptr<RayObject>> *results);
+
  protected:
   /// Create a RPC client to the specific address.
   ///
@@ -46,7 +58,6 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   /// \return Created RPC client.
   virtual std::unique_ptr<rpc::DirectActorClient> CreateRpcClient(std::string ip_address,
                                                                   int port) = 0;
-
  private:
   /// Subscribe to all actor updates.
   Status SubscribeActorUpdates();
@@ -61,7 +72,7 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   /// \param[in] num_returns Number of return objects.
   /// \return Void.
   void PushTask(rpc::DirectActorClient &client, const rpc::PushTaskRequest &request,
-                const TaskID &task_id, int num_returns);
+                const ActorID &actor_id, const TaskID &task_id, int num_returns);
 
   /// Treat a task as failed.
   ///
@@ -89,6 +100,18 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   /// \return Whether this actor is alive.
   bool IsActorAlive(const ActorID &actor_id) const;
 
+  /// Helper function to check whether to wait for a list of objects to appear,
+  /// e.g. wait for the tasks which create these objects to finish.
+  ///
+  /// \param[in] object_ids A list of object ids.
+  bool ShouldWaitObjects(const std::vector<ObjectID> &object_ids);
+
+  /// Return if the task is finished.
+  ///
+  /// \param[in] task_id The ID of the task.
+  /// \return Whether the task is finished.
+  bool IsTaskFinished(const TaskID &task_id) const;
+
   /// Gcs client.
   gcs::RedisGcsClient &gcs_client_;
 
@@ -112,6 +135,11 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   /// Map from actor id to the actor's pending requests.
   std::unordered_map<ActorID, std::list<std::unique_ptr<rpc::PushTaskRequest>>>
       pending_requests_;
+
+  /// Map from actor id to the tasks that are pending to send out.
+  std::unordered_map<ActorID, std::unordered_map<TaskID, int>> pending_tasks_;
+  /// Map from actor id to the tasks that are waiting for reply.
+  std::unordered_map<ActorID, std::unordered_map<TaskID, int>> waiting_reply_tasks_;
 
   /// The store provider.
   std::unique_ptr<CoreWorkerStoreProvider> store_provider_;

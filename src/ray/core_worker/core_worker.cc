@@ -31,7 +31,7 @@ CoreWorker::CoreWorker(
   InitializeTaskSubmitters(use_asio_rpc);
 
   object_interface_ = std::unique_ptr<CoreWorkerObjectInterface>(
-      new CoreWorkerObjectInterface(worker_context_, store_providers_));
+      new CoreWorkerObjectInterface(worker_context_, store_providers_, task_submitters_));
   task_interface_ = std::unique_ptr<CoreWorkerTaskInterface>(new CoreWorkerTaskInterface(
       worker_context_, task_submitters_));
 
