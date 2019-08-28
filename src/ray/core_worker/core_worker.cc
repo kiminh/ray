@@ -8,6 +8,9 @@
 
 namespace ray {
 
+thread_local std::shared_ptr<RayletClient> CoreWorker::raylet_client_ =
+    nullptr;
+
 CoreWorker::CoreWorker(
     const WorkerType worker_type, const Language language,
     const std::string &store_socket, const std::string &raylet_socket,

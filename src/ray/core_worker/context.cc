@@ -3,10 +3,25 @@
 
 namespace ray {
 
+/// TODO(zhijunfu):
+/// - Some of these need to be copied to user created threads
+/// - Some might need to be shared with these threads in the same worker,
+///   and thus needs to be changed to shared_ptr.
+
 /// per-thread context for core worker.
 struct WorkerThreadContext {
-  WorkerThreadContext()
-      : current_task_id_(TaskID::ForFakeTask()), task_index_(0), put_index_(0) {}
+  WorkerThreadContext(WorkerType worker_type, const JobID &job_id)
+      : worker_id_(worker_type == WorkerType::DRIVER ? ComputeDriverIdFromJob(job_id)
+                                              : WorkerID::FromRandom()),
+        current_job_id_(worker_type == WorkerType::DRIVER ? job_id : JobID::Nil()),
+        current_actor_id_(ActorID::Nil()),
+        current_task_id_(TaskID::ForFakeTask()), task_index_(0), put_index_(0) {}
+
+  const WorkerID &WorkerContext::GetWorkerID() const { return worker_id_; }
+
+  const JobID &WorkerContext::GetCurrentJobID() const { return current_job_id_; }
+  
+  const ActorID &WorkerContext::GetCurrentActorID() const { return current_actor_id_; }
 
   int GetNextTaskIndex() { return ++task_index_; }
 
@@ -30,6 +45,15 @@ struct WorkerThreadContext {
   }
 
  private:
+  /// ID for this worker.
+  const WorkerID worker_id_;
+
+  /// Job ID for this worker.
+  JobID current_job_id_;
+
+  /// ID of current actor.
+  ActorID current_actor_id_;
+ 
   /// The task ID for current task.
   TaskID current_task_id_;
 
@@ -41,17 +65,21 @@ struct WorkerThreadContext {
 
   /// Number of objects that have been put from current task.
   int put_index_;
+
+  std::shared_ptr<RayletClient> raylet_client_;
 };
 
 thread_local std::unique_ptr<WorkerThreadContext> WorkerContext::thread_context_ =
     nullptr;
 
-WorkerContext::WorkerContext(WorkerType worker_type, const JobID &job_id)
+WorkerContext::WorkerContext(WorkerType worker_type, const JobID &job_id,
+    const std::string &raylet_socket)
     : worker_type_(worker_type),
-      worker_id_(worker_type_ == WorkerType::DRIVER ? ComputeDriverIdFromJob(job_id)
-                                                    : WorkerID::FromRandom()),
-      current_job_id_(worker_type_ == WorkerType::DRIVER ? job_id : JobID::Nil()),
-      current_actor_id_(ActorID::Nil()) {
+      job_id_(job_id),
+      raylet_socket_(raylet_socket) {
+  // TODO(zhijunfu): this needs to be done per-worker-thread, and needs to be
+  // moved out of this to the specific init code.
+
   // For worker main thread which initializes the WorkerContext,
   // set task_id according to whether current worker is a driver.
   // (For other threads it's set to random ID via GetThreadContext).
@@ -62,13 +90,13 @@ WorkerContext::WorkerContext(WorkerType worker_type, const JobID &job_id)
 
 const WorkerType WorkerContext::GetWorkerType() const { return worker_type_; }
 
-const WorkerID &WorkerContext::GetWorkerID() const { return worker_id_; }
+const WorkerID &WorkerContext::GetWorkerID() const { return GetThreadContext().GetWorkerID(); }
 
 int WorkerContext::GetNextTaskIndex() { return GetThreadContext().GetNextTaskIndex(); }
 
 int WorkerContext::GetNextPutIndex() { return GetThreadContext().GetNextPutIndex(); }
 
-const JobID &WorkerContext::GetCurrentJobID() const { return current_job_id_; }
+const JobID &WorkerContext::GetCurrentJobID() const { return GetThreadContext().GetCurrentJobID(); }
 
 const TaskID &WorkerContext::GetCurrentTaskID() const {
   return GetThreadContext().GetCurrentTaskID();
@@ -85,11 +113,12 @@ void WorkerContext::SetCurrentTask(const TaskSpecification &task_spec) {
     RAY_CHECK(current_actor_id_ == task_spec.ActorId());
   }
 }
+
 std::shared_ptr<const TaskSpecification> WorkerContext::GetCurrentTask() const {
   return GetThreadContext().GetCurrentTask();
 }
 
-const ActorID &WorkerContext::GetCurrentActorID() const { return current_actor_id_; }
+const ActorID &WorkerContext::GetCurrentActorID() const { return GetThreadContext().GetCurrentActorID(); }
 
 WorkerThreadContext &WorkerContext::GetThreadContext() {
   if (thread_context_ == nullptr) {

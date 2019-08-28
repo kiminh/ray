@@ -24,8 +24,6 @@ class CoreWorker {
   ///
   /// \param[in] worker_type Type of this worker.
   /// \param[in] langauge Language of this worker.
-  ///
-  /// NOTE(zhijunfu): the constructor would throw if a failure happens.
   CoreWorker(const WorkerType worker_type, const Language language,
              const std::string &store_socket, const std::string &raylet_socket,
              const JobID &job_id, const gcs::GcsClientOptions &gcs_options,
@@ -66,7 +64,7 @@ class CoreWorker {
 
   std::unique_ptr<CoreWorkerStoreProvider> CreateStoreProvider(StoreProviderType type);
 
-  /// Type of this worker.
+  /// Type of this worker (worker or driver).
   const WorkerType worker_type_;
 
   /// Language of this worker.
@@ -89,9 +87,6 @@ class CoreWorker {
 
   /// The thread to handle IO events.
   std::thread io_thread_;
-
-  /// Raylet client.
-  std::unique_ptr<RayletClient> raylet_client_;
 
   /// GCS client.
   std::unique_ptr<gcs::RedisGcsClient> gcs_client_;
@@ -120,6 +115,9 @@ class CoreWorker {
   /// The `CoreWorkerTaskExecutionInterface` instance.
   /// This is only available if it's not a driver.
   std::unique_ptr<CoreWorkerTaskExecutionInterface> task_execution_interface_;
+
+  /// Raylet client.
+  static thread_local std::shared_ptr<RayletClient> raylet_client_;
 };
 
 }  // namespace ray

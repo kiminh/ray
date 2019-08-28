@@ -10,7 +10,7 @@ struct WorkerThreadContext;
 
 class WorkerContext {
  public:
-  WorkerContext(WorkerType worker_type, const JobID &job_id);
+  WorkerContext(WorkerType worker_type, const JobID &job_id, const std::string &raylet_socket);
 
   const WorkerType GetWorkerType() const;
 
@@ -30,24 +30,31 @@ class WorkerContext {
 
   int GetNextPutIndex();
 
+  std::shared_ptr<RayletClient> GetRayletClient();
+
  private:
-  /// Type of the worker.
+  /// Type of the worker process. Whether it's a driver or worker.
   const WorkerType worker_type_;
-
-  /// ID for this worker.
-  const WorkerID worker_id_;
-
-  /// Job ID for this worker.
-  JobID current_job_id_;
-
-  /// ID of current actor.
-  ActorID current_actor_id_;
+  /// The job ID which is only valid when it's a driver.
+  const JobID job_id_;
+  /// raylet socket name.
+  const std::string raylet_socket_;
 
  private:
   static WorkerThreadContext &GetThreadContext();
 
   /// Per-thread worker context.
   static thread_local std::unique_ptr<WorkerThreadContext> thread_context_;
+};
+
+class RuntimeContext {
+ public:
+  RuntimeContext(const std::string &raylet_socket);
+ 
+  static std::shared_ptr<RayletClient> GetThreadRayletClient();
+ private:
+  /// Per-thread worker context.
+  static thread_local std::unique_ptr<WorkerThreadContext> thread_context_;  
 };
 
 }  // namespace ray
