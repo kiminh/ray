@@ -162,3 +162,17 @@ RAY_CONFIG(uint32_t, object_store_get_max_ids_to_print_in_warning, 20)
 /// Whether to use asio based RPC for raylet-to-worker and worker-to-worker communication.
 /// If this lag is true, then asio based RPC is used; otherwise, GRPC is used.
 RAY_CONFIG(bool, use_asio_rpc_for_worker, true)
+
+RAY_CONFIG(uint32_t, check_interval_seconds, 3)
+
+RAY_CONFIG(uint32_t, beacon_interval_seconds, 3)
+
+RAY_CONFIG(uint32_t, lease_seconds, 14)
+
+RAY_CONFIG(uint32_t, grace_seconds, 15)
+
+RAY_CONFIG(std::string, redis_address, "")
+
+RAY_CONFIG(std::string, redis_passw, "")
+
+RAY_CONFIG(uint32_t, redis_port, 0)

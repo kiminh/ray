@@ -27,7 +27,7 @@ class GcsServer final : public rpc::GcsServerHandler {
 
  private:
   boost::asio::io_context &ioc_;
-  std::shared_ptr<FailureDetectMaster> fd_;
+  FailureDetectMaster fd_;
   std::unique_ptr<AbstractFailover> failover_;
   rpc::AsioRpcServer gcs_server_;
   rpc::GcsAsioRpcService gcs_service_;

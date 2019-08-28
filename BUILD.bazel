@@ -441,6 +441,8 @@ cc_library(
     name = "gcs_server_lib",
     srcs = glob(
         [
+            "src/ray/raylet/monitor.cc",
+            "src/ray/raylet/monitor.h",
             "src/ray/gcs/gcs_server/**/*.cc",
         ],
         exclude = [
@@ -454,6 +456,7 @@ cc_library(
     ),
     copts = COPTS,
     deps = [
+        ":gcs",
         ":gcs_rpc",
         ":failover_rpc",
         ":ray_http",

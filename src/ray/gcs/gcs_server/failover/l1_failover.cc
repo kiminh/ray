@@ -1,4 +1,5 @@
 #include "l1_failover.h"
+#include "ray/common/ray_config.h"
 #include "ray/protobuf/failover.pb.h"
 #include "ray/rpc/failover/failover_client.h"
 #include "ray/util/logging.h"
@@ -6,6 +7,36 @@
 
 namespace ray {
 namespace gcs {
+
+L1Failover::L1Failover(boost::asio::io_context &ioc, FailureDetector &fd)
+    : ioc_(ioc), fd_(fd) {
+  fd_.OnWorkerConnected([this](ray::fd::WorkerContext &&ctx) {
+    OnWorkerConnected(ctx.node_id, ctx.endpoint);
+  });
+
+  fd_.OnWorkerDisconnected([this](std::vector<ray::fd::WorkerContext> &&ctxs) {
+    for (auto &ctx : ctxs) {
+      OnWorkerDisconnected(ctx.node_id, ctx.endpoint);
+    }
+  });
+
+  fd_.OnWorkerRestartedWithinLease([this](ray::fd::WorkerContext &&ctx) {
+    OnWorkerRestarted(ctx.node_id, ctx.endpoint);
+  });
+
+  uint32_t check_interval_seconds = RayConfig::instance().check_interval_seconds();
+  uint32_t beacon_interval_seconds = RayConfig::instance().beacon_interval_seconds();
+  uint32_t lease_seconds = RayConfig::instance().lease_seconds();
+  uint32_t grace_seconds = RayConfig::instance().grace_seconds();
+  fd_.Start(check_interval_seconds, beacon_interval_seconds, lease_seconds,
+            grace_seconds);
+
+  //  auto redis_port = RayConfig::instance().redis_port();
+  //  auto redis_address = RayConfig::instance().redis_address();
+  //  auto redis_passw = RayConfig::instance().redis_passw();
+  //  monitor_.reset(new ray::raylet::Monitor(ioc_, redis_address, redis_port,
+  //  redis_passw));
+}
 
 ray::Status L1Failover::TryRegister(const ray::rpc::RegisterRequest &req,
                                     ray::rpc::RegisterReply *reply) {
@@ -65,7 +96,8 @@ void L1Failover::OnRoundFailedBegin(const AbstractFailover::NodeContext &ctx) {
   RAY_LOG(WARNING) << __FUNCTION__ << " **** Abnormal exit detected ****"
                    << " nid: " << ctx.node_id << ", address: " << ctx.ep.to_string()
                    << ", registered_node_cnt: " << registered_nodes_.size();
-  fd_->PauseOnMaster();
+  fd_.PauseOnMaster();
+  //  monitor_.reset();
 
   for (auto &entry : registered_nodes_) {
     if (entry.first != ctx.node_id) {
@@ -81,7 +113,13 @@ void L1Failover::OnRoundFailedBegin(const AbstractFailover::NodeContext &ctx) {
 void L1Failover::OnRoundFailedEnd(const AbstractFailover::NodeContext &ctx) {
   registered_nodes_.clear();
   round_failed_nodes_.clear();
-  fd_->ResumeOnMaster();
+  fd_.ResumeOnMaster();
+
+  //  auto redis_port = RayConfig::instance().redis_port();
+  //  auto redis_address = RayConfig::instance().redis_address();
+  //  auto redis_passw = RayConfig::instance().redis_passw();
+  //  monitor_.reset(new ray::raylet::Monitor(ioc_, redis_address, redis_port,
+  //  redis_passw));
 }
 
 void L1Failover::ResetNode(const NodeContext &ctx) {

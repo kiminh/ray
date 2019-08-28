@@ -137,6 +137,9 @@ NodeManager::NodeManager(boost::asio::io_service &io_service,
         new rpc::FailoverAsioRpcService(*this));
     node_manager_asio_server_->RegisterService(*failover_service_);
 
+    // TODO(hc): start fd
+    // fd_->Run();
+
     node_manager_asio_server_->Run();
   } else {
     node_manager_grpc_server_ = std::unique_ptr<rpc::GrpcServer>(
