@@ -17,9 +17,9 @@ message PushTaskRequest {
   // The task to be pushed.
   TaskSpec task_spec = 1;
   // TODO: comment
-  bytes src_worker_id = 2;
+  bytes caller_worker_id = 2;
   // TODO: comment
-  bytes dst_worker_id = 3;
+  bytes callee_worker_id = 3;
 }
 
 message PushTaskReply {

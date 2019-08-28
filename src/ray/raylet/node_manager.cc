@@ -1919,6 +1919,7 @@ void NodeManager::FinishAssignedActorTask(Worker &worker, const Task &task) {
   if (task_spec.IsActorCreationTask()) {
     // This was an actor creation task. Convert the worker to an actor.
     worker.AssignActorId(actor_id);
+    auto worker_id = worker.WorkerId();
     // Lookup the parent actor id.
     auto parent_task_id = task_spec.ParentTaskId();
     RAY_CHECK(actor_handle_id.IsNil());
@@ -1926,7 +1927,7 @@ void NodeManager::FinishAssignedActorTask(Worker &worker, const Task &task) {
     RAY_CHECK_OK(gcs_client_->raylet_task_table().Lookup(
         JobID::Nil(), parent_task_id,
         /*success_callback=*/
-        [this, task_spec, resumed_from_checkpoint, port](
+        [this, task_spec, resumed_from_checkpoint, worker_id, port](
             ray::gcs::RedisGcsClient *client, const TaskID &parent_task_id,
             const TaskTableData &parent_task_data) {
           // The task was in the GCS task table. Use the stored task spec to
@@ -1938,12 +1939,12 @@ void NodeManager::FinishAssignedActorTask(Worker &worker, const Task &task) {
           } else if (parent_task.GetTaskSpecification().IsActorTask()) {
             parent_actor_id = parent_task.GetTaskSpecification().ActorId();
           }
-          FinishAssignedActorCreationTask(parent_actor_id, task_spec,
+          FinishAssignedActorCreationTask(worker_id, parent_actor_id, task_spec,
                                           resumed_from_checkpoint, port);
         },
         /*failure_callback=*/
-        [this, task_spec, resumed_from_checkpoint, port](ray::gcs::RedisGcsClient *client,
-                                                         const TaskID &parent_task_id) {
+        [this, task_spec, resumed_from_checkpoint, worker_id, port](
+            ray::gcs::RedisGcsClient *client, const TaskID &parent_task_id) {
           // The parent task was not in the GCS task table. It should most likely be in
           // the
           // lineage cache.
@@ -1965,7 +1966,7 @@ void NodeManager::FinishAssignedActorTask(Worker &worker, const Task &task) {
                    "allocation via "
                 << "ray.init(redis_max_memory=<max_memory_bytes>).";
           }
-          FinishAssignedActorCreationTask(parent_actor_id, task_spec,
+          FinishAssignedActorCreationTask(worker_id, parent_actor_id, task_spec,
                                           resumed_from_checkpoint, port);
         }));
   } else {
@@ -1999,13 +2000,15 @@ void NodeManager::ExtendActorFrontier(const ObjectID &dummy_object,
   HandleObjectLocal(dummy_object);
 }
 
-void NodeManager::FinishAssignedActorCreationTask(const ActorID &parent_actor_id,
+void NodeManager::FinishAssignedActorCreationTask(const WorkerID &worker_id,
+                                                  const ActorID &parent_actor_id,
                                                   const TaskSpecification &task_spec,
                                                   bool resumed_from_checkpoint,
                                                   int port) {
   // Notify the other node managers that the actor has been created.
   const ActorID actor_id = task_spec.ActorCreationId();
   auto new_actor_info = CreateActorTableDataFromCreationTask(task_spec, port);
+  new_actor_info->set_worker_id(worker_id.Binary());
   new_actor_info->set_parent_actor_id(parent_actor_id.Binary());
   auto update_callback = [actor_id](Status status) {
     if (!status.ok()) {

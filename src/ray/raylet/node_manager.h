@@ -239,6 +239,7 @@ class NodeManager : public rpc::NodeManagerServiceHandler {
   /// Helper function for handling worker to finish its assigned actor task
   /// or actor creation task. Gets invoked when tasks's parent actor is known.
   ///
+  /// \param worker_id The ID of the worker which holds the actor.
   /// \param parent_actor_id The actor id corresponding to the actor which creates
   /// the new actor.
   /// \param task_spec Task specification of the actor creation task that created the
@@ -246,7 +247,8 @@ class NodeManager : public rpc::NodeManagerServiceHandler {
   /// \param resumed_from_checkpoint If the actor was resumed from a checkpoint.
   /// \param port Rpc server port that the actor is listening on.
   /// \return Void.
-  void FinishAssignedActorCreationTask(const ActorID &parent_actor_id,
+  void FinishAssignedActorCreationTask(const WorkerID &worker_id,
+                                       const ActorID &parent_actor_id,
                                        const TaskSpecification &task_spec,
                                        bool resumed_from_checkpoint, int port);
   /// Extend actor frontier after an actor task or actor creation task executes.

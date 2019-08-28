@@ -109,6 +109,8 @@ message ActorTableData {
   string ip_address = 9;
   // The port that the actor is listening on.
   int32 port = 10;
+  // The ID of the worker that holds the actor, if the actor is alive.
+  bytes worker_id = 11;
 }
 
 message ErrorTableData {

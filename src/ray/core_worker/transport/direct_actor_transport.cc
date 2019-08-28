@@ -20,9 +20,11 @@ bool HasByReferenceArgs(const TaskSpecification &spec) {
  */
 
 CoreWorkerDirectActorTaskSubmitter::CoreWorkerDirectActorTaskSubmitter(
-    gcs::RedisGcsClient &gcs_client,
+    WorkerContext &worker_context, gcs::RedisGcsClient &gcs_client,
     std::unique_ptr<CoreWorkerStoreProvider> store_provider)
-    : gcs_client_(gcs_client), store_provider_(std::move(store_provider)) {
+    : worker_context_(worker_context),
+      gcs_client_(gcs_client),
+      store_provider_(std::move(store_provider)) {
   RAY_CHECK_OK(SubscribeActorUpdates());
 }
 
@@ -40,6 +42,7 @@ Status CoreWorkerDirectActorTaskSubmitter::SubmitTask(
 
   auto request = std::unique_ptr<rpc::PushTaskRequest>(new rpc::PushTaskRequest);
   request->mutable_task_spec()->Swap(&task_spec.GetMutableMessage());
+  request->set_caller_worker_id(worker_context_.GetCurrentWorkerID().Binary());
 
   std::unique_lock<std::mutex> guard(mutex_);
   auto iter = actor_states_.find(actor_id);
@@ -58,7 +61,8 @@ Status CoreWorkerDirectActorTaskSubmitter::SubmitTask(
     // Actor is alive, submit the request.
     if (rpc_clients_.count(actor_id) == 0) {
       // If rpc client is not available, then create it.
-      ConnectAndSendPendingTasks(actor_id, iter->second.location_.first,
+      ConnectAndSendPendingTasks(iter->second.worker_id_, actor_id,
+                                 iter->second.location_.first,
                                  iter->second.location_.second);
     }
 
@@ -82,14 +86,16 @@ Status CoreWorkerDirectActorTaskSubmitter::SubscribeActorUpdates() {
     actor_states_.erase(actor_id);
     actor_states_.emplace(
         actor_id,
-        ActorStateData(actor_data.state(), actor_data.ip_address(), actor_data.port()));
+        ActorStateData(actor_data.state(), WorkerID::FromBinary(actor_data.worker_id()),
+                       actor_data.ip_address(), actor_data.port()));
 
     if (actor_data.state() == ActorTableData::ALIVE) {
       // Check if this actor is the one that we're interested, if we already have
       // a connection to the actor, or have pending requests for it, we should
       // create a new connection.
       if (pending_requests_.count(actor_id) > 0) {
-        ConnectAndSendPendingTasks(actor_id, actor_data.ip_address(), actor_data.port());
+        ConnectAndSendPendingTasks(WorkerID::FromBinary(actor_data.worker_id()), actor_id,
+                                   actor_data.ip_address(), actor_data.port());
       }
     } else {
       // Remove rpc client if it's dead or being reconstructed.
@@ -130,7 +136,8 @@ Status CoreWorkerDirectActorTaskSubmitter::SubscribeActorUpdates() {
 }
 
 void CoreWorkerDirectActorTaskSubmitter::ConnectAndSendPendingTasks(
-    const ActorID &actor_id, std::string ip_address, int port) {
+    const WorkerID &callee_worker_id, const ActorID &actor_id, std::string ip_address,
+    int port) {
   std::unique_ptr<rpc::DirectActorClient> grpc_client = CreateRpcClient(ip_address, port);
   RAY_CHECK(rpc_clients_.emplace(actor_id, std::move(grpc_client)).second);
 
@@ -138,7 +145,8 @@ void CoreWorkerDirectActorTaskSubmitter::ConnectAndSendPendingTasks(
   auto &client = rpc_clients_[actor_id];
   auto &requests = pending_requests_[actor_id];
   while (!requests.empty()) {
-    const auto &request = *requests.front();
+    auto &request = *requests.front();
+    request.set_callee_worker_id(callee_worker_id.Binary());
     PushTask(*client, request, actor_id,
              TaskID::FromBinary(request.task_spec().task_id()),
              request.task_spec().num_returns());
@@ -342,7 +350,7 @@ void CoreWorkerDirectActorTaskReceiver::HandlePushTask(
   }
 
   auto &worker_service =
-      worker_service_finder_(WorkerID::FromBinary(request.dst_worker_id()));
+      worker_service_finder_(WorkerID::FromBinary(request.callee_worker_id()));
   worker_service.post([this, task_spec, num_returns, reply, send_reply_callback]() {
     std::vector<std::shared_ptr<RayObject>> results;
     auto status = task_handler_(task_spec, &results);

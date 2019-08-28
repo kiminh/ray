@@ -16,11 +16,14 @@ namespace ray {
 
 /// The state data for an actor.
 struct ActorStateData {
-  ActorStateData(gcs::ActorTableData::ActorState state, const std::string &ip, int port)
-      : state_(state), location_(std::make_pair(ip, port)) {}
+  ActorStateData(gcs::ActorTableData::ActorState state, const WorkerID worker_id,
+                 const std::string &ip, int port)
+      : state_(state), worker_id_(worker_id), location_(std::make_pair(ip, port)) {}
 
   /// Actor's state (e.g. alive, dead, reconstrucing).
   gcs::ActorTableData::ActorState state_;
+
+  WorkerID worker_id_;
 
   /// IP address and port that the actor is listening on.
   std::pair<std::string, int> location_;
@@ -29,7 +32,7 @@ struct ActorStateData {
 class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
  public:
   CoreWorkerDirectActorTaskSubmitter(
-      gcs::RedisGcsClient &gcs_client,
+      WorkerContext &worker_context, gcs::RedisGcsClient &gcs_client,
       std::unique_ptr<CoreWorkerStoreProvider> store_provider);
 
   /// Submit a task to an actor for execution.
@@ -88,11 +91,13 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   /// Note that this function doesn't take lock, the caller is expected to hold
   /// `mutex_` before calling this function.
   ///
+  /// \param[in] callee_worker_id TODO.
   /// \param[in] actor_id Actor ID.
   /// \param[in] ip_address The ip address of the node that the actor is running on.
   /// \param[in] port The port that the actor is listening on.
   /// \return Void.
-  void ConnectAndSendPendingTasks(const ActorID &actor_id, std::string ip_address,
+  void ConnectAndSendPendingTasks(const WorkerID &callee_worker_id,
+                                  const ActorID &actor_id, std::string ip_address,
                                   int port);
 
   /// Whether the specified actor is alive.
@@ -112,6 +117,9 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   /// \param[in] task_id The ID of the task.
   /// \return Whether the task is finished.
   bool IsTaskFinished(const TaskID &task_id) const;
+
+  /// TODO
+  WorkerContext &worker_context_;
 
   /// Gcs client.
   gcs::RedisGcsClient &gcs_client_;
@@ -151,9 +159,11 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
 class DirectActorGrpcTaskSubmitter : public CoreWorkerDirectActorTaskSubmitter {
  public:
   DirectActorGrpcTaskSubmitter(boost::asio::io_service &io_service,
+                               WorkerContext &worker_context,
                                gcs::RedisGcsClient &gcs_client,
                                std::unique_ptr<CoreWorkerStoreProvider> store_provider)
-      : CoreWorkerDirectActorTaskSubmitter(gcs_client, std::move(store_provider)),
+      : CoreWorkerDirectActorTaskSubmitter(worker_context, gcs_client,
+                                           std::move(store_provider)),
         client_call_manager_(io_service) {}
 
   std::unique_ptr<rpc::DirectActorClient> CreateRpcClient(std::string ip_address,
@@ -170,9 +180,11 @@ class DirectActorGrpcTaskSubmitter : public CoreWorkerDirectActorTaskSubmitter {
 class DirectActorAsioTaskSubmitter : public CoreWorkerDirectActorTaskSubmitter {
  public:
   DirectActorAsioTaskSubmitter(boost::asio::io_service &io_service,
+                               WorkerContext &worker_context,
                                gcs::RedisGcsClient &gcs_client,
                                std::unique_ptr<CoreWorkerStoreProvider> store_provider)
-      : CoreWorkerDirectActorTaskSubmitter(gcs_client, std::move(store_provider)),
+      : CoreWorkerDirectActorTaskSubmitter(worker_context, gcs_client,
+                                           std::move(store_provider)),
         io_service_(io_service) {}
 
   std::unique_ptr<rpc::DirectActorClient> CreateRpcClient(std::string ip_address,

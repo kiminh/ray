@@ -121,11 +121,11 @@ void CoreWorker::InitializeTaskSubmitters(bool use_asio_rpc) {
       TaskTransportType::DIRECT_ACTOR,
       use_asio_rpc ? std::unique_ptr<CoreWorkerDirectActorTaskSubmitter>(
                          new DirectActorAsioTaskSubmitter(
-                             io_service_, *gcs_client_,
+                             io_service_, worker_context_, *gcs_client_,
                              CreateStoreProvider(StoreProviderType::MEMORY)))
                    : std::unique_ptr<CoreWorkerDirectActorTaskSubmitter>(
                          new DirectActorGrpcTaskSubmitter(
-                             io_service_, *gcs_client_,
+                             io_service_, worker_context_, *gcs_client_,
                              CreateStoreProvider(StoreProviderType::MEMORY))));
 }
 
