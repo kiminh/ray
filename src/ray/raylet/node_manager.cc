@@ -124,16 +124,16 @@ NodeManager::NodeManager(boost::asio::io_service &io_service,
         new rpc::AsioRpcServer("NodeManager", config.node_manager_port, io_service));
     node_manager_asio_service_ = std::unique_ptr<rpc::NodeManagerAsioRpcService>(
         new rpc::NodeManagerAsioRpcService(*this));
-    
+
     node_manager_asio_server_->RegisterService(*node_manager_asio_service_);
-    node_manager_asio_server_->Run();    
+    node_manager_asio_server_->Run();
   } else {
     node_manager_grpc_server_ = std::unique_ptr<rpc::GrpcServer>(
         new rpc::GrpcServer("NodeManager", config.node_manager_port));
     node_manager_grpc_service_ = std::unique_ptr<rpc::NodeManagerGrpcService>(
         new rpc::NodeManagerGrpcService(io_service, *this));
-    client_call_manager_ = std::unique_ptr<rpc::ClientCallManager>(
-        new rpc::ClientCallManager(io_service));
+    client_call_manager_ =
+        std::unique_ptr<rpc::ClientCallManager>(new rpc::ClientCallManager(io_service));
 
     node_manager_grpc_server_->RegisterService(*node_manager_grpc_service_);
     node_manager_grpc_server_->Run();
@@ -405,13 +405,12 @@ void NodeManager::ClientAdded(const GcsNodeInfo &node_info) {
   // Initialize a rpc client to the new node manager.
   std::unique_ptr<rpc::NodeManagerClient> client;
   if (RayConfig::instance().use_asio_rpc_for_worker()) {
-    client = std::unique_ptr<rpc::NodeManagerAsioClient>(
-        new rpc::NodeManagerAsioClient(node_info.node_manager_address(),
-        node_info.node_manager_port(), io_service_));
+    client = std::unique_ptr<rpc::NodeManagerAsioClient>(new rpc::NodeManagerAsioClient(
+        node_info.node_manager_address(), node_info.node_manager_port(), io_service_));
   } else {
-    client = std::unique_ptr<rpc::NodeManagerGrpcClient>(
-        new rpc::NodeManagerGrpcClient(node_info.node_manager_address(),
-        node_info.node_manager_port(), *client_call_manager_));
+    client = std::unique_ptr<rpc::NodeManagerGrpcClient>(new rpc::NodeManagerGrpcClient(
+        node_info.node_manager_address(), node_info.node_manager_port(),
+        *client_call_manager_));
   }
   remote_node_manager_clients_.emplace(client_id, std::move(client));
 
@@ -847,37 +846,39 @@ void NodeManager::ProcessRegisterClientRequestMessage(
   client->Register();
   auto message = flatbuffers::GetRoot<protocol::RegisterClientRequest>(message_data);
   Language language = static_cast<Language>(message->language());
-  WorkerID worker_id = from_flatbuf<WorkerID>(*message->worker_id());
-  auto worker =
-      RayConfig::instance().use_asio_rpc_for_worker()
-          ? std::make_shared<Worker>(worker_id, message->worker_pid(), language,
-                                     message->port(), client, io_service_)
-          : std::make_shared<Worker>(worker_id, message->worker_pid(), language,
-                                     message->port(), client, *client_call_manager_);
+  for (int64_t i = 0; i < message->worker_ids()->size(); ++i) {
+    WorkerID worker_id = from_flatbuf<WorkerID>(*message->worker_ids()->Get(i));
+    auto worker =
+        RayConfig::instance().use_asio_rpc_for_worker()
+            ? std::make_shared<Worker>(worker_id, message->worker_pid(), language,
+                                       message->port(), client, io_service_)
+            : std::make_shared<Worker>(worker_id, message->worker_pid(), language,
+                                       message->port(), client, *client_call_manager_);
 
-  Status status;
-  if (message->is_worker()) {
-    // Register the new worker.
-    bool use_push_task = worker->UsePush();
-    auto connection = worker->Connection();
-    status = worker_pool_.RegisterWorker(std::move(worker));
-    if (status.ok() && use_push_task) {
-      // only call `HandleWorkerAvailable` when push mode is used.
-      HandleWorkerAvailable(connection);
-    }
-  } else {
-    // Register the new driver.
-    const JobID job_id = from_flatbuf<JobID>(*message->job_id());
-    // Compute a dummy driver task id from a given driver.
-    const TaskID driver_task_id = TaskID::ComputeDriverTaskId(worker_id);
-    worker->AssignTaskId(driver_task_id);
-    worker->AssignJobId(job_id);
-    status = worker_pool_.RegisterDriver(std::move(worker));
-    if (status.ok()) {
-      local_queues_.AddDriverTaskId(driver_task_id);
-      RAY_CHECK_OK(gcs_client_->job_table().AppendJobData(
-          job_id, /*is_dead=*/false, std::time(nullptr),
-          initial_config_.node_manager_address, message->worker_pid()));
+    Status status;
+    if (message->is_worker()) {
+      // Register the new worker.
+      bool use_push_task = worker->UsePush();
+      auto connection = worker->Connection();
+      status = worker_pool_.RegisterWorker(std::move(worker));
+      if (status.ok() && use_push_task) {
+        // only call `HandleWorkerAvailable` when push mode is used.
+        HandleWorkerAvailable(connection);
+      }
+    } else {
+      // Register the new driver.
+      const JobID job_id = from_flatbuf<JobID>(*message->job_id());
+      // Compute a dummy driver task id from a given driver.
+      const TaskID driver_task_id = TaskID::ComputeDriverTaskId(worker_id);
+      worker->AssignTaskId(driver_task_id);
+      worker->AssignJobId(job_id);
+      status = worker_pool_.RegisterDriver(std::move(worker));
+      if (status.ok()) {
+        local_queues_.AddDriverTaskId(driver_task_id);
+        RAY_CHECK_OK(gcs_client_->job_table().AppendJobData(
+            job_id, /*is_dead=*/false, std::time(nullptr),
+            initial_config_.node_manager_address, message->worker_pid()));
+      }
     }
   }
 }
@@ -1236,7 +1237,7 @@ void NodeManager::ProcessNotifyActorResumedFromCheckpoint(const uint8_t *message
 }
 
 void NodeManager::HandleForwardTask(const rpc::ForwardTaskRequest &request,
-                                    rpc::ForwardTaskReply *reply,
+                                    std::shared_ptr<rpc::ForwardTaskReply> reply,
                                     rpc::SendReplyCallback send_reply_callback) {
   // Get the forwarded task and its uncommitted lineage from the request.
   TaskID task_id = TaskID::FromBinary(request.task_id());

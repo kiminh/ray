@@ -21,14 +21,16 @@ class ObjectManagerServiceHandler {
   /// \param[in] request The request message.
   /// \param[out] reply The reply message.
   /// \param[in] send_reply_callback The callback to be called when the request is done.
-  virtual void HandlePushRequest(const PushRequest &request, PushReply *reply,
+  virtual void HandlePushRequest(const PushRequest &request,
+                                 std::shared_ptr<PushReply> reply,
                                  SendReplyCallback send_reply_callback) = 0;
   /// Handle a `Pull` request
-  virtual void HandlePullRequest(const PullRequest &request, PullReply *reply,
+  virtual void HandlePullRequest(const PullRequest &request,
+                                 std::shared_ptr<PullReply> reply,
                                  SendReplyCallback send_reply_callback) = 0;
   /// Handle a `FreeObjects` request
   virtual void HandleFreeObjectsRequest(const FreeObjectsRequest &request,
-                                        FreeObjectsReply *reply,
+                                        std::shared_ptr<FreeObjectsReply> reply,
                                         SendReplyCallback send_reply_callback) = 0;
 };
 

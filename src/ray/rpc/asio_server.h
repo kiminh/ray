@@ -198,16 +198,16 @@ class ServiceMethodImpl : public ServiceMethod {
     Request request;
     request.ParseFromString(request_message.request());
 
-    Reply reply;
+    auto reply = std::make_shared<Reply>();
 
     RAY_LOG(DEBUG) << "Handle request for service " << RpcServiceType_Name(service_type_)
                    << ", request id: " << request_id
                    << ", request type: " << static_cast<int>(request_type_);
 
     (service_handler_.*handle_request_function_)(
-        request, &reply,
-        [this, &request_id, &reply, &client](Status status, std::function<void()> success,
-                                             std::function<void()> failure) {
+        request, reply,
+        [this, &request_id, reply, &client](Status status, std::function<void()> success,
+                                            std::function<void()> failure) {
           RAY_LOG(DEBUG) << "Calling send reply callback for request " << request_id
                          << ", service: " << RpcServiceType_Name(service_type_);
 
@@ -215,7 +215,7 @@ class ServiceMethodImpl : public ServiceMethod {
           reply_message.set_request_id(request_id);
           reply_message.set_error_code(static_cast<uint32_t>(status.code()));
           reply_message.set_error_message(status.message());
-          reply.SerializeToString(reply_message.mutable_reply());
+          reply->SerializeToString(reply_message.mutable_reply());
 
           std::string serialized_message;
           reply_message.SerializeToString(&serialized_message);

@@ -495,7 +495,7 @@ class NodeManager : public rpc::NodeManagerServiceHandler {
 
   /// Handle a `ForwardTask` request.
   void HandleForwardTask(const rpc::ForwardTaskRequest &request,
-                         rpc::ForwardTaskReply *reply,
+                         std::shared_ptr<rpc::ForwardTaskReply> reply,
                          rpc::SendReplyCallback send_reply_callback) override;
 
   // GCS client ID for this node.
@@ -565,7 +565,7 @@ class NodeManager : public rpc::NodeManagerServiceHandler {
   std::unique_ptr<rpc::AsioRpcServer> node_manager_asio_server_;
 
   /// The node manager asio RPC service.
-  std::unique_ptr<rpc::NodeManagerAsioRpcService> node_manager_asio_service_; 
+  std::unique_ptr<rpc::NodeManagerAsioRpcService> node_manager_asio_service_;
 
   /// Map from node ids to clients of the remote node managers.
   std::unordered_map<ClientID, std::unique_ptr<rpc::NodeManagerClient>>

@@ -80,7 +80,8 @@ class ObjectManager : public ObjectManagerInterface,
   /// \param request Push request including the object chunk data
   /// \param reply Reply to the sender
   /// \param send_reply_callback Callback of the request
-  void HandlePushRequest(const rpc::PushRequest &request, rpc::PushReply *reply,
+  void HandlePushRequest(const rpc::PushRequest &request,
+                         std::shared_ptr<rpc::PushReply> reply,
                          rpc::SendReplyCallback send_reply_callback) override;
 
   /// Handle pull request from remote object manager
@@ -88,7 +89,8 @@ class ObjectManager : public ObjectManagerInterface,
   /// \param request Pull request
   /// \param reply Reply
   /// \param send_reply_callback Callback of request
-  void HandlePullRequest(const rpc::PullRequest &request, rpc::PullReply *reply,
+  void HandlePullRequest(const rpc::PullRequest &request,
+                         std::shared_ptr<rpc::PullReply> reply,
                          rpc::SendReplyCallback send_reply_callback) override;
 
   /// Handle free objects request
@@ -97,7 +99,7 @@ class ObjectManager : public ObjectManagerInterface,
   /// \param reply Reply
   /// \param send_reply_callback
   void HandleFreeObjectsRequest(const rpc::FreeObjectsRequest &request,
-                                rpc::FreeObjectsReply *reply,
+                                std::shared_ptr<rpc::FreeObjectsReply>,
                                 rpc::SendReplyCallback send_reply_callback) override;
 
   /// Send object to remote object manager

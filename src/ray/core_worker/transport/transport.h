@@ -3,6 +3,8 @@
 
 #include <list>
 
+#include <boost/asio.hpp>
+
 #include "ray/common/buffer.h"
 #include "ray/common/id.h"
 #include "ray/common/status.h"
@@ -38,6 +40,8 @@ class CoreWorkerTaskReceiver {
   using TaskHandler =
       std::function<Status(const TaskSpecification &task_spec,
                            std::vector<std::shared_ptr<RayObject>> *results)>;
+  using WorkerServiceFinder =
+      std::function<boost::asio::io_service &(const WorkerID &worker_id)>;
 
   virtual ~CoreWorkerTaskReceiver() {}
 };

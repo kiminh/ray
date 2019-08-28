@@ -14,7 +14,7 @@ class WorkerContext {
 
   const WorkerType GetWorkerType() const;
 
-  const WorkerID &GetWorkerID() const;
+  const WorkerID &GetCurrentWorkerID() const;
 
   const JobID &GetCurrentJobID() const;
 
@@ -35,7 +35,7 @@ class WorkerContext {
   const WorkerType worker_type_;
 
   /// ID for this worker.
-  const WorkerID worker_id_;
+  const WorkerID current_worker_id_;
 
   /// Job ID for this worker.
   JobID current_job_id_;

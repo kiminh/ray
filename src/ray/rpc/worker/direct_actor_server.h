@@ -22,7 +22,8 @@ class DirectActorHandler {
   /// \param[in] request The request message.
   /// \param[out] reply The reply message.
   /// \param[in] done_callback The callback to be called when the request is done.
-  virtual void HandlePushTask(const PushTaskRequest &request, PushTaskReply *reply,
+  virtual void HandlePushTask(const PushTaskRequest &request,
+                              std::shared_ptr<rpc::PushTaskReply> reply,
                               SendReplyCallback send_reply_callback) = 0;
 };
 

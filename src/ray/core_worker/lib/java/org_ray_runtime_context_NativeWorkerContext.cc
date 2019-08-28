@@ -61,7 +61,7 @@ JNIEXPORT jobject JNICALL
 Java_org_ray_runtime_context_NativeWorkerContext_nativeGetCurrentWorkerId(
     JNIEnv *env, jclass, jlong nativeCoreWorkerPointer) {
   const auto &worker_id =
-      GetWorkerContextFromPointer(nativeCoreWorkerPointer).GetWorkerID();
+      GetWorkerContextFromPointer(nativeCoreWorkerPointer).GetCurrentWorkerID();
   return IdToJavaByteBuffer<ray::WorkerID>(env, worker_id);
 }
 

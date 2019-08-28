@@ -100,7 +100,8 @@ class ServerCallImpl : public ServerCall {
         service_handler_(service_handler),
         handle_request_function_(handle_request_function),
         response_writer_(&context_),
-        io_service_(io_service) {}
+        io_service_(io_service),
+        reply_(std::make_shared<Reply>()) {}
 
   ServerCallState GetState() const override { return state_; }
 
@@ -123,7 +124,7 @@ class ServerCallImpl : public ServerCall {
     // a different thread, and will cause `this` to be deleted.
     const auto &factory = factory_;
     (service_handler_.*handle_request_function_)(
-        request_, &reply_,
+        request_, reply_,
         [this](Status status, std::function<void()> success,
                std::function<void()> failure) {
           // These two callbacks must be set before `SendReply`, because `SendReply`
@@ -159,7 +160,7 @@ class ServerCallImpl : public ServerCall {
   /// Tell gRPC to finish this request and send reply asynchronously.
   void SendReply(const Status &status) {
     state_ = ServerCallState::SENDING_REPLY;
-    response_writer_.Finish(reply_, RayStatusToGrpcStatus(status), this);
+    response_writer_.Finish(*reply_, RayStatusToGrpcStatus(status), this);
   }
 
   /// State of this call.
@@ -188,7 +189,7 @@ class ServerCallImpl : public ServerCall {
   Request request_;
 
   /// The reply message.
-  Reply reply_;
+  std::shared_ptr<Reply> reply_;
 
   /// The callback when sending reply successes.
   std::function<void()> send_reply_success_callback_ = nullptr;

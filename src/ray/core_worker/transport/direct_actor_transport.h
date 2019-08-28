@@ -46,9 +46,9 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   /// \param[out] results Result list of objects data.
   /// \return Status.
   Status GetReturnObjects(
-    const std::unordered_set<ObjectID> &object_ids, int64_t timeout_ms,
-    const TaskID &task_id,
-    std::unordered_map<ObjectID, std::shared_ptr<RayObject>> *results);
+      const std::unordered_set<ObjectID> &object_ids, int64_t timeout_ms,
+      const TaskID &task_id,
+      std::unordered_map<ObjectID, std::shared_ptr<RayObject>> *results);
 
  protected:
   /// Create a RPC client to the specific address.
@@ -58,6 +58,7 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   /// \return Created RPC client.
   virtual std::unique_ptr<rpc::DirectActorClient> CreateRpcClient(std::string ip_address,
                                                                   int port) = 0;
+
  private:
   /// Subscribe to all actor updates.
   Status SubscribeActorUpdates();
@@ -188,7 +189,8 @@ class DirectActorAsioTaskSubmitter : public CoreWorkerDirectActorTaskSubmitter {
 class CoreWorkerDirectActorTaskReceiver : public CoreWorkerTaskReceiver,
                                           public rpc::DirectActorHandler {
  public:
-  CoreWorkerDirectActorTaskReceiver(const TaskHandler &task_handler);
+  CoreWorkerDirectActorTaskReceiver(const TaskHandler &task_handler,
+                                    const WorkerServiceFinder &worker_service_finder);
 
   /// Handle a `PushTask` request.
   /// The implementation can handle this request asynchronously. When hanling is done, the
@@ -197,7 +199,8 @@ class CoreWorkerDirectActorTaskReceiver : public CoreWorkerTaskReceiver,
   /// \param[in] request The request message.
   /// \param[out] reply The reply message.
   /// \param[in] done_callback The callback to be called when the request is done.
-  void HandlePushTask(const rpc::PushTaskRequest &request, rpc::PushTaskReply *reply,
+  void HandlePushTask(const rpc::PushTaskRequest &request,
+                      std::shared_ptr<rpc::PushTaskReply> reply,
                       rpc::SendReplyCallback send_reply_callback) override;
 
  protected:
@@ -214,12 +217,15 @@ class CoreWorkerDirectActorTaskReceiver : public CoreWorkerTaskReceiver,
  private:
   /// The callback function to process a task.
   TaskHandler task_handler_;
+  /// The callback to find the io_service to process tasks.
+  WorkerServiceFinder worker_service_finder_;
 };
 
 class DirectActorGrpcTaskReceiver : public CoreWorkerDirectActorTaskReceiver {
  public:
   DirectActorGrpcTaskReceiver(boost::asio::io_service &io_service,
-                              rpc::GrpcServer &server, const TaskHandler &task_handler);
+                              rpc::GrpcServer &server, const TaskHandler &task_handler,
+                              const WorkerServiceFinder &worker_service_finder);
 
  private:
   /// See base class for semantics.
@@ -233,8 +239,8 @@ class DirectActorGrpcTaskReceiver : public CoreWorkerDirectActorTaskReceiver {
 
 class DirectActorAsioTaskReceiver : public CoreWorkerDirectActorTaskReceiver {
  public:
-  DirectActorAsioTaskReceiver(rpc::AsioRpcServer &server,
-                              const TaskHandler &task_handler);
+  DirectActorAsioTaskReceiver(rpc::AsioRpcServer &server, const TaskHandler &task_handler,
+                              const WorkerServiceFinder &worker_service_finder);
 
  private:
   /// See base class for semantics.

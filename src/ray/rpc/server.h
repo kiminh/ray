@@ -23,7 +23,8 @@ using SendReplyCallback = std::function<void(Status status, std::function<void()
 /// \tparam Request Type of the request message.
 /// \tparam Reply Type of the reply message.
 template <class ServiceHandler, class Request, class Reply>
-using HandleRequestFunction = void (ServiceHandler::*)(const Request &, Reply *,
+using HandleRequestFunction = void (ServiceHandler::*)(const Request &,
+                                                       std::shared_ptr<Reply>,
                                                        SendReplyCallback);
 
 /// Class that represents a rpc server.

@@ -16,6 +16,10 @@ message ReturnObject {
 message PushTaskRequest {
   // The task to be pushed.
   TaskSpec task_spec = 1;
+  // TODO: comment
+  bytes src_worker_id = 2;
+  // TODO: comment
+  bytes dst_worker_id = 3;
 }
 
 message PushTaskReply {

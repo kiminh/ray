@@ -23,7 +23,7 @@ class NodeManagerServiceHandler {
   /// \param[out] reply The reply message.
   /// \param[in] send_reply_callback The callback to be called when the request is done.
   virtual void HandleForwardTask(const ForwardTaskRequest &request,
-                                 ForwardTaskReply *reply,
+                                 std::shared_ptr<ForwardTaskReply> reply,
                                  SendReplyCallback send_reply_callback) = 0;
 };
 

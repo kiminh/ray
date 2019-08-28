@@ -118,7 +118,6 @@ Status CoreWorkerDirectActorTaskSubmitter::SubscribeActorUpdates() {
         }
         waiting_reply_tasks_.erase(actor_id);
       }
-
     }
 
     RAY_LOG(INFO) << "received notification on actor, state="
@@ -140,7 +139,8 @@ void CoreWorkerDirectActorTaskSubmitter::ConnectAndSendPendingTasks(
   auto &requests = pending_requests_[actor_id];
   while (!requests.empty()) {
     const auto &request = *requests.front();
-    PushTask(*client, request, actor_id, TaskID::FromBinary(request.task_spec().task_id()),
+    PushTask(*client, request, actor_id,
+             TaskID::FromBinary(request.task_spec().task_id()),
              request.task_spec().num_returns());
     requests.pop_front();
   }
@@ -155,10 +155,10 @@ void CoreWorkerDirectActorTaskSubmitter::PushTask(rpc::DirectActorClient &client
                                                   int num_returns) {
   if (num_returns > 1) {
     waiting_reply_tasks_[actor_id].insert(std::make_pair(task_id, num_returns));
-  }                                                   
-  auto status = client.PushTask(
-      request,
-      [this, actor_id, task_id, num_returns](Status status, const rpc::PushTaskReply &reply) {
+  }
+  auto status =
+      client.PushTask(request, [this, actor_id, task_id, num_returns](
+                                   Status status, const rpc::PushTaskReply &reply) {
         if (!status.ok()) {
           TreatTaskAsFailed(task_id, num_returns, rpc::ErrorType::ACTOR_DIED);
           // Remove the waiting reply task *after* the exception is written into store.
@@ -321,11 +321,11 @@ Status CoreWorkerDirectActorTaskSubmitter::GetReturnObjects(
  * CoreWorkerDirectActorTaskReceiver
  */
 CoreWorkerDirectActorTaskReceiver::CoreWorkerDirectActorTaskReceiver(
-    const TaskHandler &task_handler)
-    : task_handler_(task_handler) {}
+    const TaskHandler &task_handler, const WorkerServiceFinder &worker_service_finder)
+    : task_handler_(task_handler), worker_service_finder_(worker_service_finder) {}
 
 void CoreWorkerDirectActorTaskReceiver::HandlePushTask(
-    const rpc::PushTaskRequest &request, rpc::PushTaskReply *reply,
+    const rpc::PushTaskRequest &request, std::shared_ptr<rpc::PushTaskReply> reply,
     rpc::SendReplyCallback send_reply_callback) {
   const TaskSpecification task_spec(request.task_spec());
   RAY_CHECK(task_spec.IsActorCreationTask() || task_spec.IsActorTask());
@@ -341,33 +341,37 @@ void CoreWorkerDirectActorTaskReceiver::HandlePushTask(
     return;
   }
 
-  std::vector<std::shared_ptr<RayObject>> results;
-  auto status = task_handler_(task_spec, &results);
-  RAY_CHECK(results.size() == num_returns) << results.size() << "  " << num_returns;
+  auto &worker_service =
+      worker_service_finder_(WorkerID::FromBinary(request.dst_worker_id()));
+  worker_service.post([this, task_spec, num_returns, reply, send_reply_callback]() {
+    std::vector<std::shared_ptr<RayObject>> results;
+    auto status = task_handler_(task_spec, &results);
+    RAY_CHECK(results.size() == num_returns) << results.size() << "  " << num_returns;
 
-  for (size_t i = 0; i < results.size(); i++) {
-    auto return_object = (*reply).add_return_objects();
-    ObjectID id = ObjectID::ForTaskReturn(
-        task_spec.TaskId(), /*index=*/i + 1,
-        /*transport_type=*/static_cast<int>(TaskTransportType::DIRECT_ACTOR));
-    return_object->set_object_id(id.Binary());
-    const auto &result = results[i];
-    if (result->GetData() != nullptr) {
-      return_object->set_data(result->GetData()->Data(), result->GetData()->Size());
+    for (size_t i = 0; i < results.size(); i++) {
+      auto return_object = (*reply).add_return_objects();
+      ObjectID id = ObjectID::ForTaskReturn(
+          task_spec.TaskId(), /*index=*/i + 1,
+          /*transport_type=*/static_cast<int>(TaskTransportType::DIRECT_ACTOR));
+      return_object->set_object_id(id.Binary());
+      const auto &result = results[i];
+      if (result->GetData() != nullptr) {
+        return_object->set_data(result->GetData()->Data(), result->GetData()->Size());
+      }
+      if (result->GetMetadata() != nullptr) {
+        return_object->set_metadata(result->GetMetadata()->Data(),
+                                    result->GetMetadata()->Size());
+      }
     }
-    if (result->GetMetadata() != nullptr) {
-      return_object->set_metadata(result->GetMetadata()->Data(),
-                                  result->GetMetadata()->Size());
-    }
-  }
 
-  CallSendReplyCallback(status, num_returns, send_reply_callback);
+    CallSendReplyCallback(status, num_returns, send_reply_callback);
+  });
 }
 
 DirectActorGrpcTaskReceiver::DirectActorGrpcTaskReceiver(
-    boost::asio::io_service &io_service,
-    rpc::GrpcServer &server, const TaskHandler &task_handler)
-    : CoreWorkerDirectActorTaskReceiver(task_handler),
+    boost::asio::io_service &io_service, rpc::GrpcServer &server,
+    const TaskHandler &task_handler, const WorkerServiceFinder &worker_service_finder)
+    : CoreWorkerDirectActorTaskReceiver(task_handler, worker_service_finder),
       task_service_(io_service, *this) {
   server.RegisterService(task_service_);
 }
@@ -380,9 +384,9 @@ void DirectActorGrpcTaskReceiver::CallSendReplyCallback(
 }
 
 DirectActorAsioTaskReceiver::DirectActorAsioTaskReceiver(
-    rpc::AsioRpcServer &server,
-    const TaskHandler &task_handler)
-    : CoreWorkerDirectActorTaskReceiver(task_handler),
+    rpc::AsioRpcServer &server, const TaskHandler &task_handler,
+    const WorkerServiceFinder &worker_service_finder)
+    : CoreWorkerDirectActorTaskReceiver(task_handler, worker_service_finder),
       task_service_(*this) {
   server.RegisterService(task_service_);
 }

@@ -67,12 +67,12 @@ class RayletClient {
   /// Connect to the raylet.
   ///
   /// \param raylet_socket The name of the socket to use to connect to the raylet.
-  /// \param worker_id A unique ID to represent the worker.
+  /// \param worker_ids A unique ID list to represent the workers.
   /// \param is_worker Whether this client is a worker. If it is a worker, an
   /// additional message will be sent to register as one.
   /// \param job_id The ID of the driver. This is non-nil if the client is a driver.
   /// \return The connection information.
-  RayletClient(const std::string &raylet_socket, const WorkerID &worker_id,
+  RayletClient(const std::string &raylet_socket, const std::vector<WorkerID> &worker_ids,
                bool is_worker, const JobID &job_id, const Language &language,
                int port = -1);
 
@@ -178,7 +178,7 @@ class RayletClient {
 
   Language GetLanguage() const { return language_; }
 
-  WorkerID GetWorkerID() const { return worker_id_; }
+  std::vector<WorkerID> GetWorkerIDs() const { return worker_ids_; }
 
   JobID GetJobID() const { return job_id_; }
 
@@ -187,7 +187,7 @@ class RayletClient {
   const ResourceMappingType &GetResourceIDs() const { return resource_ids_; }
 
  private:
-  const WorkerID worker_id_;
+  const std::vector<WorkerID> worker_ids_;
   const bool is_worker_;
   const JobID job_id_;
   const Language language_;

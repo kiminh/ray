@@ -71,7 +71,7 @@ JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWork
   try {
     auto core_worker = new ray::CoreWorker(
         static_cast<ray::WorkerType>(workerMode), ::Language::JAVA, native_store_socket,
-        native_raylet_socket, job_id, gcs_client_options, executor_func);
+        native_raylet_socket, job_id, gcs_client_options, executor_func, 1);
     return reinterpret_cast<jlong>(core_worker);
   } catch (const std::exception &e) {
     std::ostringstream oss;

@@ -34,7 +34,8 @@ class CoreWorkerRayletTaskReceiver : public CoreWorkerTaskReceiver,
  public:
   CoreWorkerRayletTaskReceiver(std::unique_ptr<RayletClient> &raylet_client,
                                CoreWorkerStoreProviderMap &store_providers,
-                               const TaskHandler &task_handler);
+                               const TaskHandler &task_handler,
+                               const WorkerServiceFinder &worker_service_finder);
 
   /// Handle a `AssignTask` request.
   /// The implementation can handle this request asynchronously. When hanling is done, the
@@ -44,7 +45,7 @@ class CoreWorkerRayletTaskReceiver : public CoreWorkerTaskReceiver,
   /// \param[out] reply The reply message.
   /// \param[in] send_reply_callback The callback to be called when the request is done.
   void HandleAssignTask(const rpc::AssignTaskRequest &request,
-                        rpc::AssignTaskReply *reply,
+                        std::shared_ptr<rpc::AssignTaskReply> reply,
                         rpc::SendReplyCallback send_reply_callback) override;
 
  private:
@@ -54,6 +55,8 @@ class CoreWorkerRayletTaskReceiver : public CoreWorkerTaskReceiver,
   CoreWorkerStoreProviderMap &store_providers_;
   /// The callback function to process a task.
   TaskHandler task_handler_;
+  /// The callback to find the io_service to process tasks.
+  WorkerServiceFinder worker_service_finder_;
 };
 
 class RayletGrpcTaskReceiver : public CoreWorkerRayletTaskReceiver {
@@ -61,7 +64,8 @@ class RayletGrpcTaskReceiver : public CoreWorkerRayletTaskReceiver {
   RayletGrpcTaskReceiver(std::unique_ptr<RayletClient> &raylet_client,
                          CoreWorkerStoreProviderMap &store_providers,
                          boost::asio::io_service &io_service, rpc::GrpcServer &server,
-                         const TaskHandler &task_handler);
+                         const TaskHandler &task_handler,
+                         const WorkerServiceFinder &worker_service_finder);
 
  private:
   /// The rpc service for `DirectActorService`.
@@ -72,7 +76,8 @@ class RayletAsioTaskReceiver : public CoreWorkerRayletTaskReceiver {
  public:
   RayletAsioTaskReceiver(std::unique_ptr<RayletClient> &raylet_client,
                          CoreWorkerStoreProviderMap &store_providers,
-                         rpc::AsioRpcServer &server, const TaskHandler &task_handler);
+                         rpc::AsioRpcServer &server, const TaskHandler &task_handler,
+                         const WorkerServiceFinder &worker_service_finder);
 
  private:
   /// The rpc service for `DirectActorService`.
