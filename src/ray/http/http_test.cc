@@ -21,6 +21,7 @@ class HttpTest : public ::testing::Test {
       std::make_shared<HttpServer>(ioc)->Start(host, port);
       ioc.run();
     });
+    (void)t;
   }
 
  protected:
@@ -32,6 +33,7 @@ TEST_F(HttpTest, ServerParseParams) {
   {
     StartServer();
     HttpRouter::Register("/test/parse/params",
+                         "get with any key value, e.g. http://127.0.0.1/test/parse/params?k1=v1&k2=v2",
                          [](HttpParams &&params, const std::string &data, HttpReply &r) {
                            rapidjson::Document doc(rapidjson::kObjectType);
                            for (auto &param : params) {
@@ -68,6 +70,7 @@ TEST_F(HttpTest, ServerParseData) {
   {
     StartServer();
     HttpRouter::Register("/test/parse/data",
+                         "post any json string",
                          [](HttpParams &&params, const std::string &data, HttpReply &r) {
                            rapidjson::Document doc;
                            doc.Parse(data);
