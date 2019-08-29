@@ -9,14 +9,15 @@
 namespace ray {
 
 CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
-    WorkerContext &worker_context, std::unique_ptr<RayletClient> &raylet_client,
-    CoreWorkerStoreProviderMap &store_providers, const TaskExecutor &executor,
+    CoreWorkerStoreProviderMap &store_providers, 
+    std::shared_ptr<boost::asio::io_service> io_service,
+    std::unordered_map<WorkerID, std::shared_ptr<boost::asio::io_service>> &worker_main_services,
+    const TaskExecutor &executor,
     bool use_asio_rpc)
-    : worker_context_(worker_context),
-      store_providers_(store_providers),
-      execution_callback_(executor),
-      main_service_(std::make_shared<boost::asio::io_service>()),
-      main_work_(*main_service_) {
+    : store_providers_(store_providers),
+      io_service_(io_service),
+      worker_main_services_(worker_main_services),
+      execution_callback_(executor) {
   RAY_CHECK(execution_callback_ != nullptr);
 
   auto func = std::bind(&CoreWorkerTaskExecutionInterface::ExecuteTask, this,
@@ -27,7 +28,7 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
 
   if (use_asio_rpc) {
     std::unique_ptr<rpc::AsioRpcServer> server(
-        new rpc::AsioRpcServer("Worker", 0 /* let asio choose port */, *main_service_));
+        new rpc::AsioRpcServer("Worker", 0 /* let asio choose port */, *io_service_));
     asio_server = *server;
     worker_server_ = std::move(server);
   } else {
@@ -41,10 +42,10 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
       TaskTransportType::RAYLET,
       use_asio_rpc
           ? std::unique_ptr<CoreWorkerRayletTaskReceiver>(new RayletAsioTaskReceiver(
-                raylet_client, store_providers_, asio_server.get(), func))
+                store_providers_, asio_server.get(), func))
           : std::unique_ptr<CoreWorkerRayletTaskReceiver>(
-                new RayletGrpcTaskReceiver(raylet_client, store_providers_,
-                                           *main_service_, grpc_server.get(), func)));
+                new RayletGrpcTaskReceiver(store_providers_,
+                                           *io_service_, grpc_server.get(), func)));
   task_receivers_.emplace(
       TaskTransportType::DIRECT_ACTOR,
       use_asio_rpc
@@ -52,7 +53,7 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
                 new DirectActorAsioTaskReceiver(asio_server.get(),
                                                 func))
           : std::unique_ptr<CoreWorkerDirectActorTaskReceiver>(
-                new DirectActorGrpcTaskReceiver(*main_service_,
+                new DirectActorGrpcTaskReceiver(*io_service_,
                                                 grpc_server.get(), func)));
 
   // Start RPC server after all the task receivers are properly initialized.
@@ -63,8 +64,8 @@ Status CoreWorkerTaskExecutionInterface::ExecuteTask(
     const TaskSpecification &task_spec,
     std::vector<std::shared_ptr<RayObject>> *results) {
   RAY_LOG(DEBUG) << "Executing task " << task_spec.TaskId();
-
-  worker_context_.SetCurrentTask(task_spec);
+  const auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();
+  worker_context.SetCurrentTask(task_spec);
 
   RayFunction func{task_spec.GetLanguage(), task_spec.FunctionDescriptor()};
 
@@ -87,15 +88,15 @@ Status CoreWorkerTaskExecutionInterface::ExecuteTask(
 
 void CoreWorkerTaskExecutionInterface::Run() {
   // Run main IO service.
-  main_service_->run();
+  io_service_->run();
 }
 
 void CoreWorkerTaskExecutionInterface::Stop() {
   // Stop main IO service.
-  std::shared_ptr<boost::asio::io_service> main_service = main_service_;
+  std::shared_ptr<boost::asio::io_service> io_service = io_service_;
   // Delay the execution of io_service::stop() to avoid deadlock if
   // CoreWorkerTaskExecutionInterface::Stop is called inside a task.
-  main_service_->post([main_service]() { main_service->stop(); });
+  io_service_->post([io_service]() { main_service->stop(); });
 }
 
 Status CoreWorkerTaskExecutionInterface::BuildArgsForExecutor(

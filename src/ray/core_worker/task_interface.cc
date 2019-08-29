@@ -98,10 +98,8 @@ std::vector<ray::ActorHandleID> ActorHandle::NewActorHandles() const {
 void ActorHandle::ClearNewActorHandles() { new_actor_handles_.clear(); }
 
 CoreWorkerTaskInterface::CoreWorkerTaskInterface(
-    WorkerContext &worker_context,
     CoreWorkerTaskSubmitterMap &task_submitters)
-    : worker_context_(worker_context),
-      task_submitters_(task_submitters) {}
+    : task_submitters_(task_submitters) {}
 
 void CoreWorkerTaskInterface::BuildCommonTaskSpec(
     TaskSpecBuilder &builder, const TaskID &task_id, const int task_index,
@@ -109,10 +107,11 @@ void CoreWorkerTaskInterface::BuildCommonTaskSpec(
     const std::unordered_map<std::string, double> &required_resources,
     const std::unordered_map<std::string, double> &required_placement_resources,
     TaskTransportType transport_type, std::vector<ObjectID> *return_ids) {
+  const auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();
   // Build common task spec.
   builder.SetCommonTaskSpec(task_id, function.language, function.function_descriptor,
-                            worker_context_.GetCurrentJobID(),
-                            worker_context_.GetCurrentTaskID(), task_index, num_returns,
+                            worker_context.GetCurrentJobID(),
+                            worker_context.GetCurrentTaskID(), task_index, num_returns,
                             required_resources, required_placement_resources);
   // Set task arguments.
   for (const auto &arg : args) {
@@ -136,11 +135,12 @@ Status CoreWorkerTaskInterface::SubmitTask(const RayFunction &function,
                                            const std::vector<TaskArg> &args,
                                            const TaskOptions &task_options,
                                            std::vector<ObjectID> *return_ids) {
+  auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();
   TaskSpecBuilder builder;
-  const int next_task_index = worker_context_.GetNextTaskIndex();
+  const int next_task_index = worker_context.GetNextTaskIndex();
   const auto task_id =
-      TaskID::ForNormalTask(worker_context_.GetCurrentJobID(),
-                            worker_context_.GetCurrentTaskID(), next_task_index);
+      TaskID::ForNormalTask(worker_context.GetCurrentJobID(),
+                            worker_context.GetCurrentTaskID(), next_task_index);
   std::unordered_map<std::string, double> required_placement_resources;
   BuildCommonTaskSpec(builder, task_id, next_task_index, function, args,
                       task_options.num_returns, task_options.resources,
@@ -153,9 +153,10 @@ Status CoreWorkerTaskInterface::CreateActor(
     const RayFunction &function, const std::vector<TaskArg> &args,
     const ActorCreationOptions &actor_creation_options,
     std::unique_ptr<ActorHandle> *actor_handle) {
-  const int next_task_index = worker_context_.GetNextTaskIndex();
+  auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();
+  const int next_task_index = worker_context.GetNextTaskIndex();
   const ActorID actor_id =
-      ActorID::Of(worker_context_.GetCurrentJobID(), worker_context_.GetCurrentTaskID(),
+      ActorID::Of(worker_context.GetCurrentJobID(), worker_context.GetCurrentTaskID(),
                   next_task_index);
   const TaskID actor_creation_task_id = TaskID::ForActorCreationTask(actor_id);
   std::vector<ObjectID> return_ids;
@@ -180,6 +181,7 @@ Status CoreWorkerTaskInterface::SubmitActorTask(ActorHandle &actor_handle,
                                                 const std::vector<TaskArg> &args,
                                                 const TaskOptions &task_options,
                                                 std::vector<ObjectID> *return_ids) {
+  auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();
   // Add one for actor cursor object id for tasks.
   const auto num_returns = task_options.num_returns + 1;
 
@@ -189,9 +191,9 @@ Status CoreWorkerTaskInterface::SubmitActorTask(ActorHandle &actor_handle,
 
   // Build common task spec.
   TaskSpecBuilder builder;
-  const int next_task_index = worker_context_.GetNextTaskIndex();
+  const int next_task_index = worker_context.GetNextTaskIndex();
   const auto actor_task_id = TaskID::ForActorTask(
-      worker_context_.GetCurrentJobID(), worker_context_.GetCurrentTaskID(),
+      worker_context.GetCurrentJobID(), worker_context.GetCurrentTaskID(),
       next_task_index, actor_handle.ActorID());
   std::unordered_map<std::string, double> required_placement_resources;
   BuildCommonTaskSpec(builder, actor_task_id, next_task_index, function, args,

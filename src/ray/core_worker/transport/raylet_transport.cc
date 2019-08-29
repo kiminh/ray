@@ -1,23 +1,20 @@
 
 #include "ray/core_worker/transport/raylet_transport.h"
 #include "ray/common/task/task.h"
+#include "ray/core_worker/core_worker.h"
 
 namespace ray {
 
-CoreWorkerRayletTaskSubmitter::CoreWorkerRayletTaskSubmitter(
-    std::unique_ptr<RayletClient> &raylet_client)
-    : raylet_client_(raylet_client) {}
+CoreWorkerRayletTaskSubmitter::CoreWorkerRayletTaskSubmitter() {}
 
 Status CoreWorkerRayletTaskSubmitter::SubmitTask(const TaskSpecification &task) {
-  RAY_CHECK(raylet_client_ != nullptr);
-  return raylet_client_->SubmitTask(task);
+  auto &raylet_client = CoreWorkerProcess::GetCoreWorker()->GetRayletClient();
+  return raylet_client.SubmitTask(task);
 }
 
 CoreWorkerRayletTaskReceiver::CoreWorkerRayletTaskReceiver(
-    std::unique_ptr<RayletClient> &raylet_client,
     CoreWorkerStoreProviderMap &store_providers, const TaskHandler &task_handler)
-    : raylet_client_(raylet_client),
-      store_providers_(store_providers),
+    : store_providers_(store_providers),
       task_handler_(task_handler) {}
 
 void CoreWorkerRayletTaskReceiver::HandleAssignTask(
@@ -65,25 +62,24 @@ void CoreWorkerRayletTaskReceiver::HandleAssignTask(
   // rpc reply first before the NotifyUnblocked message arrives,
   // as they use different connections, the `TaskDone` message is sent
   // to raylet via the same connection so the order is guaranteed.
-  RAY_UNUSED(raylet_client_->TaskDone());
+  auto &raylet_client = CoreWorkerProcess::GetCoreWorker()->GetRayletClient();  
+  RAY_UNUSED(raylet_client.TaskDone());
   // Send rpc reply.
   send_reply_callback(status, nullptr, nullptr);
 }
 
 RayletGrpcTaskReceiver::RayletGrpcTaskReceiver(
-    std::unique_ptr<RayletClient> &raylet_client,
     CoreWorkerStoreProviderMap &store_providers, boost::asio::io_service &io_service,
     rpc::GrpcServer &server, const TaskHandler &task_handler)
-    : CoreWorkerRayletTaskReceiver(raylet_client, store_providers, task_handler),
+    : CoreWorkerRayletTaskReceiver(store_providers, task_handler),
       task_service_(io_service, *this) {
   server.RegisterService(task_service_);
 }
 
 RayletAsioTaskReceiver::RayletAsioTaskReceiver(
-    std::unique_ptr<RayletClient> &raylet_client,
     CoreWorkerStoreProviderMap &store_providers, rpc::AsioRpcServer &server,
     const TaskHandler &task_handler)
-    : CoreWorkerRayletTaskReceiver(raylet_client, store_providers, task_handler),
+    : CoreWorkerRayletTaskReceiver(store_providers, task_handler),
       task_service_(*this) {
   server.RegisterService(task_service_);
 }

@@ -9,67 +9,94 @@
 
 namespace ray {
 
-CoreWorker::CoreWorker(
+thread_local std::shared_ptr<CoreWorker> CoreWorkerProcess::current_core_worker_ = nullptr;
+
+CoreWorkerProcess::CoreWorkerProcess(
     const WorkerType worker_type, const Language language,
     const std::string &store_socket, const std::string &raylet_socket,
     const JobID &job_id, const gcs::GcsClientOptions &gcs_options,
-    const CoreWorkerTaskExecutionInterface::TaskExecutor &execution_callback)
+    const CoreWorkerTaskExecutionInterface::TaskExecutor &execution_callback,
+    int num_workers)
     : worker_type_(worker_type),
       language_(language),
       store_socket_(store_socket),
       raylet_socket_(raylet_socket),
-      worker_context_(worker_type, job_id),
-      io_work_(io_service_) {
+      job_id_(job_id),
+      io_service_(std::make_shared<boost::asio::io_service>()),
+      io_work_(*io_service_),
+      num_workers_(num_workers),
+      rpc_server_port_(0) {
+  RAY_CHECK(num_workers > 0);
+  if (worker_type_ == WorkerType::DRIVER) {
+    // Driver process can only contain one worker.
+    RAY_CHECK(num_workers == 1);
+  }
+
+  // Whether to use asio rpc or grpc.
   bool use_asio_rpc = RayConfig::instance().use_asio_rpc_for_worker();
 
   // Initialize gcs client
   gcs_client_ =
       std::unique_ptr<gcs::RedisGcsClient>(new gcs::RedisGcsClient(gcs_options));
-  RAY_CHECK_OK(gcs_client_->Connect(io_service_));
+  RAY_CHECK_OK(gcs_client_->Connect(*io_service_));
 
   InitializeStoreProviders();
   InitializeTaskSubmitters(use_asio_rpc);
 
   object_interface_ = std::unique_ptr<CoreWorkerObjectInterface>(
-      new CoreWorkerObjectInterface(worker_context_, store_providers_, task_submitters_));
+      new CoreWorkerObjectInterface(store_providers_, task_submitters_));
   task_interface_ = std::unique_ptr<CoreWorkerTaskInterface>(new CoreWorkerTaskInterface(
-      worker_context_, task_submitters_));
+      task_submitters_));
 
-  int rpc_server_port = 0;
+  std::vector<WorkerID> worker_ids;
+
   if (worker_type_ == WorkerType::WORKER) {
+    for (int i = 0; i < num_workers_; i++) {
+      auto worker_id = WorkerID::FromRandom();
+      worker_io_services_.emplace(worker_id, std::make_shared<boost::asio::io_service>());
+      worker_ids.emplace_back(worker_id);
+    }
+
     RAY_CHECK(execution_callback != nullptr);
     task_execution_interface_ = std::unique_ptr<CoreWorkerTaskExecutionInterface>(
-        new CoreWorkerTaskExecutionInterface(worker_context_, raylet_client_,
-                                             store_providers_, execution_callback, use_asio_rpc));
-    rpc_server_port = task_execution_interface_->worker_server_->GetPort();
+        new CoreWorkerTaskExecutionInterface(store_providers_, io_service_,
+        worker_io_services_, execution_callback, use_asio_rpc));
+    rpc_server_port_ = task_execution_interface_->worker_server_->GetPort();
   }
-  // TODO(zhijunfu): currently RayletClient would crash in its constructor if it cannot
-  // connect to Raylet after a number of retries, this can be changed later
-  // so that the worker (java/python .etc) can retrieve and handle the error
-  // instead of crashing.
-  raylet_client_ = std::unique_ptr<RayletClient>(new RayletClient(
-      raylet_socket_, WorkerID::FromBinary(worker_context_.GetWorkerID().Binary()),
-      (worker_type_ == ray::WorkerType::WORKER), worker_context_.GetCurrentJobID(),
-      language_, rpc_server_port));
 
-  io_thread_ = std::thread(&CoreWorker::StartIOService, this);
+  io_thread_ = std::thread(&CoreWorkerProcess::StartIOService, this);
+
+  if (worker_type_ == WorkerType::WORKER) {
+    for (int i = 0; i < num_workers_; i++) {
+      auto worker = std::make_shared<CoreWorker>(*this);
+      core_workers_.emplace(worker->GetWorkerID(), worker);
+
+      // TODO: post an initialization function to each io service
+      // to set the `current_core_worker_` in `CoreWorkerProcess`.
+      // If this is a driver, then do something else.
+    }
+
+    // Sleep forever.
+    std::promise<void>().get_future().wait();
+  } else {
+    // This is a driver. Set the thread local `CoreWorker`.
+    current_core_worker_ = std::make_shared<CoreWorker>(*this);
+  }
 }
 
-CoreWorker::~CoreWorker() {
+CoreWorkerProcess::~CoreWorkerProcess() {
   gcs_client_->Disconnect();
   io_service_.stop();
   io_thread_.join();
   if (task_execution_interface_) {
     task_execution_interface_->Stop();
   }
-  if (raylet_client_) {
-    RAY_IGNORE_EXPR(raylet_client_->Disconnect());
-  }
+  // TODO: join the worker threads.
 }
 
-void CoreWorker::StartIOService() { io_service_.run(); }
+void CoreWorkerProcess::StartIOService() { io_service_.run(); }
 
-void CoreWorker::InitializeStoreProviders() {
+void CoreWorkerProcess::InitializeStoreProviders() {
   memory_store_ = std::make_shared<CoreWorkerMemoryStore>();
 
   store_providers_.emplace(StoreProviderType::LOCAL_PLASMA,
@@ -81,7 +108,7 @@ void CoreWorker::InitializeStoreProviders() {
 }
 
 std::unique_ptr<CoreWorkerStoreProvider>
-CoreWorker::CreateStoreProvider(StoreProviderType type) {
+CoreWorkerProcess::CreateStoreProvider(StoreProviderType type) {
   switch (type) {
   case StoreProviderType::LOCAL_PLASMA:
     return std::unique_ptr<CoreWorkerStoreProvider>(
@@ -89,7 +116,7 @@ CoreWorker::CreateStoreProvider(StoreProviderType type) {
     break;
   case StoreProviderType::PLASMA:
     return std::unique_ptr<CoreWorkerStoreProvider>(new CoreWorkerPlasmaStoreProvider(
-        store_socket_, raylet_client_));
+        store_socket_));
     break;
   case StoreProviderType::MEMORY:
     return std::unique_ptr<CoreWorkerStoreProvider>(
@@ -102,11 +129,11 @@ CoreWorker::CreateStoreProvider(StoreProviderType type) {
   }
 }
 
-void CoreWorker::InitializeTaskSubmitters(bool use_asio_rpc) {
+void CoreWorkerProcess::InitializeTaskSubmitters(bool use_asio_rpc) {
   // Add all task submitters.
   task_submitters_.emplace(TaskTransportType::RAYLET,
                            std::unique_ptr<CoreWorkerRayletTaskSubmitter>(
-                               new CoreWorkerRayletTaskSubmitter(raylet_client_)));
+                               new CoreWorkerRayletTaskSubmitter()));
 
   task_submitters_.emplace(
       TaskTransportType::DIRECT_ACTOR,
@@ -118,6 +145,19 @@ void CoreWorker::InitializeTaskSubmitters(bool use_asio_rpc) {
                          new DirectActorGrpcTaskSubmitter(
                              io_service_, *gcs_client_,
                              CreateStoreProvider(StoreProviderType::MEMORY))));              
+}
+
+CoreWorker::CoreWorker(CoreWorkerProcess &core_worker)
+    : core_worker_(core_worker),
+      worker_context_(core_worker.GetWorkerType(), core_worker.GetJobId()),
+      raylet_client_(core_worker.GetRayletSocket(),
+      WorkerID::FromBinary(worker_context_.GetWorkerID().Binary()),
+      (worker_context_.GetWorkerType() == ray::WorkerType::WORKER), worker_context_.GetCurrentJobID(),
+      core_worker.GetLanguage(), core_worker.GetRpcServerPort()),
+      main_work_(main_service_)  {}
+
+CoreWorker::~CoreWorker() {
+  RAY_IGNORE_EXPR(raylet_client_.Disconnect());
 }
 
 }  // namespace ray

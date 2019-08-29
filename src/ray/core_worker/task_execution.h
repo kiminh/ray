@@ -34,11 +34,12 @@ class CoreWorkerTaskExecutionInterface {
       const std::vector<std::shared_ptr<RayObject>> &args, int num_returns,
       std::vector<std::shared_ptr<RayObject>> *results)>;
 
-  CoreWorkerTaskExecutionInterface(WorkerContext &worker_context,
-                                   std::unique_ptr<RayletClient> &raylet_client,
-                                   CoreWorkerStoreProviderMap &store_providers,
-                                   const TaskExecutor &executor,
-                                   bool use_asio_rpc);
+  CoreWorkerTaskExecutionInterface(
+      CoreWorkerStoreProviderMap &store_providers,
+      std::shared_ptr<boost::asio::io_service> io_service,
+      std::unordered_map<WorkerID, std::shared_ptr<boost::asio::io_service>> &worker_main_services,
+      const TaskExecutor &executor,
+      bool use_asio_rpc);
 
   /// Start receiving and executing tasks.
   /// \return void.
@@ -68,11 +69,12 @@ class CoreWorkerTaskExecutionInterface {
   Status ExecuteTask(const TaskSpecification &spec,
                      std::vector<std::shared_ptr<RayObject>> *results);
 
-  /// Reference to the parent CoreWorker's context.
-  WorkerContext &worker_context_;
-
 
   CoreWorkerStoreProviderMap &store_providers_;
+
+  std::shared_ptr<boost::asio::io_service> io_service_;
+
+  std::unordered_map<WorkerID, std::shared_ptr<boost::asio::io_service>> &worker_main_services_;
 
   // Task execution callback.
   TaskExecutor execution_callback_;
@@ -84,13 +86,7 @@ class CoreWorkerTaskExecutionInterface {
   /// The RPC server.
   std::unique_ptr<rpc::RpcServer> worker_server_;
 
-  /// Event loop where tasks are processed.
-  std::shared_ptr<boost::asio::io_service> main_service_;
-
-  /// The asio work to keep main_service_ alive.
-  boost::asio::io_service::work main_work_;
-
-  friend class CoreWorker;
+  friend class CoreWorkerProcess;
 };
 
 }  // namespace ray
