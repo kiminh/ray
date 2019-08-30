@@ -17,6 +17,7 @@ class GcsGCManager {
   /// task informations, actor informations, object informations and so on.
   ///
   /// \return Status
+  // TODO(micafan) Confirm what kind of data needed to delete in level One FO.
   Status CleanAllJobs();
 
  private:

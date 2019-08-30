@@ -24,10 +24,14 @@ Status GcsGCManager::CleanAllJobs() {
 
   std::chrono::milliseconds time_ms(100);
   size_t max_retry_times = 3;
+  Status status = Status::OK();
   for (auto &fun : funcs) {
+    if (!status.ok()) {
+      return status;
+    }
     for (size_t i = 0; i < max_retry_times; ++i) {
       // Retry 3 times.
-      Status status = fun();
+      status = fun();
       if (status.ok()) {
         break;
       }

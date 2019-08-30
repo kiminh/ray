@@ -240,9 +240,8 @@ class Log : public LogInterface<ID, Data>, virtual public PubsubInterface<ID> {
   /// Delete several keys from redis synchronously.
   ///
   /// \param keys Keys that to delete from GCS.
-  /// \param skip_first_key Whether to skip the first key when deleting.
   /// \return Status
-  Status Delete(const std::vector<std::string> &keys, bool skip_first_key);
+  Status Delete(const std::vector<std::string> &keys);
 
   /// Subscribe to any modifications to the key. The caller may choose
   /// to subscribe to all modifications, or to subscribe only to keys that it

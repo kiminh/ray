@@ -246,7 +246,7 @@ Status Log<ID, Data>::DeleteAll() {
   size_t total_count = 0;
   std::string match_pattern = rpc::TablePrefix_Name(prefix_) + "*";
   size_t batch_count = RayConfig::instance().maximum_gcs_deletion_batch_size();
-  int cursor = 0;
+  size_t cursor = 0;
   for (;;) {
     // Scan from redis.
     std::vector<std::string> args = {"SCAN",  std::to_string(cursor),
@@ -258,38 +258,45 @@ Status Log<ID, Data>::DeleteAll() {
                     << rpc::TablePrefix_Name(prefix_);
       return Status::RedisError("Redis Error");
     }
+
     std::vector<std::string> keys;
-    reply_ptr->ReadAsStringArray(&keys);
-    RAY_CHECK(!keys.empty());
-    total_count += (keys.size() - 1);
-    cursor = std::stoi(keys[0]);
+    cursor = reply_ptr->ReadAsScanArray(&keys);
+    total_count += keys.size();
+    RAY_LOG(DEBUG) << "Scan cursor is " << cursor << ", current matched keys size is "
+                   << keys.size() << ", match pattern is " << match_pattern;
+
+    // Delete from redis.
+    if (!keys.empty()) {
+      Status status = Delete(keys);
+      if (!status.ok()) {
+        return status;
+      }
+    }
+
     if (cursor == 0) {
       // Scan done.
-      RAY_LOG(INFO) << "DeleteAll done, total count is " << total_count
+      RAY_LOG(INFO) << "DeleteAll done, total deleted count is " << total_count
                     << ", table prefix is " << rpc::TablePrefix_Name(prefix_);
       return Status::OK();
-    }
-    // Delete from redis.
-    Status status = Delete(keys, /*skip_first_key*/ true);
-    if (!status.ok()) {
-      return status;
     }
   }
 }
 
 template <typename ID, typename Data>
-Status Log<ID, Data>::Delete(const std::vector<std::string> &keys, bool skip_first_key) {
-  if (keys.empty() || (skip_first_key && keys.size() <= 1U)) {
+Status Log<ID, Data>::Delete(const std::vector<std::string> &keys) {
+  if (keys.empty()) {
     return Status::OK();
   }
 
   std::unordered_map<RedisContext *, std::ostringstream> sharded_data;
   size_t prefix_len = rpc::TablePrefix_Name(prefix_).length();
-  size_t i = skip_first_key ? 1 : 0;
-  for (; i < keys.size(); ++i) {
+  for (size_t i = 0; i < keys.size(); ++i) {
     const auto &key = keys[i];
-    RAY_CHECK(key.length() > prefix_len);
-    sharded_data[GetRedisContext(key).get()] << key.substr(prefix_len - 1);
+    if (key.length() == (prefix_len + ID::Size())) {
+      // Key consists of two parts: table prefix and ID.
+      std::string id_binary = key.substr(prefix_len);
+      sharded_data[GetRedisContext(key).get()] << id_binary;
+    }
   }
   // Breaking really large deletion commands into batches of smaller size.
   const size_t batch_size =

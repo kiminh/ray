@@ -120,12 +120,41 @@ void CallbackReply::ReadAsStringArray(std::vector<std::string> *array) const {
     RAY_CHECK(!is_pubsub_reply) << "Subpub reply cannot be read as a string array.";
   }
 
-  array->resize(array_size);
+  array->reserve(array_size);
   for (size_t i = 0; i < array_size; ++i) {
     auto *entry = redis_reply_->element[i];
     RAY_CHECK(REDIS_REPLY_STRING == entry->type) << "Unexcepted type: " << entry->type;
     array->push_back(std::string(entry->str, entry->len));
   }
+}
+
+size_t CallbackReply::ReadAsScanArray(std::vector<std::string> *array) const {
+  RAY_CHECK(nullptr != array) << "Argument `array` must not be nullptr.";
+  RAY_CHECK(REDIS_REPLY_ARRAY == redis_reply_->type);
+
+  // cursor
+  const auto response_size = static_cast<size_t>(redis_reply_->elements);
+  RAY_CHECK(response_size == 2);
+  auto *cursor_entry = redis_reply_->element[0];
+  RAY_CHECK(REDIS_REPLY_STRING == cursor_entry->type)
+      << "Unexcepted type: " << cursor_entry->type;
+  std::string cursor_str(cursor_entry->str, cursor_entry->len);
+  size_t cursor = std::stoi(cursor_str);
+
+  // array
+  auto array_entry = redis_reply_->element[1];
+  RAY_CHECK(REDIS_REPLY_ARRAY == array_entry->type)
+      << "Unexcepted type: " << array_entry->type;
+  const auto array_size = array_entry->elements;
+  array->reserve(array_size);
+  for (size_t i = 0; i < array_size; ++i) {
+    auto *entry = array_entry->element[i];
+    RAY_CHECK(REDIS_REPLY_STRING == entry->type) << "Unexcepted type: " << entry->type;
+    array->push_back(std::string(entry->str, entry->len));
+    RAY_LOG(DEBUG) << "Element index is " << i << ", element length is " << entry->len;
+  }
+
+  return cursor;
 }
 
 // This is a global redis callback which will be registered for every

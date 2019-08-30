@@ -61,6 +61,8 @@ class CallbackReply {
   /// make it as an output parameter.
   void ReadAsStringArray(std::vector<std::string> *array) const;
 
+  size_t ReadAsScanArray(std::vector<std::string> *array) const;
+
  private:
   bool own_reply_;
   redisReply *redis_reply_;
