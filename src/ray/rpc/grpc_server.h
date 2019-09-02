@@ -8,6 +8,7 @@
 #include <boost/asio.hpp>
 
 #include "ray/common/status.h"
+#include "ray/rpc/server.h"
 #include "ray/rpc/server_call.h"
 
 namespace ray {
@@ -24,21 +25,20 @@ class GrpcService;
 /// Subclasses can register one or multiple services to a `GrpcServer`, see
 /// `RegisterServices`. And they should also implement `InitServerCallFactories` to decide
 /// which kinds of requests this server should accept.
-class GrpcServer {
+class GrpcServer : public RpcServer {
  public:
   /// Construct a gRPC server that listens on a TCP port.
   ///
   /// \param[in] name Name of this server, used for logging and debugging purpose.
   /// \param[in] port The port to bind this server to. If it's 0, a random available port
   ///  will be chosen.
-  GrpcServer(std::string name, const uint32_t port)
-      : name_(std::move(name)), port_(port), is_closed_(true) {}
+  GrpcServer(std::string name, const uint32_t port) : RpcServer(name, port) {}
 
   /// Destruct this gRPC server.
   ~GrpcServer() { Shutdown(); }
 
   /// Initialize and run this server.
-  void Run();
+  void Run() override;
 
   // Shutdown this server
   void Shutdown() {
@@ -50,9 +50,6 @@ class GrpcServer {
       RAY_LOG(DEBUG) << "gRPC server of " << name_ << " shutdown.";
     }
   }
-
-  /// Get the port of this gRPC server.
-  int GetPort() const { return port_; }
 
   /// Register a grpc service. Multiple services can be registered to the same server.
   /// Note that the `service` registered must remain valid for the lifetime of the
@@ -67,12 +64,6 @@ class GrpcServer {
   /// via the `ServerCall` objects.
   void PollEventsFromCompletionQueue();
 
-  /// Name of this server, used for logging and debugging purpose.
-  const std::string name_;
-  /// Port of this server.
-  int port_;
-  /// Indicates whether this server has been closed.
-  bool is_closed_;
   /// The `grpc::Service` objects which should be registered to `ServerBuilder`.
   std::vector<std::reference_wrapper<grpc::Service>> services_;
   /// The `ServerCallFactory` objects, and the maximum number of concurrent requests that
@@ -91,14 +82,14 @@ class GrpcServer {
 ///
 /// Subclass should implement `InitServerCallFactories` to decide
 /// which kinds of requests this service should accept.
-class GrpcService {
+class GrpcService : public RpcService {
  public:
   /// Constructor.
   ///
   /// \param[in] main_service The main event loop, to which service handler functions
   /// will be posted.
   explicit GrpcService(boost::asio::io_service &main_service)
-      : main_service_(main_service) {}
+      : RpcService(), main_service_(main_service) {}
 
   /// Destruct this gRPC service.
   ~GrpcService() = default;

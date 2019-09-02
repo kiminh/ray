@@ -4,6 +4,8 @@
 #include "ray/rpc/grpc_server.h"
 #include "ray/rpc/server_call.h"
 
+#include "ray/rpc/asio_server.h"
+
 #include "src/ray/protobuf/direct_actor.grpc.pb.h"
 #include "src/ray/protobuf/direct_actor.pb.h"
 
@@ -24,7 +26,7 @@ class DirectActorHandler {
                               SendReplyCallback send_reply_callback) = 0;
 };
 
-/// The `GrpcServer` for `WorkerService`.
+/// The `GrpcService` for `DirectActorService`.
 class DirectActorGrpcService : public GrpcService {
  public:
   /// Constructor.
@@ -58,6 +60,38 @@ class DirectActorGrpcService : public GrpcService {
   /// The grpc async service object.
   DirectActorService::AsyncService service_;
 
+  /// The service handler that actually handle the requests.
+  DirectActorHandler &service_handler_;
+};
+
+/// The `AsioRpcService` for `DirectActorService`.
+class DirectActorAsioRpcService : public AsioRpcService {
+ public:
+  /// Constructor.
+  ///
+  /// \param[in] handler The service handler that actually handle the requests.
+  DirectActorAsioRpcService(DirectActorHandler &service_handler)
+      : AsioRpcService(rpc::RpcServiceType::DirectActorServiceType),
+        service_handler_(service_handler){};
+
+ protected:
+  void InitMethodHandlers(
+      std::vector<std::shared_ptr<ServiceMethod>> *server_call_methods,
+      std::vector<std::string> *message_type_enum_names) override {
+    // Initialize the Factory for `PushTask` requests.
+    std::shared_ptr<ServiceMethod> push_task_call_method(
+        new ServiceMethodImpl<DirectActorHandler, PushTaskRequest, PushTaskReply,
+                              DirectActorServiceMessageType>(
+            service_type_, DirectActorServiceMessageType::PushTaskRequestMessage,
+            DirectActorServiceMessageType::PushTaskReplyMessage, service_handler_,
+            &DirectActorHandler::HandlePushTask));
+
+    server_call_methods->emplace_back(std::move(push_task_call_method));
+
+    *message_type_enum_names = GenerateEnumNames(DirectActorServiceMessageType);
+  }
+
+ private:
   /// The service handler that actually handle the requests.
   DirectActorHandler &service_handler_;
 };

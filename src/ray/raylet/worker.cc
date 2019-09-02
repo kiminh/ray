@@ -13,19 +13,32 @@ namespace raylet {
 Worker::Worker(const WorkerID &worker_id, pid_t pid, const Language &language, int port,
                std::shared_ptr<LocalClientConnection> connection,
                rpc::ClientCallManager &client_call_manager)
+    : Worker(worker_id, pid, language, port, connection) {
+  if (port > 0) {
+    rpc_client_ = std::unique_ptr<rpc::WorkerTaskGrpcClient>(
+        new rpc::WorkerTaskGrpcClient("127.0.0.1", port, client_call_manager));
+  }
+}
+
+Worker::Worker(const WorkerID &worker_id, pid_t pid, const Language &language, int port,
+               std::shared_ptr<LocalClientConnection> connection,
+               boost::asio::io_service &io_service)
+    : Worker(worker_id, pid, language, port, connection) {
+  if (port > 0) {
+    rpc_client_ = std::unique_ptr<rpc::WorkerTaskAsioClient>(
+        new rpc::WorkerTaskAsioClient("127.0.0.1", port, io_service));
+  }
+}
+
+Worker::Worker(const WorkerID &worker_id, pid_t pid, const Language &language, int port,
+               std::shared_ptr<LocalClientConnection> connection)
     : worker_id_(worker_id),
       pid_(pid),
       language_(language),
       port_(port),
       connection_(connection),
       dead_(false),
-      blocked_(false),
-      client_call_manager_(client_call_manager) {
-  if (port_ > 0) {
-    rpc_client_ = std::unique_ptr<rpc::WorkerTaskClient>(
-        new rpc::WorkerTaskClient("127.0.0.1", port_, client_call_manager_));
-  }
-}
+      blocked_(false) {}
 
 void Worker::MarkDead() { dead_ = true; }
 

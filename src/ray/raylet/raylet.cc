@@ -9,8 +9,8 @@
 
 namespace {
 
-const std::vector<std::string> GenerateEnumNames(const char *const *enum_names_ptr,
-                                                 int start_index, int end_index) {
+const std::vector<std::string> GenerateFlatbufEnumNames(const char *const *enum_names_ptr,
+                                                        int start_index, int end_index) {
   std::vector<std::string> enum_names;
   for (int i = 0; i < start_index; ++i) {
     enum_names.push_back("EmptyMessageType");
@@ -30,9 +30,9 @@ const std::vector<std::string> GenerateEnumNames(const char *const *enum_names_p
 }
 
 static const std::vector<std::string> node_manager_message_enum =
-    GenerateEnumNames(ray::protocol::EnumNamesMessageType(),
-                      static_cast<int>(ray::protocol::MessageType::MIN),
-                      static_cast<int>(ray::protocol::MessageType::MAX));
+    GenerateFlatbufEnumNames(ray::protocol::EnumNamesMessageType(),
+                             static_cast<int>(ray::protocol::MessageType::MIN),
+                             static_cast<int>(ray::protocol::MessageType::MAX));
 }  // namespace
 
 namespace ray {
@@ -120,7 +120,7 @@ void Raylet::HandleAccept(const boost::system::error_code &error) {
         [this](LocalClientConnection &client) { node_manager_.ProcessNewClient(client); };
     MessageHandler<boost::asio::local::stream_protocol> message_handler =
         [this](std::shared_ptr<LocalClientConnection> client, int64_t message_type,
-               const uint8_t *message) {
+               uint64_t length, const uint8_t *message) {
           node_manager_.ProcessClientMessage(client, message_type, message);
         };
     // Accept a new local client and dispatch it to the node manager.

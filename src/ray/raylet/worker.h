@@ -19,10 +19,17 @@ namespace raylet {
 /// actor. Ray units of work execute in the context of a Worker.
 class Worker {
  public:
-  /// A constructor that initializes a worker object.
+  /// A constructor that initializes a worker object. The constructed worker object
+  /// uses grpc to communicate with worker process.
   Worker(const WorkerID &worker_id, pid_t pid, const Language &language, int port,
          std::shared_ptr<LocalClientConnection> connection,
          rpc::ClientCallManager &client_call_manager);
+  /// A constructor that initializes a worker object. The constructed worker object
+  /// uses asio based rpc to communicate with worker process.
+  Worker(const WorkerID &worker_id, pid_t pid, const Language &language, int port,
+         std::shared_ptr<LocalClientConnection> connection,
+         boost::asio::io_service &io_service);
+
   /// A destructor responsible for freeing all worker state.
   ~Worker() {}
   void MarkDead();
@@ -62,6 +69,8 @@ class Worker {
                   const std::function<void(Status)> finish_assign_callback);
 
  private:
+  Worker(const WorkerID &worker_id, pid_t pid, const Language &language, int port,
+         std::shared_ptr<LocalClientConnection> connection);
   /// The worker's ID.
   WorkerID worker_id_;
   /// The worker's PID.
@@ -91,9 +100,6 @@ class Worker {
   // of a task.
   ResourceIdSet task_resource_ids_;
   std::unordered_set<TaskID> blocked_task_ids_;
-  /// The `ClientCallManager` object that is shared by `WorkerTaskClient` from all
-  /// workers.
-  rpc::ClientCallManager &client_call_manager_;
   /// The rpc client to send tasks to this worker.
   std::unique_ptr<rpc::WorkerTaskClient> rpc_client_;
 };

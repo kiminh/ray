@@ -101,17 +101,23 @@ void ActorHandle::ClearNewActorHandles() { new_actor_handles_.clear(); }
 CoreWorkerTaskInterface::CoreWorkerTaskInterface(
     WorkerContext &worker_context, std::unique_ptr<RayletClient> &raylet_client,
     CoreWorkerObjectInterface &object_interface, boost::asio::io_service &io_service,
-    gcs::RedisGcsClient &gcs_client)
+    gcs::RedisGcsClient &gcs_client, bool use_asio_rpc)
     : worker_context_(worker_context) {
   task_submitters_.emplace(TaskTransportType::RAYLET,
                            std::unique_ptr<CoreWorkerRayletTaskSubmitter>(
                                new CoreWorkerRayletTaskSubmitter(raylet_client)));
+
+  auto memory_store_provider =
+      object_interface.CreateStoreProvider(StoreProviderType::MEMORY);
+
   task_submitters_.emplace(
       TaskTransportType::DIRECT_ACTOR,
-      std::unique_ptr<CoreWorkerDirectActorTaskSubmitter>(
-          new CoreWorkerDirectActorTaskSubmitter(
-              io_service, gcs_client,
-              object_interface.CreateStoreProvider(StoreProviderType::MEMORY))));
+      use_asio_rpc ? std::unique_ptr<CoreWorkerDirectActorTaskSubmitter>(
+                         new DirectActorAsioTaskSubmitter(
+                             io_service, gcs_client, std::move(memory_store_provider)))
+                   : std::unique_ptr<CoreWorkerDirectActorTaskSubmitter>(
+                         new DirectActorGrpcTaskSubmitter(
+                             io_service, gcs_client, std::move(memory_store_provider))));
 }
 
 void CoreWorkerTaskInterface::BuildCommonTaskSpec(
@@ -152,9 +158,11 @@ Status CoreWorkerTaskInterface::SubmitTask(const RayFunction &function,
   const auto task_id =
       TaskID::ForNormalTask(worker_context_.GetCurrentJobID(),
                             worker_context_.GetCurrentTaskID(), next_task_index);
+  std::unordered_map<std::string, double> required_placement_resources;
   BuildCommonTaskSpec(builder, task_id, next_task_index, function, args,
-                      task_options.num_returns, task_options.resources, {},
-                      TaskTransportType::RAYLET, return_ids);
+                      task_options.num_returns, task_options.resources,
+                      required_placement_resources, TaskTransportType::RAYLET,
+                      return_ids);
   return task_submitters_[TaskTransportType::RAYLET]->SubmitTask(builder.Build());
 }
 
@@ -202,9 +210,10 @@ Status CoreWorkerTaskInterface::SubmitActorTask(ActorHandle &actor_handle,
   const auto actor_task_id = TaskID::ForActorTask(
       worker_context_.GetCurrentJobID(), worker_context_.GetCurrentTaskID(),
       next_task_index, actor_handle.ActorID());
+  std::unordered_map<std::string, double> required_placement_resources;
   BuildCommonTaskSpec(builder, actor_task_id, next_task_index, function, args,
-                      num_returns, task_options.resources, {}, transport_type,
-                      return_ids);
+                      num_returns, task_options.resources, required_placement_resources,
+                      transport_type, return_ids);
 
   std::unique_lock<std::mutex> guard(actor_handle.mutex_);
   // Build actor task spec.
