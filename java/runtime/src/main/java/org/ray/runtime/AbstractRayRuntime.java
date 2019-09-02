@@ -5,6 +5,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.ray.api.RayActor;
+import org.ray.api.job.RayJob;
 import org.ray.api.RayObject;
 import org.ray.api.RayPyActor;
 import org.ray.api.WaitResult;
@@ -15,6 +16,7 @@ import org.ray.api.id.ObjectId;
 import org.ray.api.id.UniqueId;
 import org.ray.api.options.ActorCreationOptions;
 import org.ray.api.options.CallOptions;
+import org.ray.api.options.JobOptions;
 import org.ray.api.runtime.RayRuntime;
 import org.ray.api.runtimecontext.RuntimeContext;
 import org.ray.runtime.config.RayConfig;
@@ -235,5 +237,10 @@ public abstract class AbstractRayRuntime implements RayRuntime {
 
   public GcsClient getGcsClient() {
     return gcsClient;
+  }
+
+  @Override
+  public RayJob submitJob(RayFunc func, Object[] args, JobOptions options) {
+    return null;
   }
 }
