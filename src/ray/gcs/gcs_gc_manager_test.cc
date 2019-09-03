@@ -79,10 +79,10 @@ TEST_F(GcsGCManagerTest, CleanForLevelOneFailover) {
   // add
   for (const auto &elem : object_id_to_data_) {
     ++pending_count_;
-    RAY_CHECK_OK(object_table.Add(JobID::Nil(), elem.first, elem.second,
-        [this](RedisGcsClient *client, const ObjectID &id, const ObjectTableData &data) {
-          --pending_count_;
-        }));
+    RAY_CHECK_OK(
+        object_table.Add(JobID::Nil(), elem.first, elem.second,
+                         [this](RedisGcsClient *client, const ObjectID &id,
+                                const ObjectTableData &data) { --pending_count_; }));
   }
   WaitPendingDone(wait_pending_timeout_);
 
@@ -93,11 +93,11 @@ TEST_F(GcsGCManagerTest, CleanForLevelOneFailover) {
   for (const auto &elem : object_id_to_data_) {
     ++pending_count_;
     RAY_CHECK_OK(object_table.Lookup(JobID::Nil(), elem.first,
-        [this](RedisGcsClient *client, const ObjectID &id,
-               const std::vector<ObjectTableData> &data) {
-          RAY_CHECK(data.empty()) << data.size();
-          --pending_count_;
-        }));
+                                     [this](RedisGcsClient *client, const ObjectID &id,
+                                            const std::vector<ObjectTableData> &data) {
+                                       RAY_CHECK(data.empty()) << data.size();
+                                       --pending_count_;
+                                     }));
   }
   WaitPendingDone(wait_pending_timeout_);
 }

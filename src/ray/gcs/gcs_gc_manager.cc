@@ -41,52 +41,52 @@ Status GcsGCManager::CleanForLevelOneFailover() {
 
 Status GcsGCManager::CleanAllJobData() {
   auto &job_table = gcs_client_.job_table();
-  return job_table.DeleteAll();
+  return job_table.SyncDeleteAll();
 }
 
 Status GcsGCManager::CleanAllActorData() {
   auto &actor_table = gcs_client_.actor_table();
-  return actor_table.DeleteAll();
+  return actor_table.SyncDeleteAll();
 }
 
 Status GcsGCManager::CleanAllActorCheckpointData() {
   auto &checkpoint_table = gcs_client_.actor_checkpoint_table();
-  return checkpoint_table.DeleteAll();
+  return checkpoint_table.SyncDeleteAll();
 }
 
 Status GcsGCManager::CleanAllActorCheckpointIdData() {
   auto &checkpoint_id_table = gcs_client_.actor_checkpoint_id_table();
-  return checkpoint_id_table.DeleteAll();
+  return checkpoint_id_table.SyncDeleteAll();
 }
 
 Status GcsGCManager::CleanAllTaskData() {
   auto &task_table = gcs_client_.raylet_task_table();
-  return task_table.DeleteAll();
+  return task_table.SyncDeleteAll();
 }
 
 Status GcsGCManager::CleanAllTaskLeaseData() {
   auto &task_lease_table = gcs_client_.task_lease_table();
-  return task_lease_table.DeleteAll();
+  return task_lease_table.SyncDeleteAll();
 }
 
 Status GcsGCManager::CleanAllTaskReconstructionData() {
   auto &task_reconstruction_table = gcs_client_.task_reconstruction_log();
-  return task_reconstruction_table.DeleteAll();
+  return task_reconstruction_table.SyncDeleteAll();
 }
 
 Status GcsGCManager::CleanAllObjectData() {
   auto &object_table = gcs_client_.object_table();
-  return object_table.DeleteAll();
+  return object_table.SyncDeleteAll();
 }
 
 Status GcsGCManager::CleanAllErrorData() {
   auto &error_table = gcs_client_.error_table();
-  return error_table.DeleteAll();
+  return error_table.SyncDeleteAll();
 }
 
 Status GcsGCManager::CleanAllProfileData() {
   auto &profile_table = gcs_client_.profile_table();
-  return profile_table.DeleteAll();
+  return profile_table.SyncDeleteAll();
 }
 
 }  // namespace gcs

@@ -219,7 +219,7 @@ class Log : public LogInterface<ID, Data>, virtual public PubsubInterface<ID> {
   /// Delete all data from redis synchronously.
   ///
   /// \return Status
-  Status DeleteAll();
+  Status SyncDeleteAll();
 
   /// Returns debug string for class.
   ///
@@ -381,7 +381,7 @@ class Table : private Log<ID, Data>,
   /// Delete all data from redis synchronously.
   ///
   /// \return Status
-  Status DeleteAll() { return Log<ID, Data>::DeleteAll(); }
+  Status SyncDeleteAll() { return Log<ID, Data>::SyncDeleteAll(); }
 
   /// Returns debug string for class.
   ///
@@ -469,7 +469,7 @@ class Set : private Log<ID, Data>,
   /// Delete all data from redis synchronously.
   ///
   /// \return Status
-  Status DeleteAll() { return Log<ID, Data>::DeleteAll(); }
+  Status SyncDeleteAll() { return Log<ID, Data>::SyncDeleteAll(); }
 
   /// Returns debug string for class.
   ///
@@ -816,7 +816,10 @@ class ErrorTable : private Log<JobID, ErrorTableData> {
   Status PushErrorToDriver(const JobID &job_id, const std::string &type,
                            const std::string &error_message, double timestamp);
 
-  Status DeleteAll() { return Log<JobID, ErrorTableData>::DeleteAll(); }
+  /// Delete all data from redis synchronously.
+  ///
+  /// \return Status
+  Status SyncDeleteAll() { return Log<JobID, ErrorTableData>::SyncDeleteAll(); }
 
   /// Returns debug string for class.
   ///
@@ -838,7 +841,7 @@ class ProfileTable : private Log<UniqueID, ProfileTableData> {
   /// \return Status.
   Status AddProfileEventBatch(const ProfileTableData &profile_events);
 
-  Status DeleteAll() { return Log<UniqueID, ProfileTableData>::DeleteAll(); }
+  Status SyncDeleteAll() { return Log<UniqueID, ProfileTableData>::SyncDeleteAll(); }
 
   /// Returns debug string for class.
   ///

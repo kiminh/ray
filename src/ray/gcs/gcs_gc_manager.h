@@ -8,14 +8,14 @@ namespace ray {
 namespace gcs {
 
 class GcsGCManager {
- FRIEND_TEST(GcsGCManagerTest, CleanAllActorDataTest);
+  FRIEND_TEST(GcsGCManagerTest, CleanAllActorDataTest);
 
  public:
   explicit GcsGCManager(RedisGcsClient &gcs_client);
 
   ~GcsGCManager() {}
 
-  /// Clean GCS data which are useless when level one failover happens.
+  /// Clean GCS data which are useless for level one failover.
   ///
   /// Those data includes:
   /// task lease informations, task reconstruct informations,

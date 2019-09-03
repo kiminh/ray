@@ -242,7 +242,7 @@ void Log<ID, Data>::Delete(const JobID &job_id, const ID &id) {
 }
 
 template <typename ID, typename Data>
-Status Log<ID, Data>::DeleteAll() {
+Status Log<ID, Data>::SyncDeleteAll() {
   size_t total_count = 0;
   std::string match_pattern = rpc::TablePrefix_Name(prefix_) + "*";
   size_t batch_count = RayConfig::instance().maximum_gcs_deletion_batch_size();
@@ -275,7 +275,7 @@ Status Log<ID, Data>::DeleteAll() {
 
     if (cursor == 0) {
       // Scan done.
-      RAY_LOG(INFO) << "DeleteAll done, total deleted count is " << total_count
+      RAY_LOG(INFO) << "SyncDeleteAll done, total deleted count is " << total_count
                     << ", table prefix is " << rpc::TablePrefix_Name(prefix_);
       return Status::OK();
     }

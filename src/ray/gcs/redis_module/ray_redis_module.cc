@@ -771,8 +771,8 @@ static Status DeleteKeyHelper(RedisModuleCtx *ctx, RedisModuleString *prefix_str
   // Usually Set/Hash will delete itself when the length is 0.
   // Garbage cleaning is required during the Failover process. At this point
   // we need to support clean up the Set even the length is greater than 0.
-  if (key_type == REDISMODULE_KEYTYPE_STRING || key_type == REDISMODULE_KEYTYPE_LIST
-      || key_type == REDISMODULE_KEYTYPE_SET) {
+  if (key_type == REDISMODULE_KEYTYPE_STRING || key_type == REDISMODULE_KEYTYPE_LIST ||
+      key_type == REDISMODULE_KEYTYPE_SET) {
     RAY_RETURN_NOT_OK(
         OpenPrefixedKey(&delete_key, ctx, prefix_str, id_data, REDISMODULE_WRITE));
     RedisModule_DeleteKey(delete_key);
