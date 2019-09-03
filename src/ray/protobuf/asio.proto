@@ -27,21 +27,38 @@ message ConnectClientMessage {
 message DisconnectClientMessage {
 }
 
+message TraceInfo {
+  // Trace id.
+  uint64 trace_id = 1;
+  // The RPC service name.
+  string service_name = 2;
+  // Type of method.
+  string method_name = 3;
+  // destination IP address.
+  string address = 4;
+  // destination port.
+  int32 port = 5;
+}
+
 message RpcRequestMessage {
+  // Trace info.
+  TraceInfo trace_info = 1;
   // The request id, this is unique for each request.
-  uint64 request_id = 1;
+  uint64 request_id = 2;
   // The actual request message.
-  bytes request = 2;
+  bytes request = 3;
 }
 
 message RpcReplyMessage {
+  // Trace info.
+  TraceInfo trace_info = 1;  
   // The request id of this reply. This is used for the caller
   // to match reply with its correpsonding request.
-  uint64 request_id = 1;
+  uint64 request_id = 2;
   // The type of the error.
-  uint32 error_code = 2;
+  uint32 error_code = 3;
   // The error message.
-  string error_message = 3;
+  string error_message = 4;
   // The actual reply message.
-  bytes reply = 4;
+  bytes reply = 5;
 }

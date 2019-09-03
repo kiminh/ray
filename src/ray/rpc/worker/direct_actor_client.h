@@ -93,7 +93,7 @@ class DirectActorAsioClient : public DirectActorClient {
         .CallMethod<PushTaskRequest, PushTaskReply, DirectActorServiceMessageType>(
             DirectActorServiceMessageType::PushTaskRequestMessage,
             DirectActorServiceMessageType::PushTaskReplyMessage, request, callback,
-            /* requires_reply= */ task_spec.NumReturns() > 1);
+            __func__, /* requires_reply= */ task_spec.NumReturns() > 1);
   }
 
  private:

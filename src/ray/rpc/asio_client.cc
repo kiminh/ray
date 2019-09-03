@@ -67,6 +67,9 @@ void AsioRpcClientImpl::ProcessServerMessage(
   RpcReplyMessage reply_message;
   reply_message.ParseFromArray(message_data, length);
 
+  RAY_LOG(DEBUG) << "Received RPC reply: "
+                << GetTraceInfoMessage(reply_message.trace_info());
+
   RAY_LOG(DEBUG) << "Processing server message for request id: "
                  << reply_message.request_id() << ", service: " << name_
                  << ", message type: " << message_type;

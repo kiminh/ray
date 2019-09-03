@@ -87,7 +87,7 @@ class WorkerTaskAsioClient : public WorkerTaskClient {
     return rpc_client_
         .CallMethod<AssignTaskRequest, AssignTaskReply, WorkerTaskServiceMessageType>(
             WorkerTaskServiceMessageType::AssignTaskRequestMessage,
-            WorkerTaskServiceMessageType::AssignTaskReplytMessage, request, callback);
+            WorkerTaskServiceMessageType::AssignTaskReplytMessage, request, callback, __func__);
   }
 
  private:

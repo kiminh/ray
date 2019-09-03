@@ -3,6 +3,7 @@
 #define RAY_RPC_COMMON_H
 
 #include "ray/protobuf/common.pb.h"
+#include <sstream>
 
 namespace ray {
 namespace rpc {
@@ -44,6 +45,16 @@ const std::vector<std::string> GenerateProtobufEnumNames(T min_value, T max_valu
 #define GenerateEnumNames(T)                                      \
   GenerateProtobufEnumNames<T, decltype(BOOST_PP_CAT(T, _Name))>( \
       BOOST_PP_CAT(T, _MIN), BOOST_PP_CAT(T, _MAX), BOOST_PP_CAT(T, _Name))
+
+inline std::string GetTraceInfoMessage(const rpc::TraceInfo &trace_info) {
+  std::stringstream ss;
+  ss << "TraceID: " << trace_info.trace_id()
+     << ", service: " << trace_info.service_name()
+     << ", method: " << trace_info.method_name()
+     << ", address: " << trace_info.address()
+     << ", port: " << trace_info.port();
+  return ss.str();
+}
 
 }  // namespace rpc
 }  // namespace ray

@@ -193,6 +193,9 @@ class ServiceMethodImpl : public ServiceMethod {
     RpcRequestMessage request_message;
     request_message.ParseFromArray(message_data, length);
 
+    auto trace_log = GetTraceInfoMessage(request_message.trace_info());
+    RAY_LOG(DEBUG) << "Received RPC request: " << trace_log;
+
     const auto request_id = request_message.request_id();
 
     Request request;
@@ -206,12 +209,15 @@ class ServiceMethodImpl : public ServiceMethod {
 
     (service_handler_.*handle_request_function_)(
         request, &reply,
-        [this, &request_id, &reply, &client](Status status, std::function<void()> success,
+        [this, &request_id, &reply, &client, &request_message, trace_log](Status status, std::function<void()> success,
                                              std::function<void()> failure) {
           RAY_LOG(DEBUG) << "Calling send reply callback for request " << request_id
                          << ", service: " << RpcServiceType_Name(service_type_);
 
           RpcReplyMessage reply_message;
+          // Note that we swap the `trace_info` in request_message here, thus it's
+          // no longer accessible after this line.
+          reply_message.mutable_trace_info()->Swap(request_message.mutable_trace_info());
           reply_message.set_request_id(request_id);
           reply_message.set_error_code(static_cast<uint32_t>(status.code()));
           reply_message.set_error_message(status.message());
@@ -223,15 +229,17 @@ class ServiceMethodImpl : public ServiceMethod {
           client->WriteMessageAsync(
               reply_type_, static_cast<int64_t>(serialized_message.size()),
               reinterpret_cast<const uint8_t *>(serialized_message.data()),
-              [success, failure](const ray::Status &status) {
+              [success, failure, trace_log](const ray::Status &status) {
                 if (status.ok()) {
                   if (success != nullptr) {
                     success();
                   }
+                  RAY_LOG(DEBUG) << "Sent RPC reply: " << trace_log;
                 } else {
                   if (failure != nullptr) {
                     failure();
                   }
+                  RAY_LOG(DEBUG) << "Failed to send RPC reply: " << trace_log;
                 }
               });
         });

@@ -84,7 +84,8 @@ class NodeManagerAsioClient : public NodeManagerClient {
     rpc_client_
         .CallMethod<ForwardTaskRequest, ForwardTaskReply, NodeManagerServiceMessageType>(
             NodeManagerServiceMessageType::ForwardTaskRequestMessage,
-            NodeManagerServiceMessageType::ForwardTaskReplyMessage, request, callback);
+            NodeManagerServiceMessageType::ForwardTaskReplyMessage, request, callback,
+            __func__);
   }
 
  private:

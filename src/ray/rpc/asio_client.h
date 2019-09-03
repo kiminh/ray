@@ -10,6 +10,7 @@
 #include "src/ray/protobuf/asio.pb.h"
 #include "src/ray/rpc/client.h"
 #include "src/ray/rpc/common.h"
+#include "ray/util/util.h"
 
 namespace ray {
 namespace rpc {
@@ -44,7 +45,18 @@ class AsioRpcClientImpl : public RpcClient,
       : RpcClient(service_type, RpcServiceType_Name(service_type), address, port),
         io_service_(io_service),
         request_id_(0),
-        is_connected_(false) {}
+        is_connected_(false) {
+
+    // Generate a 32 bit random tag.
+    std::string buffer(sizeof(uint32_t), 0);
+    FillRandom(&buffer);
+
+    uint32_t tag = 0;
+    memcpy(&tag, buffer.data(), sizeof(uint32_t));
+
+    // Set the high 32 bit of trace id to the random tag.
+    trace_id_ = static_cast<uint64_t>(tag) << 32;
+  }
 
   virtual ~AsioRpcClientImpl() {
     RAY_LOG(INFO) << "AsioRpcClientImpl " << this << "is destructed";
@@ -88,7 +100,7 @@ class AsioRpcClientImpl : public RpcClient,
   template <class Request, class Reply, class MessageType>
   Status CallMethod(MessageType request_type, MessageType reply_type,
                     const Request &request, const ClientCallback<Reply> &callback,
-                    bool requires_reply = true) {
+                    const std::string &method_name, bool requires_reply = true) {
     if (connection_ == nullptr || !is_connected_) {
       // Dispatch to io_service_ thread to make sure all the callbacks are
       // always execute in that thread, to avoid potential deadlock issues
@@ -103,6 +115,15 @@ class AsioRpcClientImpl : public RpcClient,
     }
 
     RpcRequestMessage request_message;
+    request_message.mutable_trace_info()->set_trace_id(++trace_id_);
+    request_message.mutable_trace_info()->set_service_name(
+        RpcServiceType_Name(service_type_));
+    request_message.mutable_trace_info()->set_method_name(method_name);
+    request_message.mutable_trace_info()->set_address(address_);
+    request_message.mutable_trace_info()->set_port(port_); 
+
+    auto trace_log = GetTraceInfoMessage(request_message.trace_info());
+
     auto request_id = ++request_id_;
     request_message.set_request_id(request_id);
     request.SerializeToString(request_message.mutable_request());
@@ -120,12 +141,12 @@ class AsioRpcClientImpl : public RpcClient,
     // about 2X faster on task submission, and 50% faster overall.
     auto this_ptr = this->shared_from_this();
     io_service_.dispatch([request_id, callback, request_type, reply_type,
-                          serialized_message, requires_reply, this, this_ptr] {
+                          serialized_message, requires_reply, this, this_ptr, trace_log] {
       connection_->WriteMessageAsync(
           request_type, static_cast<int64_t>(serialized_message->size()),
           reinterpret_cast<const uint8_t *>(serialized_message->data()),
           [request_id, callback, request_type, reply_type, requires_reply, this,
-           this_ptr](const ray::Status &status) {
+           this_ptr, trace_log](const ray::Status &status) {
             if (status.ok()) {
               if (requires_reply) {
                 // Send succeeds. Add the request to the records, so that
@@ -152,6 +173,7 @@ class AsioRpcClientImpl : public RpcClient,
                                      << ", status: " << status.ToString();
                     });
               }
+              RAY_LOG(DEBUG) << "Sent RPC request: " << trace_log;
             } else {
               // There are errors, invoke the callback.
               Reply reply;
@@ -160,6 +182,7 @@ class AsioRpcClientImpl : public RpcClient,
                              << static_cast<int>(request_type) << " for service " << name_
                              << " to " << address_ << ":" << port_ << ", request id "
                              << request_id << ", status: " << status.ToString();
+              RAY_LOG(DEBUG) << "Failed to send RPC request: " << trace_log;
             }
           });
     });
@@ -192,11 +215,14 @@ class AsioRpcClientImpl : public RpcClient,
   /// we don't need a lock for it.
   std::shared_ptr<TcpClientConnection> connection_;
 
-  // Request sequence id which starts with 1.
+  /// Request sequence id which starts with 1.
   std::atomic<uint64_t> request_id_;
 
   /// Whether we have connected to server.
   std::atomic<bool> is_connected_;
+
+  /// Trace ID.
+  std::atomic<uint64_t> trace_id_;
 };
 
 /// Class that represents an asio based rpc client.
@@ -231,9 +257,9 @@ class AsioRpcClient {
   template <class Request, class Reply, class MessageType>
   Status CallMethod(MessageType request_type, MessageType reply_type,
                     const Request &request, const ClientCallback<Reply> &callback,
-                    bool requires_reply = true) {
+                    const std::string &method_name, bool requires_reply = true) {
     return impl_->CallMethod<Request, Reply, MessageType>(
-        request_type, reply_type, request, callback, requires_reply);
+        request_type, reply_type, request, callback, method_name, requires_reply);
   }
 
  private:
