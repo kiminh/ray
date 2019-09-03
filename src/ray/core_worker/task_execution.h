@@ -34,12 +34,10 @@ class CoreWorkerTaskExecutionInterface {
       const std::vector<std::shared_ptr<RayObject>> &args, int num_returns,
       std::vector<std::shared_ptr<RayObject>> *results)>;
 
-  CoreWorkerTaskExecutionInterface(WorkerContext &worker_context,
-                                   const std::vector<WorkerID> &worker_ids,
-                                   std::unique_ptr<RayletClient> &raylet_client,
+  CoreWorkerTaskExecutionInterface(const std::vector<WorkerID> &worker_ids,
                                    CoreWorkerStoreProviderMap &store_providers,
                                    const TaskExecutor &executor,
-                                   boost::asio::io_service &io_service,
+                                   std::shared_ptr<boost::asio::io_service> io_service,
                                    bool use_asio_rpc);
 
   /// Start receiving and executing tasks.
@@ -70,11 +68,6 @@ class CoreWorkerTaskExecutionInterface {
   Status ExecuteTask(const TaskSpecification &spec,
                      std::vector<std::shared_ptr<RayObject>> *results);
 
-  boost::asio::io_service &GetWorkerService(const WorkerID &worker_id);
-
-  /// Reference to the parent CoreWorker's context.
-  WorkerContext &worker_context_;
-
 
   CoreWorkerStoreProviderMap &store_providers_;
 
@@ -89,7 +82,7 @@ class CoreWorkerTaskExecutionInterface {
   std::unique_ptr<rpc::RpcServer> worker_server_;
 
   /// The IO event loop.
-  boost::asio::io_service &io_service_;
+  std::shared_ptr<boost::asio::io_service> io_service_;
 
   std::vector<WorkerID> worker_ids_;
 
@@ -101,7 +94,7 @@ class CoreWorkerTaskExecutionInterface {
 
   std::unordered_map<WorkerID, std::thread> worker_threads_;
 
-  friend class CoreWorker;
+  friend class CoreWorkerProcess;
 };
 
 }  // namespace ray

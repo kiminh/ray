@@ -3,6 +3,7 @@
 #include "ray/common/ray_config.h"
 #include "ray/core_worker/object_interface.h"
 #include "ray/core_worker/transport/direct_actor_transport.h"
+#include "ray/core_worker/core_worker.h"
 
 namespace ray {
 
@@ -35,16 +36,15 @@ void GroupObjectIdsByStoreProvider(
 }
 
 CoreWorkerObjectInterface::CoreWorkerObjectInterface(
-    WorkerContext &worker_context,
     CoreWorkerStoreProviderMap &store_providers,
     const CoreWorkerTaskSubmitterMap &task_submitters)
-    : worker_context_(worker_context),
-      store_providers_(store_providers),
+    : store_providers_(store_providers),
       task_submitters_(task_submitters) {}
 
 Status CoreWorkerObjectInterface::Put(const RayObject &object, ObjectID *object_id) {
-  ObjectID put_id = ObjectID::ForPut(worker_context_.GetCurrentTaskID(),
-                                     worker_context_.GetNextPutIndex(),
+  const auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();
+  ObjectID put_id = ObjectID::ForPut(worker_context.GetCurrentTaskID(),
+                                     worker_context.GetNextPutIndex(),
                                      /*transport_type=*/0);
   *object_id = put_id;
   return Put(object, put_id);
@@ -114,6 +114,7 @@ Status CoreWorkerObjectInterface::GetFromStoreProvider(
     StoreProviderType type, const std::unordered_set<ObjectID> &object_ids,
     int64_t timeout_ms,
     std::unordered_map<ObjectID, std::shared_ptr<RayObject>> *results) {
+  const auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();      
   if (!object_ids.empty()) {
     if (type == StoreProviderType::MEMORY) {
       auto iter = task_submitters_.find(TaskTransportType::DIRECT_ACTOR);
@@ -123,12 +124,12 @@ Status CoreWorkerObjectInterface::GetFromStoreProvider(
           iter->second.get());
       RAY_CHECK(direct_actor_transport != nullptr);
       RAY_RETURN_NOT_OK(direct_actor_transport->GetReturnObjects(
-        object_ids, timeout_ms, worker_context_.GetCurrentTaskID(), results));
+        object_ids, timeout_ms, worker_context.GetCurrentTaskID(), results));
     } else {
       std::vector<ObjectID> ids(object_ids.begin(), object_ids.end());
       std::vector<std::shared_ptr<RayObject>> objects;
       RAY_RETURN_NOT_OK(store_providers_[type]->Get(
-          ids, timeout_ms, worker_context_.GetCurrentTaskID(), &objects));
+          ids, timeout_ms, worker_context.GetCurrentTaskID(), &objects));
       RAY_CHECK(ids.size() == objects.size());
       for (size_t i = 0; i < objects.size(); i++) {
         (*results).emplace(ids[i], objects[i]);
@@ -217,11 +218,12 @@ Status CoreWorkerObjectInterface::WaitFromMultipleStoreProviders(
 Status CoreWorkerObjectInterface::WaitFromStoreProvider(
     StoreProviderType type, const std::unordered_set<ObjectID> &object_ids,
     int num_objects, int64_t timeout_ms, std::unordered_set<ObjectID> *results) {
+  const auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();      
   std::vector<ObjectID> ids(object_ids.begin(), object_ids.end());
   if (!ids.empty()) {
     std::vector<bool> objects;
     RAY_RETURN_NOT_OK(store_providers_[type]->Wait(
-        ids, num_objects, timeout_ms, worker_context_.GetCurrentTaskID(), &objects));
+        ids, num_objects, timeout_ms, worker_context.GetCurrentTaskID(), &objects));
     RAY_CHECK(ids.size() == objects.size());
     for (size_t i = 0; i < objects.size(); i++) {
       if (objects[i]) {

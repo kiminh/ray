@@ -9,12 +9,10 @@
 namespace ray {
 
 CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
-    WorkerContext &worker_context, const std::vector<WorkerID> &worker_ids,
-    std::unique_ptr<RayletClient> &raylet_client,
+    const std::vector<WorkerID> &worker_ids,
     CoreWorkerStoreProviderMap &store_providers, const TaskExecutor &executor,
-    boost::asio::io_service &io_service, bool use_asio_rpc)
-    : worker_context_(worker_context),
-      store_providers_(store_providers),
+    std::shared_ptr<boost::asio::io_service> io_service, bool use_asio_rpc)
+    : store_providers_(store_providers),
       execution_callback_(executor),
       io_service_(io_service),
       worker_ids_(worker_ids) {
@@ -28,7 +26,7 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
 
   if (use_asio_rpc) {
     std::unique_ptr<rpc::AsioRpcServer> server(
-        new rpc::AsioRpcServer("Worker", 0 /* let asio choose port */, io_service_));
+        new rpc::AsioRpcServer("Worker", 0 /* let asio choose port */, *io_service_));
     asio_server = *server;
     worker_server_ = std::move(server);
   } else {
@@ -47,7 +45,7 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
                 raylet_client, store_providers_, asio_server.get(), task_handler,
                 worker_service_finder))
           : std::unique_ptr<CoreWorkerRayletTaskReceiver>(new RayletGrpcTaskReceiver(
-                raylet_client, store_providers_, io_service_, grpc_server.get(),
+                raylet_client, store_providers_, *io_service_, grpc_server.get(),
                 task_handler, worker_service_finder)));
   task_receivers_.emplace(
       TaskTransportType::DIRECT_ACTOR,
@@ -56,7 +54,7 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
                 new DirectActorAsioTaskReceiver(asio_server.get(), task_handler,
                                                 worker_service_finder))
           : std::unique_ptr<CoreWorkerDirectActorTaskReceiver>(
-                new DirectActorGrpcTaskReceiver(io_service_, grpc_server.get(),
+                new DirectActorGrpcTaskReceiver(*io_service_, grpc_server.get(),
                                                 task_handler, worker_service_finder)));
 
   for (const auto &worker_id : worker_ids_) {
@@ -73,8 +71,8 @@ Status CoreWorkerTaskExecutionInterface::ExecuteTask(
     const TaskSpecification &task_spec,
     std::vector<std::shared_ptr<RayObject>> *results) {
   RAY_LOG(DEBUG) << "Executing task " << task_spec.TaskId();
-
-  worker_context_.SetCurrentTask(task_spec);
+  const auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();
+  worker_context.SetCurrentTask(task_spec);
 
   RayFunction func{task_spec.GetLanguage(), task_spec.FunctionDescriptor()};
 

@@ -129,8 +129,7 @@ class ActorHandle {
 /// submission.
 class CoreWorkerTaskInterface {
  public:
-  CoreWorkerTaskInterface(WorkerContext &worker_context,
-      CoreWorkerTaskSubmitterMap &task_submitters);
+  CoreWorkerTaskInterface(CoreWorkerTaskSubmitterMap &task_submitters);
 
   /// Submit a normal task.
   ///
@@ -187,9 +186,6 @@ class CoreWorkerTaskInterface {
       const std::unordered_map<std::string, double> &required_resources,
       const std::unordered_map<std::string, double> &required_placement_resources,
       TaskTransportType transport_type, std::vector<ObjectID> *return_ids);
-
-  /// Reference to the parent CoreWorker's context.
-  WorkerContext &worker_context_;
 
   /// All the task submitters supported.
   CoreWorkerTaskSubmitterMap &task_submitters_;

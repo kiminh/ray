@@ -19,8 +19,7 @@ class CoreWorkerMemoryStore;
 /// The interface that contains all `CoreWorker` methods that are related to object store.
 class CoreWorkerObjectInterface {
  public:
-  CoreWorkerObjectInterface(WorkerContext &worker_context,
-                            CoreWorkerStoreProviderMap &store_providers,
+  CoreWorkerObjectInterface(CoreWorkerStoreProviderMap &store_providers,
                             const CoreWorkerTaskSubmitterMap &task_submitters);
 
   /// Put an object into object store.
@@ -119,21 +118,12 @@ class CoreWorkerObjectInterface {
   /// Add a store provider for the specified type.
   void AddStoreProvider(StoreProviderType type);
 
-  /// Reference to the parent CoreWorker's context.
-  WorkerContext &worker_context_;
-
   /// All the store providers supported.
   CoreWorkerStoreProviderMap &store_providers_;
 
   const CoreWorkerTaskSubmitterMap &task_submitters_;
 
   friend class CoreWorkerTaskInterface;
-
-  /// TODO(zhijunfu): This is necessary as direct call task submitter needs to create
-  /// a local plasma store provider, later we can refactor ObjectInterface to add a
-  /// `ObjectProviderLayer`, which will encapsulate the functionalities to get or create
-  /// a specific `StoreProvider`, and this can be removed then.
-  friend class CoreWorkerDirectActorTaskSubmitter;
 };
 
 }  // namespace ray

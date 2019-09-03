@@ -1,24 +1,21 @@
 
 #include "ray/core_worker/transport/raylet_transport.h"
 #include "ray/common/task/task.h"
+#include "ray/core_worker/core_worker.h"
 
 namespace ray {
 
-CoreWorkerRayletTaskSubmitter::CoreWorkerRayletTaskSubmitter(
-    std::unique_ptr<RayletClient> &raylet_client)
-    : raylet_client_(raylet_client) {}
+CoreWorkerRayletTaskSubmitter::CoreWorkerRayletTaskSubmitter() {}
 
 Status CoreWorkerRayletTaskSubmitter::SubmitTask(const TaskSpecification &task) {
-  RAY_CHECK(raylet_client_ != nullptr);
-  return raylet_client_->SubmitTask(task);
+  auto &raylet_client = CoreWorkerProcess::GetCoreWorker()->GetRayletClient();
+  return raylet_client.SubmitTask(task);
 }
 
 CoreWorkerRayletTaskReceiver::CoreWorkerRayletTaskReceiver(
-    std::unique_ptr<RayletClient> &raylet_client,
     CoreWorkerStoreProviderMap &store_providers, const TaskHandler &task_handler,
     const WorkerServiceFinder &worker_service_finder)
-    : raylet_client_(raylet_client),
-      store_providers_(store_providers),
+    : store_providers_(store_providers),
       task_handler_(task_handler),
       worker_service_finder_(worker_service_finder) {}
 
@@ -78,7 +75,6 @@ void CoreWorkerRayletTaskReceiver::HandleAssignTask(
 }
 
 RayletGrpcTaskReceiver::RayletGrpcTaskReceiver(
-    std::unique_ptr<RayletClient> &raylet_client,
     CoreWorkerStoreProviderMap &store_providers, boost::asio::io_service &io_service,
     rpc::GrpcServer &server, const TaskHandler &task_handler,
     const WorkerServiceFinder &worker_service_finder)
@@ -89,7 +85,6 @@ RayletGrpcTaskReceiver::RayletGrpcTaskReceiver(
 }
 
 RayletAsioTaskReceiver::RayletAsioTaskReceiver(
-    std::unique_ptr<RayletClient> &raylet_client,
     CoreWorkerStoreProviderMap &store_providers, rpc::AsioRpcServer &server,
     const TaskHandler &task_handler, const WorkerServiceFinder &worker_service_finder)
     : CoreWorkerRayletTaskReceiver(raylet_client, store_providers, task_handler,

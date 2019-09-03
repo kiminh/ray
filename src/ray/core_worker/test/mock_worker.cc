@@ -55,7 +55,7 @@ class MockWorker {
     return Status::OK();
   }
 
-  CoreWorker worker_;
+  CoreWorkerProcess worker_;
 };
 
 }  // namespace ray

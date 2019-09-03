@@ -15,24 +15,24 @@
 
 namespace ray {
 
+class CoreWorker;
+
 /// The root class that contains all the core and language-independent functionalities
-/// of the worker. This class is supposed to be used to implement app-language (Java,
-/// Python, etc) workers.
-class CoreWorker {
+/// of the worker process. This class is supposed to be used to implement app-language
+/// (Java, Python, etc) workers.
+class CoreWorkerProcess {
  public:
   /// Construct a CoreWorker instance.
   ///
   /// \param[in] worker_type Type of this worker.
   /// \param[in] langauge Language of this worker.
-  ///
-  /// NOTE(zhijunfu): the constructor would throw if a failure happens.
-  CoreWorker(const WorkerType worker_type, const Language language,
+  CoreWorkerProcess(const WorkerType worker_type, const Language language,
              const std::string &store_socket, const std::string &raylet_socket,
              const JobID &job_id, const gcs::GcsClientOptions &gcs_options,
              const CoreWorkerTaskExecutionInterface::TaskExecutor &execution_callback,
-             int num_workers);
+             int num_workers = 1);
 
-  ~CoreWorker();
+  ~CoreWorkerProcess();
 
   /// Type of this worker.
   WorkerType GetWorkerType() const { return worker_type_; }
@@ -40,9 +40,11 @@ class CoreWorker {
   /// Language of this worker.
   Language GetLanguage() const { return language_; }
 
-  WorkerContext &GetWorkerContext() { return worker_context_; }
+  const JobID &GetJobId() const { return job_id_; }
 
-  RayletClient &GetRayletClient() { return *raylet_client_; }
+  const std::string &GetRayletSocket() const { return raylet_socket_; }
+
+  int GetRpcServerPort() const { return rpc_server_port_; }
 
   /// Return the `CoreWorkerTaskInterface` that contains the methods related to task
   /// submisson.
@@ -57,6 +59,11 @@ class CoreWorker {
   CoreWorkerTaskExecutionInterface &Execution() {
     RAY_CHECK(task_execution_interface_ != nullptr);
     return *task_execution_interface_;
+  }
+
+  static std::shared_ptr<CoreWorker> GetCoreWorker() {
+    RAY_CHECK(current_core_worker_ != nullptr);
+    return current_core_worker_;
   }
 
  private:
@@ -79,11 +86,11 @@ class CoreWorker {
   /// raylet socket name.
   const std::string raylet_socket_;
 
-  /// Worker context.
-  WorkerContext worker_context_;
+  /// Initial job ID.
+  const JobID job_id_;
 
   /// event loop where the IO events are handled. e.g. async GCS operations.
-  boost::asio::io_service io_service_;
+  std::shared_ptr<boost::asio::io_service> io_service_;
 
   /// keeps io_service_ alive.
   boost::asio::io_service::work io_work_;
@@ -91,8 +98,10 @@ class CoreWorker {
   /// The thread to handle IO events.
   std::thread io_thread_;
 
-  /// Raylet client.
-  std::unique_ptr<RayletClient> raylet_client_;
+  /// Number of workers.
+  int num_workers_;
+
+  int rpc_server_port_;
 
   /// GCS client.
   std::unique_ptr<gcs::RedisGcsClient> gcs_client_;
@@ -121,6 +130,63 @@ class CoreWorker {
   /// The `CoreWorkerTaskExecutionInterface` instance.
   /// This is only available if it's not a driver.
   std::unique_ptr<CoreWorkerTaskExecutionInterface> task_execution_interface_;
+
+  /// Map from worker ID to worker.
+  std::unordered_map<WorkerID, std::shared_ptr<CoreWorker>> core_workers_;
+
+  static thread_local std::shared_ptr<CoreWorker> current_core_worker_;
+};
+
+/// A worker process as represented by `CoreWorkerProcess` can contain multiple workers,
+/// this class represent one such worker.
+class CoreWorker {
+ public:
+  /// Construct a CoreWorker instance.
+  ///
+  /// \param[in] worker_type Type of this worker.
+  /// \param[in] job_id Job id of this worker.
+  CoreWorker(CoreWorkerProcess &core_worker);
+
+  ~CoreWorker();
+
+  /// Type of this worker.
+  WorkerType GetWorkerType() const { return core_worker_.GetWorkerType(); }
+
+  /// Language of this worker.
+  Language GetLanguage() const { return core_worker_.GetLanguage(); }
+
+  WorkerContext &GetWorkerContext() { return worker_context_; }
+
+  RayletClient &GetRayletClient() { return raylet_client_; }
+
+  const WorkerID &GetWorkerID() const { return worker_context_.GetWorkerID(); }
+
+  /// Return the `CoreWorkerTaskInterface` that contains the methods related to task
+  /// submisson.
+  CoreWorkerTaskInterface &Tasks() { return core_worker_.Tasks(); }
+
+  /// Return the `CoreWorkerObjectInterface` that contains methods related to object
+  /// store.
+  CoreWorkerObjectInterface &Objects() { return core_worker_.Objects(); }
+
+  /// Return the `CoreWorkerTaskExecutionInterface` that contains methods related to
+  /// task execution.
+  CoreWorkerTaskExecutionInterface &Execution() { return core_worker_.Execution(); }
+
+ private:
+  CoreWorkerProcess &core_worker_;
+
+  /// Worker context.
+  WorkerContext worker_context_;
+
+  /// Raylet client.
+  RayletClient raylet_client_;
+
+  /// Event loop where tasks are processed.
+  boost::asio::io_service main_service_;
+
+  /// The asio work to keep main_service_ alive.
+  boost::asio::io_service::work main_work_;
 };
 
 }  // namespace ray
