@@ -8,17 +8,24 @@ namespace ray {
 namespace gcs {
 
 class GcsGCManager {
+ FRIEND_TEST(GcsGCManagerTest, CleanAllActorDataTest);
+
  public:
   explicit GcsGCManager(RedisGcsClient &gcs_client);
 
   ~GcsGCManager() {}
 
-  /// Clean all jobs from GCS synchronously. Those data includes job informations,
-  /// task informations, actor informations, object informations and so on.
+  /// Clean GCS data which are useless when level one failover happens.
+  ///
+  /// Those data includes:
+  /// task lease informations, task reconstruct informations,
+  /// object informations, error informations, profile informations and so on.
+  ///
+  /// What does level one failover do: restart all raylet nodes and reconstruct actors
+  /// and tasks if needed.
   ///
   /// \return Status
-  // TODO(micafan) Confirm what kind of data needed to delete in level One FO.
-  Status CleanAllJobs();
+  Status CleanForLevelOneFailover();
 
  private:
   /// Clean all data from GCS JobTable.

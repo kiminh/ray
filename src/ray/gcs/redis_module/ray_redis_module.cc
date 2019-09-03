@@ -768,9 +768,11 @@ static Status DeleteKeyHelper(RedisModuleCtx *ctx, RedisModuleString *prefix_str
     return Status::RedisError("Key does not exist.");
   }
   auto key_type = RedisModule_KeyType(delete_key);
-  // Set/Hash will delete itself when the length is 0.
-  if (key_type == REDISMODULE_KEYTYPE_STRING || key_type == REDISMODULE_KEYTYPE_LIST) {
-    // Current Table or Log only has this two types of entries.
+  // Usually Set/Hash will delete itself when the length is 0.
+  // Garbage cleaning is required during the Failover process. At this point
+  // we need to support clean up the Set even the length is greater than 0.
+  if (key_type == REDISMODULE_KEYTYPE_STRING || key_type == REDISMODULE_KEYTYPE_LIST
+      || key_type == REDISMODULE_KEYTYPE_SET) {
     RAY_RETURN_NOT_OK(
         OpenPrefixedKey(&delete_key, ctx, prefix_str, id_data, REDISMODULE_WRITE));
     RedisModule_DeleteKey(delete_key);
@@ -797,7 +799,7 @@ static Status DeleteKeyHelper(RedisModuleCtx *ctx, RedisModuleString *prefix_str
 /// \param pubsub_channel Unused but follow the interface.
 /// \param id This id will be ignored but follow the interface.
 /// \param data The list of Unique Ids, kUniqueIDSize bytes for each.
-/// \return Always return OK unless the arguments are invalid.
+/// \return Return OK unless the arguments are invalid or delete failed.
 int TableDelete_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   if (argc != 5) {
     return RedisModule_WrongArity(ctx);
@@ -814,10 +816,14 @@ int TableDelete_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
   REPLY_AND_RETURN_IF_FALSE((len - sizeof(uint16_t)) % ids_to_delete == 0,
                             "The deletion data length must be multiple of the ID size");
   data_ptr += sizeof(uint16_t);
+  Status status = Status::OK();
   for (size_t i = 0; i < ids_to_delete; ++i) {
     RedisModuleString *id_data =
         RedisModule_CreateString(ctx, data_ptr + i * id_length, id_length);
-    RAY_IGNORE_EXPR(DeleteKeyHelper(ctx, prefix_str, id_data));
+    status = DeleteKeyHelper(ctx, prefix_str, id_data);
+    if (!status.ok()) {
+      return RedisModule_ReplyWithSimpleString(ctx, status.message().c_str());
+    }
   }
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }

@@ -130,7 +130,8 @@ void CallbackReply::ReadAsStringArray(std::vector<std::string> *array) const {
 
 size_t CallbackReply::ReadAsScanArray(std::vector<std::string> *array) const {
   RAY_CHECK(nullptr != array) << "Argument `array` must not be nullptr.";
-  RAY_CHECK(REDIS_REPLY_ARRAY == redis_reply_->type);
+  RAY_CHECK(REDIS_REPLY_ARRAY == redis_reply_->type)
+      << "Unexpected type: " << redis_reply_->type;
 
   // cursor
   const auto response_size = static_cast<size_t>(redis_reply_->elements);

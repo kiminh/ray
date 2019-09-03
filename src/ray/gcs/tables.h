@@ -378,6 +378,9 @@ class Table : private Log<ID, Data>,
     Log<ID, Data>::Delete(job_id, ids);
   }
 
+  /// Delete all data from redis synchronously.
+  ///
+  /// \return Status
   Status DeleteAll() { return Log<ID, Data>::DeleteAll(); }
 
   /// Returns debug string for class.
@@ -463,6 +466,9 @@ class Set : private Log<ID, Data>,
     return Log<ID, Data>::Subscribe(job_id, client_id, subscribe, done);
   }
 
+  /// Delete all data from redis synchronously.
+  ///
+  /// \return Status
   Status DeleteAll() { return Log<ID, Data>::DeleteAll(); }
 
   /// Returns debug string for class.
