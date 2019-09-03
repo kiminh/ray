@@ -14,6 +14,7 @@ all_modules = [
     "test",
     "tutorial",
     "streaming",
+    "fault_tolerance",
 ]
 
 java_import(
@@ -129,6 +130,24 @@ define_java_module(
     ],
 )
 
+define_java_module(
+    name = "fault_tolerance",
+    define_test_lib = True,
+    test_deps = [
+        ":org_ray_ray_api",
+        ":org_ray_ray_fault_tolerance",
+        "@maven//:com_beust_jcommander",
+        "@maven//:org_testng_testng",
+    ],
+    deps = [
+        ":org_ray_ray_api",
+        "@maven//:com_google_guava_guava",
+        "@maven//:org_slf4j_slf4j_api",
+        "@maven//:org_slf4j_slf4j_log4j12",
+    ],
+)
+
+
 java_binary(
     name = "all_tests",
     main_class = "org.testng.TestNG",
@@ -224,6 +243,7 @@ genrule(
         cp -f $(location //java:org_ray_ray_tutorial_pom) $$WORK_DIR/java/tutorial/pom.xml
         cp -f $(location //java:org_ray_ray_test_pom) $$WORK_DIR/java/test/pom.xml
         cp -f $(location //java:org_ray_ray_streaming_pom) $$WORK_DIR/java/streaming/pom.xml
+        cp -f $(location //java:org_ray_ray_fault_tolerance_pom) $$WORK_DIR/java/fault_tolerance/pom.xml
         echo $$(date) > $@
     """,
     local = 1,
