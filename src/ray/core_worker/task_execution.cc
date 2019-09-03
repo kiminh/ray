@@ -59,6 +59,12 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
                 new DirectActorGrpcTaskReceiver(io_service_, grpc_server.get(),
                                                 task_handler, worker_service_finder)));
 
+  for (const auto &worker_id : worker_ids_) {
+    worker_services_.emplace(worker_id, std::make_shared<boost::asio::io_service>());
+    worker_works_.emplace(worker_id,
+                          boost::asio::io_service::work(*worker_services_[worker_id]));
+  }
+
   // Start RPC server after all the task receivers are properly initialized.
   worker_server_->Run();
 }
@@ -92,24 +98,25 @@ Status CoreWorkerTaskExecutionInterface::ExecuteTask(
 boost::asio::io_service &CoreWorkerTaskExecutionInterface::GetWorkerService(
     const WorkerID &worker_id) {
   auto it = worker_services_.find(worker_id);
-  RAY_CHECK(it != worker_services_.end());
+  RAY_CHECK(it != worker_services_.end()) << "Worker " << worker_id << " not found.";
   return *it->second;
 }
 
 void CoreWorkerTaskExecutionInterface::Run() {
   for (const auto &worker_id : worker_ids_) {
-    worker_services_.emplace(worker_id, std::make_shared<boost::asio::io_service>());
-    worker_works_.emplace(worker_id,
-                          boost::asio::io_service::work(*worker_services_[worker_id]));
     worker_threads_.emplace(worker_id, std::thread([this, worker_id]() {
+                              RAY_LOG(INFO) << "Worker " << worker_id << " is running.";
                               worker_services_[worker_id]->run();
                             }));
+  }
+  for (auto &thread : worker_threads_) {
+    thread.second.join();
   }
 }
 
 void CoreWorkerTaskExecutionInterface::Stop() {
   // Stop worker services.
-  for (auto worker_service : worker_services_) {
+  for (auto &worker_service : worker_services_) {
     auto service = worker_service.second;
     // Delay the execution of io_service::stop() to avoid deadlock if
     // CoreWorkerTaskExecutionInterface::Stop is called inside a task.

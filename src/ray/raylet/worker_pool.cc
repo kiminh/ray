@@ -218,6 +218,7 @@ Status WorkerPool::RegisterDriver(const std::shared_ptr<Worker> &driver) {
 
 std::shared_ptr<Worker> WorkerPool::GetRegisteredWorker(
     const std::shared_ptr<LocalClientConnection> &connection) const {
+  // TODO: this doesn't work in multi-thread
   for (const auto &entry : states_by_lang_) {
     auto worker = GetWorker(entry.second.registered_workers, connection);
     if (worker != nullptr) {

@@ -6,7 +6,7 @@
 #include "ray/core_worker/lib/java/jni_utils.h"
 
 thread_local JNIEnv *local_env = nullptr;
-thread_local jobject local_java_task_executor = nullptr;
+jobject java_task_executor = nullptr;
 
 inline ray::gcs::GcsClientOptions ToGcsClientOptions(JNIEnv *env,
                                                      jobject gcs_client_options) {
@@ -42,8 +42,15 @@ JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWork
                           int num_returns,
                           std::vector<std::shared_ptr<ray::RayObject>> *results) {
     JNIEnv *env = local_env;
+    if (!env) {
+      // Attach the native thread to JVM.
+      auto status = jvm->AttachCurrentThreadAsDaemon(reinterpret_cast<void **>(&env), NULL);
+      //auto status = jvm->GetEnv(reinterpret_cast<void **>(&env), CURRENT_JNI_VERSION);
+      RAY_CHECK(status == JNI_OK) << "Failed to get JNIEnv. Return code: " << status;
+      local_env = env;
+    }
     RAY_CHECK(env);
-    RAY_CHECK(local_java_task_executor);
+    RAY_CHECK(java_task_executor);
     // convert RayFunction
     jobject ray_function_array_list =
         NativeStringVectorToJavaStringList(env, ray_function.function_descriptor);
@@ -54,7 +61,7 @@ JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWork
 
     // invoke Java method
     jobject java_return_objects =
-        env->CallObjectMethod(local_java_task_executor, java_task_executor_execute,
+        env->CallObjectMethod(java_task_executor, java_task_executor_execute,
                               ray_function_array_list, args_array_list);
     std::vector<std::shared_ptr<ray::RayObject>> return_objects;
     JavaListToNativeVector<std::shared_ptr<ray::RayObject>>(
@@ -88,12 +95,10 @@ JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWork
  */
 JNIEXPORT void JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeRunTaskExecutor(
     JNIEnv *env, jclass o, jlong nativeCoreWorkerPointer, jobject javaTaskExecutor) {
-  local_env = env;
-  local_java_task_executor = javaTaskExecutor;
+  java_task_executor = javaTaskExecutor;
   auto core_worker = reinterpret_cast<ray::CoreWorker *>(nativeCoreWorkerPointer);
   core_worker->Execution().Run();
-  local_env = nullptr;
-  local_java_task_executor = nullptr;
+  java_task_executor = nullptr;
 }
 
 /*

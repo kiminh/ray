@@ -1981,7 +1981,7 @@ def connect(node,
 
     worker.raylet_client = ray._raylet.RayletClient(
         node.raylet_socket_name,
-        WorkerID(worker.worker_id),
+        [WorkerID(worker.worker_id)],
         (mode == WORKER_MODE),
         worker.current_job_id,
     )

@@ -135,7 +135,7 @@ void AsioRpcServer::RegisterService(AsioRpcService &service) {
 
     for (const auto &method : server_call_methods) {
       if (method->GetRequestType() == message_type) {
-        method->HandleRequest(client, length, message_data);
+        method->HandleRequest(io_service_, client, length, message_data);
         client->ProcessMessages();
 
         return;

@@ -146,11 +146,13 @@ class ServiceMethod {
 
   /// Process a request of specific type from a client.
   ///
+  /// \param io_service The IO service that sends and receives messages.
   /// \param client The client that sent the message.
   /// \param length The length of the message data.
   /// \param message_data A pointer to the message data.
   /// \return Void.
-  virtual void HandleRequest(const std::shared_ptr<TcpClientConnection> &client,
+  virtual void HandleRequest(boost::asio::io_service &io_service,
+                             const std::shared_ptr<TcpClientConnection> &client,
                              int64_t length, const uint8_t *message_data) = 0;
 };
 
@@ -184,11 +186,13 @@ class ServiceMethodImpl : public ServiceMethod {
 
   /// Process a request of this method from a client.
   ///
+  /// \param io_service The IO service that sends and receives messages.
   /// \param client The client that sent the message.
   /// \param length The length of the message data.
   /// \param message_data A pointer to the message data.
   /// \return Void.
-  void HandleRequest(const std::shared_ptr<TcpClientConnection> &client, int64_t length,
+  void HandleRequest(boost::asio::io_service &io_service,
+                     const std::shared_ptr<TcpClientConnection> &client, int64_t length,
                      const uint8_t *message_data) override {
     RpcRequestMessage request_message;
     request_message.ParseFromArray(message_data, length);
@@ -206,8 +210,8 @@ class ServiceMethodImpl : public ServiceMethod {
 
     (service_handler_.*handle_request_function_)(
         request, reply,
-        [this, &request_id, reply, &client](Status status, std::function<void()> success,
-                                            std::function<void()> failure) {
+        [this, request_id, reply, client, &io_service](
+            Status status, std::function<void()> success, std::function<void()> failure) {
           RAY_LOG(DEBUG) << "Calling send reply callback for request " << request_id
                          << ", service: " << RpcServiceType_Name(service_type_);
 
@@ -220,20 +224,22 @@ class ServiceMethodImpl : public ServiceMethod {
           std::string serialized_message;
           reply_message.SerializeToString(&serialized_message);
 
-          client->WriteMessageAsync(
-              reply_type_, static_cast<int64_t>(serialized_message.size()),
-              reinterpret_cast<const uint8_t *>(serialized_message.data()),
-              [success, failure](const ray::Status &status) {
-                if (status.ok()) {
-                  if (success != nullptr) {
-                    success();
+          io_service.dispatch([this, client, serialized_message, success, failure]() {
+            client->WriteMessageAsync(
+                reply_type_, static_cast<int64_t>(serialized_message.size()),
+                reinterpret_cast<const uint8_t *>(serialized_message.data()),
+                [success, failure](const ray::Status &status) {
+                  if (status.ok()) {
+                    if (success != nullptr) {
+                      success();
+                    }
+                  } else {
+                    if (failure != nullptr) {
+                      failure();
+                    }
                   }
-                } else {
-                  if (failure != nullptr) {
-                    failure();
-                  }
-                }
-              });
+                });
+          });
         });
   }
 

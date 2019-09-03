@@ -68,7 +68,7 @@ Status CoreWorkerDirectActorTaskSubmitter::SubmitTask(
 
     // Submit request.
     auto &client = rpc_clients_[actor_id];
-    PushTask(*client, *request, actor_id, task_id, num_returns);
+    PushTask(*client, *request, iter->second.worker_id_, actor_id, task_id, num_returns);
     return Status::OK();
   } else {
     // Actor is dead, treat the task as failure.
@@ -82,20 +82,20 @@ Status CoreWorkerDirectActorTaskSubmitter::SubscribeActorUpdates() {
   // Register a callback to handle actor notifications.
   auto actor_notification_callback = [this](const ActorID &actor_id,
                                             const ActorTableData &actor_data) {
+    const auto worker_id = WorkerID::FromBinary(actor_data.worker_id());
     std::unique_lock<std::mutex> guard(mutex_);
     actor_states_.erase(actor_id);
     actor_states_.emplace(
-        actor_id,
-        ActorStateData(actor_data.state(), WorkerID::FromBinary(actor_data.worker_id()),
-                       actor_data.ip_address(), actor_data.port()));
+        actor_id, ActorStateData(actor_data.state(), worker_id, actor_data.ip_address(),
+                                 actor_data.port()));
 
     if (actor_data.state() == ActorTableData::ALIVE) {
       // Check if this actor is the one that we're interested, if we already have
       // a connection to the actor, or have pending requests for it, we should
       // create a new connection.
       if (pending_requests_.count(actor_id) > 0) {
-        ConnectAndSendPendingTasks(WorkerID::FromBinary(actor_data.worker_id()), actor_id,
-                                   actor_data.ip_address(), actor_data.port());
+        ConnectAndSendPendingTasks(worker_id, actor_id, actor_data.ip_address(),
+                                   actor_data.port());
       }
     } else {
       // Remove rpc client if it's dead or being reconstructed.
@@ -129,7 +129,7 @@ Status CoreWorkerDirectActorTaskSubmitter::SubscribeActorUpdates() {
     RAY_LOG(INFO) << "received notification on actor, state="
                   << static_cast<int>(actor_data.state()) << ", actor_id: " << actor_id
                   << ", ip address: " << actor_data.ip_address()
-                  << ", port: " << actor_data.port();
+                  << ", port: " << actor_data.port() << ", worker id: " << worker_id;
   };
 
   return gcs_client_.Actors().AsyncSubscribe(actor_notification_callback, nullptr);
@@ -146,8 +146,7 @@ void CoreWorkerDirectActorTaskSubmitter::ConnectAndSendPendingTasks(
   auto &requests = pending_requests_[actor_id];
   while (!requests.empty()) {
     auto &request = *requests.front();
-    request.set_callee_worker_id(callee_worker_id.Binary());
-    PushTask(*client, request, actor_id,
+    PushTask(*client, request, callee_worker_id, actor_id,
              TaskID::FromBinary(request.task_spec().task_id()),
              request.task_spec().num_returns());
     requests.pop_front();
@@ -157,10 +156,12 @@ void CoreWorkerDirectActorTaskSubmitter::ConnectAndSendPendingTasks(
 }
 
 void CoreWorkerDirectActorTaskSubmitter::PushTask(rpc::DirectActorClient &client,
-                                                  const rpc::PushTaskRequest &request,
+                                                  rpc::PushTaskRequest &request,
+                                                  const WorkerID &callee_worker_id,
                                                   const ActorID &actor_id,
                                                   const TaskID &task_id,
                                                   int num_returns) {
+  request.set_callee_worker_id(callee_worker_id.Binary());
   if (num_returns > 1) {
     waiting_reply_tasks_[actor_id].insert(std::make_pair(task_id, num_returns));
   }
@@ -336,6 +337,10 @@ void CoreWorkerDirectActorTaskReceiver::HandlePushTask(
     const rpc::PushTaskRequest &request, std::shared_ptr<rpc::PushTaskReply> reply,
     rpc::SendReplyCallback send_reply_callback) {
   const TaskSpecification task_spec(request.task_spec());
+  const auto caller_worker_id = WorkerID::FromBinary(request.caller_worker_id());
+  const auto callee_worker_id = WorkerID::FromBinary(request.callee_worker_id());
+  RAY_LOG(DEBUG) << "Received task " << task_spec.TaskId() << " for worker "
+                 << callee_worker_id << " from worker " << caller_worker_id;
   RAY_CHECK(task_spec.IsActorCreationTask() || task_spec.IsActorTask());
   auto num_returns = task_spec.NumReturns();
   RAY_CHECK(num_returns > 0);
@@ -349,8 +354,7 @@ void CoreWorkerDirectActorTaskReceiver::HandlePushTask(
     return;
   }
 
-  auto &worker_service =
-      worker_service_finder_(WorkerID::FromBinary(request.callee_worker_id()));
+  auto &worker_service = worker_service_finder_(callee_worker_id);
   worker_service.post([this, task_spec, num_returns, reply, send_reply_callback]() {
     std::vector<std::shared_ptr<RayObject>> results;
     auto status = task_handler_(task_spec, &results);

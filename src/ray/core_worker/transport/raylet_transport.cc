@@ -27,10 +27,10 @@ void CoreWorkerRayletTaskReceiver::HandleAssignTask(
     rpc::SendReplyCallback send_reply_callback) {
   const Task task(request.task());
   const auto &task_spec = task.GetTaskSpecification();
-  RAY_LOG(DEBUG) << "Received task " << task_spec.TaskId();
+  const auto worker_id = WorkerID::FromBinary(request.worker_id());
+  RAY_LOG(DEBUG) << "Received task " << task_spec.TaskId() << " for worker " << worker_id;
 
-  auto &worker_service =
-      worker_service_finder_(WorkerID::FromBinary(request.worker_id()));
+  auto &worker_service = worker_service_finder_(worker_id);
   worker_service.post([this, task_spec, reply, send_reply_callback]() {
     std::vector<std::shared_ptr<RayObject>> results;
     auto status = task_handler_(task_spec, &results);

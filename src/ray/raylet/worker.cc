@@ -140,6 +140,7 @@ void Worker::AssignTask(const Task &task, const ResourceIdSet &resource_id_set,
     request.mutable_task()->mutable_task_execution_spec()->CopyFrom(
         task.GetTaskExecutionSpec().GetMessage());
     request.set_resource_ids(resource_id_set.Serialize());
+    request.set_worker_id(worker_id_.Binary());
 
     auto status = rpc_client_->AssignTask(
         request, [](Status status, const rpc::AssignTaskReply &reply) {

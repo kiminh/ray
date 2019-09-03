@@ -72,11 +72,13 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   ///
   /// \param[in] client The RPC client to send tasks to an actor.
   /// \param[in] request The request to send.
+  /// \param[in] callee_worker_id The ID of the worker which runs the actor.
   /// \param[in] task_id The ID of a task.
   /// \param[in] num_returns Number of return objects.
   /// \return Void.
-  void PushTask(rpc::DirectActorClient &client, const rpc::PushTaskRequest &request,
-                const ActorID &actor_id, const TaskID &task_id, int num_returns);
+  void PushTask(rpc::DirectActorClient &client, rpc::PushTaskRequest &request,
+                const WorkerID &callee_worker_id, const ActorID &actor_id,
+                const TaskID &task_id, int num_returns);
 
   /// Treat a task as failed.
   ///
