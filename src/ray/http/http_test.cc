@@ -36,7 +36,7 @@ TEST_F(HttpTest, ServerParseParams) {
     HttpRouter::Register(
         "/test/parse/params",
         "get with any key value, e.g. http://127.0.0.1/test/parse/params?k1=v1&k2=v2",
-        [](HttpParams &&params, const std::string &data, HttpReply &r) {
+        [](HttpParams &&params, std::string &&data, std::shared_ptr<HttpReply> r) {
           rapidjson::Document doc(rapidjson::kObjectType);
           for (auto &param : params) {
             rapidjson::Value key;
@@ -46,7 +46,7 @@ TEST_F(HttpTest, ServerParseParams) {
             val.Set(param.second, doc.GetAllocator());
             doc.AddMember(key, val, doc.GetAllocator());
           }
-          r.SetJsonContent(rapidjson::to_string(doc));
+          r->SetJsonContent(rapidjson::to_string(doc));
         });
   }
 
@@ -105,12 +105,13 @@ TEST_F(HttpTest, ServerParseParams) {
 TEST_F(HttpTest, ServerParseData) {
   {
     StartServer();
-    HttpRouter::Register("/test/parse/data", "post any json string",
-                         [](HttpParams &&params, const std::string &data, HttpReply &r) {
-                           rapidjson::Document doc;
-                           doc.Parse(data);
-                           r.SetJsonContent(rapidjson::to_string(doc));
-                         });
+    HttpRouter::Register(
+        "/test/parse/data", "post any json string",
+        [](HttpParams &&params, std::string &&data, std::shared_ptr<HttpReply> r) {
+          rapidjson::Document doc;
+          doc.Parse(data);
+          r->SetJsonContent(rapidjson::to_string(doc));
+        });
   }
 
   {
@@ -149,6 +150,53 @@ TEST_F(HttpTest, ServerParseData) {
                      ASSERT_EQ("post", std::string(doc["test"].GetString()));
                      finish[i] = true;
                    });
+    }
+
+    while (true) {
+      ioc.run_one();
+      if (std::all_of(finish.begin(), finish.end(), [](bool v) { return v; })) break;
+    }
+  }
+}
+
+TEST_F(HttpTest, AsyncServerHandler) {
+  {
+    StartServer();
+    HttpRouter::Register(
+        "/test/async_handler", "test async handler",
+        [](HttpParams &&params, std::string &&data, std::shared_ptr<HttpReply> r) {
+          auto timer =
+              std::make_shared<boost::asio::deadline_timer>(r->GetExecutor().context());
+          timer->expires_from_now(boost::posix_time::seconds(2));
+          timer->async_wait([r, timer, data](boost::system::error_code) {
+            rapidjson::Document doc;
+            doc.Parse(data);
+            r->SetJsonContent(rapidjson::to_string(doc));
+          });
+        });
+  }
+
+  {
+    boost::asio::io_context ioc;
+    std::vector<bool> finish(10, false);
+
+    for (auto i = 0; i < finish.size(); ++i) {
+      auto client = std::make_shared<HttpAsyncClient>(ioc);
+      client->Connect(host, port);
+      client->Post(
+          "/test/async_handler", {}, R"({"name":"ray","test":"post"})",
+          [&finish, i, client](boost::system::error_code ec, const std::string &s) {
+            if (ec) {
+              throw ec.message();
+            }
+            rapidjson::Document doc;
+            doc.Parse(s);
+
+            ASSERT_TRUE(doc.IsObject());
+            ASSERT_EQ("ray", std::string(doc["name"].GetString()));
+            ASSERT_EQ("post", std::string(doc["test"].GetString()));
+            finish[i] = true;
+          });
     }
 
     while (true) {

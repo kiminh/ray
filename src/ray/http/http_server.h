@@ -35,43 +35,32 @@ namespace beast = boost::beast;
 namespace http = beast::http;
 
 namespace ray {
+
 // Handles an HTTP server connection
 class Session : public std::enable_shared_from_this<Session> {
-  // This is the C++11 equivalent of a generic lambda.
-  // The function object is used to send an HTTP message.
-  struct SendLambda {
-    explicit SendLambda(Session &self) : self_(self) {}
-
-    template <bool isRequest, class Body, class Fields>
-    void operator()(http::message<isRequest, Body, Fields> &&msg) const {
-      // The lifetime of the message has to extend
-      // for the duration of the async operation so
-      // we use a shared_ptr to manage it.
-      auto sp = std::make_shared<http::message<isRequest, Body, Fields>>(std::move(msg));
-
-      // Store a type-erased version of the shared
-      // pointer in the class to keep it alive.
-      self_.res_ = sp;
-
-      // Write the response
-      http::async_write(
-          self_.socket_, *sp,
-          boost::asio::bind_executor(
-              self_.strand_,
-              std::bind(&Session::OnWrite, self_.shared_from_this(),
-                        std::placeholders::_1, std::placeholders::_2, sp->need_eof())));
-    }
-
-    Session &self_;
-  };
-
  public:
   // Take ownership of the socket
   explicit Session(tcp::socket socket)
-      : socket_(std::move(socket)), strand_(socket_.get_executor()), lambda_(*this) {}
+      : socket_(std::move(socket)), strand_(socket_.get_executor()) {}
 
   // Start the asynchronous operation
   void Run() { DoRead(); }
+
+  void Reply(http::response<http::string_body> &&msg) {
+    // The lifetime of the message has to extend
+    // for the duration of the async operation so
+    // we use a shared_ptr to manage it.
+    auto sp = std::make_shared<http::response<http::string_body>>(std::move(msg));
+
+    // Write the response
+    http::async_write(socket_, *sp,
+                      boost::asio::bind_executor(
+                          strand_, std::bind(&Session::OnWrite, shared_from_this(),
+                                             std::placeholders::_1, std::placeholders::_2,
+                                             sp->need_eof(), sp)));
+  }
+
+  boost::asio::io_context::executor_type GetExecutor() { return socket_.get_executor(); }
 
  private:
   void DoRead() {
@@ -100,11 +89,14 @@ class Session : public std::enable_shared_from_this<Session> {
       return DoClose();
     }
 
-    lambda_(HttpRouter::Route(std::move(req_)));
+    HttpRouter::Route(shared_from_this(), std::move(req_));
   }
 
-  void OnWrite(beast::error_code ec, std::size_t bytes_transferred, bool close) {
+  void OnWrite(beast::error_code ec, std::size_t bytes_transferred, bool close,
+               std::shared_ptr<http::response<http::string_body>> msg) {
     boost::ignore_unused(bytes_transferred);
+    boost::ignore_unused(msg);
+
     if (ec) {
       RAY_LOG(ERROR) << "write failed, err: " << ec.message();
       // This session is broken, then close it directly
@@ -116,9 +108,6 @@ class Session : public std::enable_shared_from_this<Session> {
       // the response indicated the "Connection: close" semantic.
       return DoClose();
     }
-
-    // We're done with the response so delete it
-    res_ = nullptr;
 
     // Read another request
     DoRead();
@@ -136,8 +125,6 @@ class Session : public std::enable_shared_from_this<Session> {
   boost::asio::strand<boost::asio::io_context::executor_type> strand_;
   boost::beast::flat_buffer buffer_;
   http::request<http::string_body> req_;
-  std::shared_ptr<void> res_;
-  SendLambda lambda_;
 };
 
 // Accepts incoming connections and launches the sessions

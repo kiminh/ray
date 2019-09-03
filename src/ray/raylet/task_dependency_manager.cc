@@ -21,9 +21,9 @@ TaskDependencyManager::TaskDependencyManager(
       task_lease_table_(task_lease_table) {
   HttpRouter::Register(
       "/task_dependency_manager", "get TaskDependencyManager info",
-      [this](HttpParams &&params, const std::string &data, HttpReply &r) {
+      [this](HttpParams &&params, std::string &&data, std::shared_ptr<HttpReply> r) {
         auto doc = ToJson();
-        r.SetJsonContent(rapidjson::to_string(doc, true));
+        r->SetJsonContent(rapidjson::to_string(doc, true));
       });
 }
 

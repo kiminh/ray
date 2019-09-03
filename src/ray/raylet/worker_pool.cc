@@ -69,9 +69,9 @@ WorkerPool::WorkerPool(int num_worker_processes, int num_workers_per_process,
   }
   HttpRouter::Register(
       "/worker_pool", "get WorkerPool info",
-      [this](HttpParams &&params, const std::string &data, HttpReply &r) {
+      [this](HttpParams &&params, std::string &&data, std::shared_ptr<HttpReply> r) {
         auto doc = ToJson();
-        r.SetJsonContent(rapidjson::to_string(doc, true));
+        r->SetJsonContent(rapidjson::to_string(doc, true));
       });
 }
 

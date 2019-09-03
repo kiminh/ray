@@ -31,6 +31,8 @@ class HttpSyncClient {
     return true;
   }
 
+  bool IsConnected() const { return is_connected_; }
+
   void Close() {
     if (!is_connected_) {
       return;
@@ -42,7 +44,7 @@ class HttpSyncClient {
     if (ec && ec != boost::system::errc::not_connected) {
       // TODO(hc):
     }
-    is_connected_ = true;
+    is_connected_ = false;
   }
 
   std::string Get(const std::string &uri,
@@ -154,6 +156,8 @@ class HttpAsyncClient : public std::enable_shared_from_this<HttpAsyncClient> {
     is_working_ = false;
     return true;
   }
+
+  bool IsConnected() const { return is_connected_; }
 
   void Close() {
     if (!is_connected_) {

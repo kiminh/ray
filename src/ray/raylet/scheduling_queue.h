@@ -167,9 +167,9 @@ class SchedulingQueue {
     }
     HttpRouter::Register(
         "/scheduling_queue", "get SchedulingQueue info",
-        [this](HttpParams &&params, const std::string &data, HttpReply &r) {
+        [this](HttpParams &&params, std::string &&data, std::shared_ptr<HttpReply> r) {
           auto doc = ToJson();
-          r.SetJsonContent(rapidjson::to_string(doc, true));
+          r->SetJsonContent(rapidjson::to_string(doc, true));
         });
   }
 

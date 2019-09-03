@@ -155,23 +155,23 @@ NodeManager::NodeManager(boost::asio::io_service &io_service,
 
   HttpRouter::Register(
       "/node_manager", "get NodeManager info",
-      [this](HttpParams &&params, const std::string &data, HttpReply &r) {
+      [this](HttpParams &&params, std::string &&data, std::shared_ptr<HttpReply> r) {
         auto s = DebugString();
-        r.SetPlainContent(s);
+        r->SetPlainContent(s);
       });
   HttpRouter::Register(
       "/dump_actor", "get actor info",
-      [this](HttpParams &&params, const std::string &data, HttpReply &r) {
+      [this](HttpParams &&params, std::string &&data, std::shared_ptr<HttpReply> r) {
         if (params.size() != 1) {
-          r.SetJsonContent(
+          r->SetJsonContent(
               std::string("{\"success\": false, \"result\": \"incorrect args count\"}"));
           return;
         }
         auto it = params.find("actor_id");
         if (it != params.end()) {
-          r.SetJsonContent(rapidjson::to_string(DumpActorInfo(it->second), true));
+          r->SetJsonContent(rapidjson::to_string(DumpActorInfo(it->second), true));
         } else {
-          r.SetJsonContent(
+          r->SetJsonContent(
               std::string("{\"success\": false, \"result\": \"incorrect args name\"}"));
         }
       });
