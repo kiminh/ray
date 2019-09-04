@@ -1,7 +1,6 @@
 #include "ray/gcs/gcs_gc_manager.h"
 
 #include <chrono>
-#include "ray/common/ray_config.h"
 
 namespace ray {
 
