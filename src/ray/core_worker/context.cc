@@ -61,10 +61,10 @@ struct WorkerThreadContext {
 thread_local std::unique_ptr<WorkerThreadContext> WorkerContext::thread_context_ =
     nullptr;
 
-WorkerContext::WorkerContext(WorkerType worker_type, const JobID &job_id)
+WorkerContext::WorkerContext(WorkerType worker_type, const WorkerID &worker_id,
+                             const JobID &job_id)
     : worker_type_(worker_type),
-      // TODO: set current worker id for driver and workers
-      current_worker_id_(WorkerID::Nil()),
+      worker_id_(worker_id),
       current_job_id_(worker_type_ == WorkerType::DRIVER ? job_id : JobID::Nil()) {
   // For worker main thread which initializes the WorkerContext,
   // set task_id according to whether current worker is a driver.
@@ -76,7 +76,7 @@ WorkerContext::WorkerContext(WorkerType worker_type, const JobID &job_id)
 
 const WorkerType WorkerContext::GetWorkerType() const { return worker_type_; }
 
-const WorkerID &WorkerContext::GetCurrentWorkerID() const { return current_worker_id_; }
+const WorkerID &WorkerContext::GetWorkerID() const { return worker_id_; }
 
 int WorkerContext::GetNextTaskIndex() { return GetThreadContext().GetNextTaskIndex(); }
 

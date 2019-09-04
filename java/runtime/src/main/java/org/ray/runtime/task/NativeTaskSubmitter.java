@@ -16,18 +16,18 @@ import org.ray.runtime.functionmanager.FunctionDescriptor;
 public class NativeTaskSubmitter implements TaskSubmitter {
 
   /**
-   * The native pointer of core worker.
+   * The native pointer of core worker process.
    */
-  private final long nativeCoreWorkerPointer;
+  private final long nativeCoreWorkerProcessPointer;
 
-  public NativeTaskSubmitter(long nativeCoreWorkerPointer) {
-    this.nativeCoreWorkerPointer = nativeCoreWorkerPointer;
+  public NativeTaskSubmitter(long nativeCoreWorkerProcessPointer) {
+    this.nativeCoreWorkerProcessPointer = nativeCoreWorkerProcessPointer;
   }
 
   @Override
   public List<ObjectId> submitTask(FunctionDescriptor functionDescriptor, List<FunctionArg> args,
       int numReturns, CallOptions options) {
-    List<byte[]> returnIds = nativeSubmitTask(nativeCoreWorkerPointer, functionDescriptor, args,
+    List<byte[]> returnIds = nativeSubmitTask(nativeCoreWorkerProcessPointer, functionDescriptor, args,
         numReturns, options);
     return returnIds.stream().map(ObjectId::new).collect(Collectors.toList());
   }
@@ -35,7 +35,7 @@ public class NativeTaskSubmitter implements TaskSubmitter {
   @Override
   public RayActor createActor(FunctionDescriptor functionDescriptor, List<FunctionArg> args,
       ActorCreationOptions options) {
-    long nativeActorHandle = nativeCreateActor(nativeCoreWorkerPointer, functionDescriptor, args,
+    long nativeActorHandle = nativeCreateActor(nativeCoreWorkerProcessPointer, functionDescriptor, args,
         options);
     return new NativeRayActor(nativeActorHandle);
   }
@@ -44,21 +44,21 @@ public class NativeTaskSubmitter implements TaskSubmitter {
   public List<ObjectId> submitActorTask(RayActor actor, FunctionDescriptor functionDescriptor,
       List<FunctionArg> args, int numReturns, CallOptions options) {
     Preconditions.checkState(actor instanceof NativeRayActor);
-    List<byte[]> returnIds = nativeSubmitActorTask(nativeCoreWorkerPointer,
+    List<byte[]> returnIds = nativeSubmitActorTask(nativeCoreWorkerProcessPointer,
         ((NativeRayActor) actor).getNativeActorHandle(), functionDescriptor, args, numReturns,
         options);
     return returnIds.stream().map(ObjectId::new).collect(Collectors.toList());
   }
 
-  private static native List<byte[]> nativeSubmitTask(long nativeCoreWorkerPointer,
+  private static native List<byte[]> nativeSubmitTask(long nativeCoreWorkerProcessPointer,
       FunctionDescriptor functionDescriptor, List<FunctionArg> args, int numReturns,
       CallOptions callOptions);
 
-  private static native long nativeCreateActor(long nativeCoreWorkerPointer,
+  private static native long nativeCreateActor(long nativeCoreWorkerProcessPointer,
       FunctionDescriptor functionDescriptor, List<FunctionArg> args,
       ActorCreationOptions actorCreationOptions);
 
-  private static native List<byte[]> nativeSubmitActorTask(long nativeCoreWorkerPointer,
+  private static native List<byte[]> nativeSubmitActorTask(long nativeCoreWorkerProcessPointer,
       long nativeActorHandle, FunctionDescriptor functionDescriptor, List<FunctionArg> args,
       int numReturns, CallOptions callOptions);
 }

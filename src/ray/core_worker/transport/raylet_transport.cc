@@ -68,7 +68,8 @@ void CoreWorkerRayletTaskReceiver::HandleAssignTask(
     // rpc reply first before the NotifyUnblocked message arrives,
     // as they use different connections, the `TaskDone` message is sent
     // to raylet via the same connection so the order is guaranteed.
-    RAY_UNUSED(raylet_client_->TaskDone());
+    auto &raylet_client = CoreWorkerProcess::GetCoreWorker()->GetRayletClient();
+    RAY_UNUSED(raylet_client.TaskDone());
     // Send rpc reply.
     send_reply_callback(status, nullptr, nullptr);
   });
@@ -78,8 +79,7 @@ RayletGrpcTaskReceiver::RayletGrpcTaskReceiver(
     CoreWorkerStoreProviderMap &store_providers, boost::asio::io_service &io_service,
     rpc::GrpcServer &server, const TaskHandler &task_handler,
     const WorkerServiceFinder &worker_service_finder)
-    : CoreWorkerRayletTaskReceiver(raylet_client, store_providers, task_handler,
-                                   worker_service_finder),
+    : CoreWorkerRayletTaskReceiver(store_providers, task_handler, worker_service_finder),
       task_service_(io_service, *this) {
   server.RegisterService(task_service_);
 }
@@ -87,8 +87,7 @@ RayletGrpcTaskReceiver::RayletGrpcTaskReceiver(
 RayletAsioTaskReceiver::RayletAsioTaskReceiver(
     CoreWorkerStoreProviderMap &store_providers, rpc::AsioRpcServer &server,
     const TaskHandler &task_handler, const WorkerServiceFinder &worker_service_finder)
-    : CoreWorkerRayletTaskReceiver(raylet_client, store_providers, task_handler,
-                                   worker_service_finder),
+    : CoreWorkerRayletTaskReceiver(store_providers, task_handler, worker_service_finder),
       task_service_(*this) {
   server.RegisterService(task_service_);
 }

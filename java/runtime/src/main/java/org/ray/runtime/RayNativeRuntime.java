@@ -36,9 +36,9 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
   private RunManager manager = null;
 
   /**
-   * The native pointer of core worker.
+   * The native pointer of core worker process.
    */
-  private long nativeCoreWorkerPointer;
+  private long nativeCoreWorkerProcessPointer;
 
   static {
     try {
@@ -110,17 +110,17 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
       rayConfig.setJobId(gcsClient.nextJobId());
     }
     // TODO(qwang): Get object_store_socket_name and raylet_socket_name from Redis.
-    nativeCoreWorkerPointer = nativeInitCoreWorker(rayConfig.workerMode.getNumber(),
+    nativeCoreWorkerProcessPointer = nativeInitCoreWorkerProcess(rayConfig.workerMode.getNumber(),
         rayConfig.objectStoreSocketName, rayConfig.rayletSocketName,
         (rayConfig.workerMode == WorkerType.DRIVER ? rayConfig.getJobId() : JobId.NIL).getBytes(),
         new GcsClientOptions(rayConfig));
-    Preconditions.checkState(nativeCoreWorkerPointer != 0);
+    Preconditions.checkState(nativeCoreWorkerProcessPointer != 0);
 
     taskExecutor = new TaskExecutor(this);
-    workerContext = new NativeWorkerContext(nativeCoreWorkerPointer);
-    objectStore = new NativeObjectStore(workerContext, nativeCoreWorkerPointer);
-    taskSubmitter = new NativeTaskSubmitter(nativeCoreWorkerPointer);
-    rayletClient = new NativeRayletClient(nativeCoreWorkerPointer);
+    workerContext = new NativeWorkerContext(nativeCoreWorkerProcessPointer);
+    objectStore = new NativeObjectStore(workerContext, nativeCoreWorkerProcessPointer);
+    taskSubmitter = new NativeTaskSubmitter(nativeCoreWorkerProcessPointer);
+    rayletClient = new NativeRayletClient(nativeCoreWorkerProcessPointer);
 
     // register
     registerWorker();
@@ -134,14 +134,14 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
     if (null != manager) {
       manager.cleanup();
     }
-    if (nativeCoreWorkerPointer != 0) {
-      nativeDestroyCoreWorker(nativeCoreWorkerPointer);
-      nativeCoreWorkerPointer = 0;
+    if (nativeCoreWorkerProcessPointer != 0) {
+      nativeDestroyCoreWorkerProcess(nativeCoreWorkerProcessPointer);
+      nativeCoreWorkerProcessPointer = 0;
     }
   }
 
   public void run() {
-    nativeRunTaskExecutor(nativeCoreWorkerPointer, taskExecutor);
+    nativeRunTaskExecutor(nativeCoreWorkerProcessPointer, taskExecutor);
   }
 
   /**
@@ -169,13 +169,13 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
     }
   }
 
-  private static native long nativeInitCoreWorker(int workerMode, String storeSocket,
+  private static native long nativeInitCoreWorkerProcess(int workerMode, String storeSocket,
       String rayletSocket, byte[] jobId, GcsClientOptions gcsClientOptions);
 
-  private static native void nativeRunTaskExecutor(long nativeCoreWorkerPointer,
+  private static native void nativeRunTaskExecutor(long nativeCoreWorkerProcessPointer,
       TaskExecutor taskExecutor);
 
-  private static native void nativeDestroyCoreWorker(long nativeCoreWorkerPointer);
+  private static native void nativeDestroyCoreWorkerProcess(long nativeCoreWorkerProcessPointer);
 
   private static native void nativeSetup(String logDir);
 

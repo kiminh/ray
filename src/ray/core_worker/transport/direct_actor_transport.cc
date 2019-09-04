@@ -1,6 +1,7 @@
 
 #include "ray/core_worker/transport/direct_actor_transport.h"
 #include "ray/common/task/task.h"
+#include "ray/core_worker/core_worker.h"
 
 using ray::rpc::ActorTableData;
 
@@ -20,11 +21,9 @@ bool HasByReferenceArgs(const TaskSpecification &spec) {
  */
 
 CoreWorkerDirectActorTaskSubmitter::CoreWorkerDirectActorTaskSubmitter(
-    WorkerContext &worker_context, gcs::RedisGcsClient &gcs_client,
+    gcs::RedisGcsClient &gcs_client,
     std::unique_ptr<CoreWorkerStoreProvider> store_provider)
-    : worker_context_(worker_context),
-      gcs_client_(gcs_client),
-      store_provider_(std::move(store_provider)) {
+    : gcs_client_(gcs_client), store_provider_(std::move(store_provider)) {
   RAY_CHECK_OK(SubscribeActorUpdates());
 }
 
@@ -42,7 +41,8 @@ Status CoreWorkerDirectActorTaskSubmitter::SubmitTask(
 
   auto request = std::unique_ptr<rpc::PushTaskRequest>(new rpc::PushTaskRequest);
   request->mutable_task_spec()->Swap(&task_spec.GetMutableMessage());
-  request->set_caller_worker_id(worker_context_.GetCurrentWorkerID().Binary());
+  request->set_caller_worker_id(
+      CoreWorkerProcess::GetCoreWorker()->GetWorkerID().Binary());
 
   std::unique_lock<std::mutex> guard(mutex_);
   auto iter = actor_states_.find(actor_id);

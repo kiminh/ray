@@ -78,23 +78,6 @@ cdef c_vector[CObjectID] ObjectIDsToVector(object_ids):
     return result
 
 
-cdef c_vector[CWorkerID] WorkerIDsToVector(worker_ids):
-    """A helper function that converts a Python list of worker IDs to a vector.
-
-    Args:
-        worker_ids (list): The Python list of worker IDs.
-
-    Returns:
-        The output vector.
-    """
-    cdef:
-        WorkerID worker_id
-        c_vector[CWorkerID] result
-    for worker_id in worker_ids:
-        result.push_back(worker_id.native())
-    return result
-
-
 cdef VectorToObjectIDs(c_vector[CObjectID] object_ids):
     result = []
     for i in range(object_ids.size()):
@@ -237,14 +220,14 @@ cdef class RayletClient:
     cdef unique_ptr[CRayletClient] client
 
     def __cinit__(self, raylet_socket,
-                  worker_ids,
+                  WorkerID worker_id,
                   c_bool is_worker,
                   JobID job_id):
         # We know that we are using Python, so just skip the language
         # parameter.
         # TODO(suquark): Should we allow unicode chars in "raylet_socket"?
         self.client.reset(new CRayletClient(
-            raylet_socket.encode("ascii"), WorkerIDsToVector(worker_ids), is_worker,
+            raylet_socket.encode("ascii"), worker_id.native(), is_worker,
             job_id.native(), LANGUAGE_PYTHON))
 
     def disconnect(self):
@@ -391,7 +374,7 @@ cdef class RayletClient:
 
     @property
     def client_id(self):
-        return ClientID(self.client.get().GetWorkerIDs()[0].Binary())
+        return ClientID(self.client.get().GetWorkerID().Binary())
 
     @property
     def job_id(self):

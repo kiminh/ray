@@ -9,13 +9,13 @@
 namespace ray {
 
 CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
-    const std::vector<WorkerID> &worker_ids,
+    const std::unordered_map<WorkerID, std::shared_ptr<CoreWorker>> &core_workers,
     CoreWorkerStoreProviderMap &store_providers, const TaskExecutor &executor,
     std::shared_ptr<boost::asio::io_service> io_service, bool use_asio_rpc)
-    : store_providers_(store_providers),
+    : core_workers_(core_workers),
+      store_providers_(store_providers),
       execution_callback_(executor),
-      io_service_(io_service),
-      worker_ids_(worker_ids) {
+      io_service_(io_service) {
   RAY_CHECK(execution_callback_ != nullptr);
 
   auto task_handler = std::bind(&CoreWorkerTaskExecutionInterface::ExecuteTask, this,
@@ -36,17 +36,19 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
     worker_server_ = std::move(server);
   }
 
-  auto worker_service_finder = std::bind(
-      &CoreWorkerTaskExecutionInterface::GetWorkerService, this, std::placeholders::_1);
+  auto worker_service_finder =
+      [this](const WorkerID &worker_id) -> boost::asio::io_service & {
+    auto worker = GetWorker(worker_id);
+    return *worker->GetMainService();
+  };
   task_receivers_.emplace(
       TaskTransportType::RAYLET,
       use_asio_rpc
           ? std::unique_ptr<CoreWorkerRayletTaskReceiver>(new RayletAsioTaskReceiver(
-                raylet_client, store_providers_, asio_server.get(), task_handler,
-                worker_service_finder))
+                store_providers_, asio_server.get(), task_handler, worker_service_finder))
           : std::unique_ptr<CoreWorkerRayletTaskReceiver>(new RayletGrpcTaskReceiver(
-                raylet_client, store_providers_, *io_service_, grpc_server.get(),
-                task_handler, worker_service_finder)));
+                store_providers_, *io_service_, grpc_server.get(), task_handler,
+                worker_service_finder)));
   task_receivers_.emplace(
       TaskTransportType::DIRECT_ACTOR,
       use_asio_rpc
@@ -57,12 +59,6 @@ CoreWorkerTaskExecutionInterface::CoreWorkerTaskExecutionInterface(
                 new DirectActorGrpcTaskReceiver(*io_service_, grpc_server.get(),
                                                 task_handler, worker_service_finder)));
 
-  for (const auto &worker_id : worker_ids_) {
-    worker_services_.emplace(worker_id, std::make_shared<boost::asio::io_service>());
-    worker_works_.emplace(worker_id,
-                          boost::asio::io_service::work(*worker_services_[worker_id]));
-  }
-
   // Start RPC server after all the task receivers are properly initialized.
   worker_server_->Run();
 }
@@ -71,7 +67,7 @@ Status CoreWorkerTaskExecutionInterface::ExecuteTask(
     const TaskSpecification &task_spec,
     std::vector<std::shared_ptr<RayObject>> *results) {
   RAY_LOG(DEBUG) << "Executing task " << task_spec.TaskId();
-  const auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();
+  auto &worker_context = CoreWorkerProcess::GetCoreWorker()->GetWorkerContext();
   worker_context.SetCurrentTask(task_spec);
 
   RayFunction func{task_spec.GetLanguage(), task_spec.FunctionDescriptor()};
@@ -93,18 +89,21 @@ Status CoreWorkerTaskExecutionInterface::ExecuteTask(
   return status;
 }
 
-boost::asio::io_service &CoreWorkerTaskExecutionInterface::GetWorkerService(
+std::shared_ptr<CoreWorker> CoreWorkerTaskExecutionInterface::GetWorker(
     const WorkerID &worker_id) {
-  auto it = worker_services_.find(worker_id);
-  RAY_CHECK(it != worker_services_.end()) << "Worker " << worker_id << " not found.";
-  return *it->second;
+  auto it = core_workers_.find(worker_id);
+  RAY_CHECK(it != core_workers_.end()) << "Worker " << worker_id << " not found.";
+  return it->second;
 }
 
 void CoreWorkerTaskExecutionInterface::Run() {
-  for (const auto &worker_id : worker_ids_) {
-    worker_threads_.emplace(worker_id, std::thread([this, worker_id]() {
+  for (const auto &entry : core_workers_) {
+    const auto &worker_id = entry.first;
+    const auto worker = entry.second;
+    worker_threads_.emplace(worker_id, std::thread([worker_id, worker]() {
                               RAY_LOG(INFO) << "Worker " << worker_id << " is running.";
-                              worker_services_[worker_id]->run();
+                              CoreWorkerProcess::SetCoreWorker(worker);
+                              worker->GetMainService()->run();
                             }));
   }
   for (auto &thread : worker_threads_) {
@@ -114,8 +113,9 @@ void CoreWorkerTaskExecutionInterface::Run() {
 
 void CoreWorkerTaskExecutionInterface::Stop() {
   // Stop worker services.
-  for (auto &worker_service : worker_services_) {
-    auto service = worker_service.second;
+  for (const auto &entry : core_workers_) {
+    const auto worker = entry.second;
+    auto service = worker->GetMainService();
     // Delay the execution of io_service::stop() to avoid deadlock if
     // CoreWorkerTaskExecutionInterface::Stop is called inside a task.
     service->post([service]() { service->stop(); });

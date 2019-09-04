@@ -32,7 +32,7 @@ struct ActorStateData {
 class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
  public:
   CoreWorkerDirectActorTaskSubmitter(
-      WorkerContext &worker_context, gcs::RedisGcsClient &gcs_client,
+      gcs::RedisGcsClient &gcs_client,
       std::unique_ptr<CoreWorkerStoreProvider> store_provider);
 
   /// Submit a task to an actor for execution.
@@ -120,9 +120,6 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
   /// \return Whether the task is finished.
   bool IsTaskFinished(const TaskID &task_id) const;
 
-  /// TODO
-  WorkerContext &worker_context_;
-
   /// Gcs client.
   gcs::RedisGcsClient &gcs_client_;
 
@@ -161,11 +158,9 @@ class CoreWorkerDirectActorTaskSubmitter : public CoreWorkerTaskSubmitter {
 class DirectActorGrpcTaskSubmitter : public CoreWorkerDirectActorTaskSubmitter {
  public:
   DirectActorGrpcTaskSubmitter(boost::asio::io_service &io_service,
-                               WorkerContext &worker_context,
                                gcs::RedisGcsClient &gcs_client,
                                std::unique_ptr<CoreWorkerStoreProvider> store_provider)
-      : CoreWorkerDirectActorTaskSubmitter(worker_context, gcs_client,
-                                           std::move(store_provider)),
+      : CoreWorkerDirectActorTaskSubmitter(gcs_client, std::move(store_provider)),
         client_call_manager_(io_service) {}
 
   std::unique_ptr<rpc::DirectActorClient> CreateRpcClient(std::string ip_address,
@@ -182,11 +177,9 @@ class DirectActorGrpcTaskSubmitter : public CoreWorkerDirectActorTaskSubmitter {
 class DirectActorAsioTaskSubmitter : public CoreWorkerDirectActorTaskSubmitter {
  public:
   DirectActorAsioTaskSubmitter(boost::asio::io_service &io_service,
-                               WorkerContext &worker_context,
                                gcs::RedisGcsClient &gcs_client,
                                std::unique_ptr<CoreWorkerStoreProvider> store_provider)
-      : CoreWorkerDirectActorTaskSubmitter(worker_context, gcs_client,
-                                           std::move(store_provider)),
+      : CoreWorkerDirectActorTaskSubmitter(gcs_client, std::move(store_provider)),
         io_service_(io_service) {}
 
   std::unique_ptr<rpc::DirectActorClient> CreateRpcClient(std::string ip_address,

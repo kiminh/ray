@@ -846,39 +846,37 @@ void NodeManager::ProcessRegisterClientRequestMessage(
   client->Register();
   auto message = flatbuffers::GetRoot<protocol::RegisterClientRequest>(message_data);
   Language language = static_cast<Language>(message->language());
-  for (int64_t i = 0; i < message->worker_ids()->size(); ++i) {
-    WorkerID worker_id = from_flatbuf<WorkerID>(*message->worker_ids()->Get(i));
-    auto worker =
-        RayConfig::instance().use_asio_rpc_for_worker()
-            ? std::make_shared<Worker>(worker_id, message->worker_pid(), language,
-                                       message->port(), client, io_service_)
-            : std::make_shared<Worker>(worker_id, message->worker_pid(), language,
-                                       message->port(), client, *client_call_manager_);
+  WorkerID worker_id = from_flatbuf<WorkerID>(*message->worker_id());
+  auto worker =
+      RayConfig::instance().use_asio_rpc_for_worker()
+          ? std::make_shared<Worker>(worker_id, message->worker_pid(), language,
+                                     message->port(), client, io_service_)
+          : std::make_shared<Worker>(worker_id, message->worker_pid(), language,
+                                     message->port(), client, *client_call_manager_);
 
-    Status status;
-    if (message->is_worker()) {
-      // Register the new worker.
-      bool use_push_task = worker->UsePush();
-      auto connection = worker->Connection();
-      status = worker_pool_.RegisterWorker(std::move(worker));
-      if (status.ok() && use_push_task) {
-        // only call `HandleWorkerAvailable` when push mode is used.
-        HandleWorkerAvailable(connection);
-      }
-    } else {
-      // Register the new driver.
-      const JobID job_id = from_flatbuf<JobID>(*message->job_id());
-      // Compute a dummy driver task id from a given driver.
-      const TaskID driver_task_id = TaskID::ComputeDriverTaskId(worker_id);
-      worker->AssignTaskId(driver_task_id);
-      worker->AssignJobId(job_id);
-      status = worker_pool_.RegisterDriver(std::move(worker));
-      if (status.ok()) {
-        local_queues_.AddDriverTaskId(driver_task_id);
-        RAY_CHECK_OK(gcs_client_->job_table().AppendJobData(
-            job_id, /*is_dead=*/false, std::time(nullptr),
-            initial_config_.node_manager_address, message->worker_pid()));
-      }
+  Status status;
+  if (message->is_worker()) {
+    // Register the new worker.
+    bool use_push_task = worker->UsePush();
+    auto connection = worker->Connection();
+    status = worker_pool_.RegisterWorker(std::move(worker));
+    if (status.ok() && use_push_task) {
+      // only call `HandleWorkerAvailable` when push mode is used.
+      HandleWorkerAvailable(connection);
+    }
+  } else {
+    // Register the new driver.
+    const JobID job_id = from_flatbuf<JobID>(*message->job_id());
+    // Compute a dummy driver task id from a given driver.
+    const TaskID driver_task_id = TaskID::ComputeDriverTaskId(worker_id);
+    worker->AssignTaskId(driver_task_id);
+    worker->AssignJobId(job_id);
+    status = worker_pool_.RegisterDriver(std::move(worker));
+    if (status.ok()) {
+      local_queues_.AddDriverTaskId(driver_task_id);
+      RAY_CHECK_OK(gcs_client_->job_table().AppendJobData(
+          job_id, /*is_dead=*/false, std::time(nullptr),
+          initial_config_.node_manager_address, message->worker_pid()));
     }
   }
 }

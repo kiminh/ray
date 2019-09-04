@@ -201,21 +201,17 @@ ray::Status RayletConnection::AtomicRequestReply(
   return ReadMessage(reply_type, reply_message);
 }
 
-RayletClient::RayletClient(const std::string &raylet_socket,
-                           const std::vector<WorkerID> &worker_ids, bool is_worker,
-                           const JobID &job_id, const Language &language, int port)
-    : worker_ids_(worker_ids),
-      is_worker_(is_worker),
-      job_id_(job_id),
-      language_(language) {
+RayletClient::RayletClient(const std::string &raylet_socket, const WorkerID &worker_id,
+                           bool is_worker, const JobID &job_id, const Language &language,
+                           int port)
+    : worker_id_(worker_id), is_worker_(is_worker), job_id_(job_id), language_(language) {
   // For C++14, we could use std::make_unique
   conn_ = std::unique_ptr<RayletConnection>(new RayletConnection(raylet_socket, -1, -1));
 
   flatbuffers::FlatBufferBuilder fbb;
-  auto worker_ids_message = to_flatbuf(fbb, worker_ids);
   auto message = ray::protocol::CreateRegisterClientRequest(
-      fbb, is_worker, worker_ids_message, getpid(), to_flatbuf(fbb, job_id), language,
-      port);
+      fbb, is_worker, to_flatbuf(fbb, worker_id), getpid(), to_flatbuf(fbb, job_id),
+      language, port);
   fbb.Finish(message);
   // Register the process ID with the raylet.
   // NOTE(swang): If raylet exits and we are registered as a worker, we will get killed.

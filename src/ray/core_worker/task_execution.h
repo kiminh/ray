@@ -34,11 +34,10 @@ class CoreWorkerTaskExecutionInterface {
       const std::vector<std::shared_ptr<RayObject>> &args, int num_returns,
       std::vector<std::shared_ptr<RayObject>> *results)>;
 
-  CoreWorkerTaskExecutionInterface(const std::vector<WorkerID> &worker_ids,
-                                   CoreWorkerStoreProviderMap &store_providers,
-                                   const TaskExecutor &executor,
-                                   std::shared_ptr<boost::asio::io_service> io_service,
-                                   bool use_asio_rpc);
+  CoreWorkerTaskExecutionInterface(
+      const std::unordered_map<WorkerID, std::shared_ptr<CoreWorker>> &core_workers,
+      CoreWorkerStoreProviderMap &store_providers, const TaskExecutor &executor,
+      std::shared_ptr<boost::asio::io_service> io_service, bool use_asio_rpc);
 
   /// Start receiving and executing tasks.
   /// \return void.
@@ -68,6 +67,9 @@ class CoreWorkerTaskExecutionInterface {
   Status ExecuteTask(const TaskSpecification &spec,
                      std::vector<std::shared_ptr<RayObject>> *results);
 
+  std::shared_ptr<CoreWorker> GetWorker(const WorkerID &worker_id);
+
+  std::unordered_map<WorkerID, std::shared_ptr<CoreWorker>> core_workers_;
 
   CoreWorkerStoreProviderMap &store_providers_;
 
@@ -83,14 +85,6 @@ class CoreWorkerTaskExecutionInterface {
 
   /// The IO event loop.
   std::shared_ptr<boost::asio::io_service> io_service_;
-
-  std::vector<WorkerID> worker_ids_;
-
-  /// Event loop where tasks are processed.
-  std::unordered_map<WorkerID, std::shared_ptr<boost::asio::io_service>> worker_services_;
-
-  /// The asio work to keep main_service_ alive.
-  std::unordered_map<WorkerID, boost::asio::io_service::work> worker_works_;
 
   std::unordered_map<WorkerID, std::thread> worker_threads_;
 

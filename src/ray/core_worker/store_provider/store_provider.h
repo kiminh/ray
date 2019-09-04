@@ -3,9 +3,9 @@
 
 #include "ray/common/buffer.h"
 #include "ray/common/id.h"
+#include "ray/common/ray_config.h"
 #include "ray/common/status.h"
 #include "ray/core_worker/common.h"
-#include "ray/common/ray_config.h"
 
 namespace ray {
 

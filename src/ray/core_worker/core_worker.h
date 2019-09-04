@@ -26,11 +26,12 @@ class CoreWorkerProcess {
   ///
   /// \param[in] worker_type Type of this worker.
   /// \param[in] langauge Language of this worker.
-  CoreWorkerProcess(const WorkerType worker_type, const Language language,
-             const std::string &store_socket, const std::string &raylet_socket,
-             const JobID &job_id, const gcs::GcsClientOptions &gcs_options,
-             const CoreWorkerTaskExecutionInterface::TaskExecutor &execution_callback,
-             int num_workers = 1);
+  CoreWorkerProcess(
+      const WorkerType worker_type, const Language language,
+      const std::string &store_socket, const std::string &raylet_socket,
+      const JobID &job_id, const gcs::GcsClientOptions &gcs_options,
+      const CoreWorkerTaskExecutionInterface::TaskExecutor &execution_callback,
+      int num_workers = 1);
 
   ~CoreWorkerProcess();
 
@@ -64,6 +65,10 @@ class CoreWorkerProcess {
   static std::shared_ptr<CoreWorker> GetCoreWorker() {
     RAY_CHECK(current_core_worker_ != nullptr);
     return current_core_worker_;
+  }
+
+  static void SetCoreWorker(std::shared_ptr<CoreWorker> core_worker) {
+    current_core_worker_ = core_worker;
   }
 
  private:
@@ -143,17 +148,17 @@ class CoreWorker {
  public:
   /// Construct a CoreWorker instance.
   ///
-  /// \param[in] worker_type Type of this worker.
-  /// \param[in] job_id Job id of this worker.
-  CoreWorker(CoreWorkerProcess &core_worker);
+  /// \param[in] core_worker_process The core worker process.
+  /// \param[in] worker_id ID of this worker.
+  CoreWorker(CoreWorkerProcess &core_worker_process, const WorkerID &worker_id);
 
   ~CoreWorker();
 
   /// Type of this worker.
-  WorkerType GetWorkerType() const { return core_worker_.GetWorkerType(); }
+  WorkerType GetWorkerType() const { return core_worker_process_.GetWorkerType(); }
 
   /// Language of this worker.
-  Language GetLanguage() const { return core_worker_.GetLanguage(); }
+  Language GetLanguage() const { return core_worker_process_.GetLanguage(); }
 
   WorkerContext &GetWorkerContext() { return worker_context_; }
 
@@ -163,18 +168,22 @@ class CoreWorker {
 
   /// Return the `CoreWorkerTaskInterface` that contains the methods related to task
   /// submisson.
-  CoreWorkerTaskInterface &Tasks() { return core_worker_.Tasks(); }
+  CoreWorkerTaskInterface &Tasks() { return core_worker_process_.Tasks(); }
 
   /// Return the `CoreWorkerObjectInterface` that contains methods related to object
   /// store.
-  CoreWorkerObjectInterface &Objects() { return core_worker_.Objects(); }
+  CoreWorkerObjectInterface &Objects() { return core_worker_process_.Objects(); }
 
   /// Return the `CoreWorkerTaskExecutionInterface` that contains methods related to
   /// task execution.
-  CoreWorkerTaskExecutionInterface &Execution() { return core_worker_.Execution(); }
+  CoreWorkerTaskExecutionInterface &Execution() {
+    return core_worker_process_.Execution();
+  }
+
+  std::shared_ptr<boost::asio::io_service> GetMainService() { return main_service_; }
 
  private:
-  CoreWorkerProcess &core_worker_;
+  CoreWorkerProcess &core_worker_process_;
 
   /// Worker context.
   WorkerContext worker_context_;
@@ -183,7 +192,7 @@ class CoreWorker {
   RayletClient raylet_client_;
 
   /// Event loop where tasks are processed.
-  boost::asio::io_service main_service_;
+  std::shared_ptr<boost::asio::io_service> main_service_;
 
   /// The asio work to keep main_service_ alive.
   boost::asio::io_service::work main_work_;

@@ -10,28 +10,28 @@ import org.ray.api.id.UniqueId;
 public class NativeRayletClient implements RayletClient {
 
   /**
-   * The native pointer of core worker.
+   * The native pointer of core worker process.
    */
-  private long nativeCoreWorkerPointer = 0;
+  private long nativeCoreWorkerProcessPointer = 0;
 
-  public NativeRayletClient(long nativeCoreWorkerPointer) {
-    this.nativeCoreWorkerPointer = nativeCoreWorkerPointer;
+  public NativeRayletClient(long nativeCoreWorkerProcessPointer) {
+    this.nativeCoreWorkerProcessPointer = nativeCoreWorkerProcessPointer;
   }
 
   @Override
   public UniqueId prepareCheckpoint(ActorId actorId) {
-    return new UniqueId(nativePrepareCheckpoint(nativeCoreWorkerPointer, actorId.getBytes()));
+    return new UniqueId(nativePrepareCheckpoint(nativeCoreWorkerProcessPointer, actorId.getBytes()));
   }
 
   @Override
   public void notifyActorResumedFromCheckpoint(ActorId actorId, UniqueId checkpointId) {
-    nativeNotifyActorResumedFromCheckpoint(nativeCoreWorkerPointer, actorId.getBytes(),
+    nativeNotifyActorResumedFromCheckpoint(nativeCoreWorkerProcessPointer, actorId.getBytes(),
         checkpointId.getBytes());
   }
 
 
   public void setResource(String resourceName, double capacity, UniqueId nodeId) {
-    nativeSetResource(nativeCoreWorkerPointer, resourceName, capacity, nodeId.getBytes());
+    nativeSetResource(nativeCoreWorkerProcessPointer, resourceName, capacity, nodeId.getBytes());
   }
 
   /// Native method declarations.

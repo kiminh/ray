@@ -9,7 +9,8 @@
 
 namespace ray {
 
-thread_local std::shared_ptr<CoreWorker> CoreWorkerProcess::current_core_worker_ = nullptr;
+thread_local std::shared_ptr<CoreWorker> CoreWorkerProcess::current_core_worker_ =
+    nullptr;
 
 CoreWorkerProcess::CoreWorkerProcess(
     const WorkerType worker_type, const Language language,
@@ -45,45 +46,35 @@ CoreWorkerProcess::CoreWorkerProcess(
 
   object_interface_ = std::unique_ptr<CoreWorkerObjectInterface>(
       new CoreWorkerObjectInterface(store_providers_, task_submitters_));
-  task_interface_ = std::unique_ptr<CoreWorkerTaskInterface>(new CoreWorkerTaskInterface(
-      task_submitters_));
+  task_interface_ = std::unique_ptr<CoreWorkerTaskInterface>(
+      new CoreWorkerTaskInterface(task_submitters_));
 
-  std::vector<WorkerID> worker_ids;
+  io_thread_ = std::thread(&CoreWorkerProcess::StartIOService, this);
 
   if (worker_type_ == WorkerType::WORKER) {
     RAY_CHECK(execution_callback != nullptr);
+    std::vector<WorkerID> worker_ids;
     for (int i = 0; i < num_workers; i++) {
-      worker_ids.emplace_back(WorkerID::FromRandom());
+      const auto worker_id = WorkerID::FromRandom();
+      worker_ids.emplace_back(worker_id);
+      auto worker = std::make_shared<CoreWorker>(*this, worker_id);
+      core_workers_.emplace(worker_id, worker);
     }
     task_execution_interface_ = std::unique_ptr<CoreWorkerTaskExecutionInterface>(
-        new CoreWorkerTaskExecutionInterface(worker_ids,
-                                             store_providers_, execution_callback,
-                                             io_service_, use_asio_rpc));
+        new CoreWorkerTaskExecutionInterface(core_workers_, store_providers_,
+                                             execution_callback, io_service_,
+                                             use_asio_rpc));
     rpc_server_port_ = task_execution_interface_->worker_server_->GetPort();
   } else {
-    worker_ids.emplace_back(ComputeDriverIdFromJob(job_id));
+    const auto worker_id = ComputeDriverIdFromJob(job_id);
+    // This is a driver. Set the thread local `CoreWorker`.
+    SetCoreWorker(std::make_shared<CoreWorker>(*this, worker_id));
   }
-
-  if (worker_type_ == WorkerType::WORKER) {
-      for (int i = 0; i < num_workers_; i++) {
-          auto worker = std::make_shared<CoreWorker>(*this);
-          core_workers_.emplace(worker->GetWorkerID(), worker);
-
-          // TODO: post an initialization function to each io service
-          // to set the `current_core_worker_` in `CoreWorkerProcess`.
-          // If this is a driver, then do something else.
-      }
-  } else {
-      // This is a driver. Set the thread local `CoreWorker`.
-      current_core_worker_ = std::make_shared<CoreWorker>(*this);
-  }
-
-  io_thread_ = std::thread(&CoreWorkerProcess::StartIOService, this);
 }
 
 CoreWorkerProcess::~CoreWorkerProcess() {
   gcs_client_->Disconnect();
-  io_service_.stop();
+  io_service_->stop();
   io_thread_.join();
   if (task_execution_interface_) {
     task_execution_interface_->Stop();
@@ -91,7 +82,7 @@ CoreWorkerProcess::~CoreWorkerProcess() {
   // TODO: join the worker threads.
 }
 
-void CoreWorkerProcess::StartIOService() { io_service_.run(); }
+void CoreWorkerProcess::StartIOService() { io_service_->run(); }
 
 void CoreWorkerProcess::InitializeStoreProviders() {
   memory_store_ = std::make_shared<CoreWorkerMemoryStore>();
@@ -104,16 +95,16 @@ void CoreWorkerProcess::InitializeStoreProviders() {
                            CreateStoreProvider(StoreProviderType::MEMORY));
 }
 
-std::unique_ptr<CoreWorkerStoreProvider>
-CoreWorkerProcess::CreateStoreProvider(StoreProviderType type) {
+std::unique_ptr<CoreWorkerStoreProvider> CoreWorkerProcess::CreateStoreProvider(
+    StoreProviderType type) {
   switch (type) {
   case StoreProviderType::LOCAL_PLASMA:
     return std::unique_ptr<CoreWorkerStoreProvider>(
         new CoreWorkerLocalPlasmaStoreProvider(store_socket_));
     break;
   case StoreProviderType::PLASMA:
-    return std::unique_ptr<CoreWorkerStoreProvider>(new CoreWorkerPlasmaStoreProvider(
-        store_socket_));
+    return std::unique_ptr<CoreWorkerStoreProvider>(
+        new CoreWorkerPlasmaStoreProvider(store_socket_));
     break;
   case StoreProviderType::MEMORY:
     return std::unique_ptr<CoreWorkerStoreProvider>(
@@ -136,25 +127,25 @@ void CoreWorkerProcess::InitializeTaskSubmitters(bool use_asio_rpc) {
       TaskTransportType::DIRECT_ACTOR,
       use_asio_rpc ? std::unique_ptr<CoreWorkerDirectActorTaskSubmitter>(
                          new DirectActorAsioTaskSubmitter(
-                             io_service_, worker_context_, *gcs_client_,
+                             *io_service_, *gcs_client_,
                              CreateStoreProvider(StoreProviderType::MEMORY)))
                    : std::unique_ptr<CoreWorkerDirectActorTaskSubmitter>(
                          new DirectActorGrpcTaskSubmitter(
-                             io_service_, worker_context_, *gcs_client_,
+                             *io_service_, *gcs_client_,
                              CreateStoreProvider(StoreProviderType::MEMORY))));
 }
 
-CoreWorker::CoreWorker(CoreWorkerProcess &core_worker)
-    : core_worker_(core_worker),
-      worker_context_(core_worker.GetWorkerType(), core_worker.GetJobId()),
-      raylet_client_(core_worker.GetRayletSocket(),
-      WorkerID::FromBinary(worker_context_.GetWorkerID().Binary()),
-      (worker_context_.GetWorkerType() == ray::WorkerType::WORKER), worker_context_.GetCurrentJobID(),
-      core_worker.GetLanguage(), core_worker.GetRpcServerPort()),
-      main_work_(main_service_)  {}
+CoreWorker::CoreWorker(CoreWorkerProcess &core_worker_process, const WorkerID &worker_id)
+    : core_worker_process_(core_worker_process),
+      worker_context_(core_worker_process.GetWorkerType(), worker_id,
+                      core_worker_process.GetJobId()),
+      raylet_client_(core_worker_process.GetRayletSocket(), worker_id,
+                     (worker_context_.GetWorkerType() == ray::WorkerType::WORKER),
+                     worker_context_.GetCurrentJobID(), core_worker_process.GetLanguage(),
+                     core_worker_process.GetRpcServerPort()),
+      main_service_(std::make_shared<boost::asio::io_service>()),
+      main_work_(*main_service_) {}
 
-CoreWorker::~CoreWorker() {
-  RAY_IGNORE_EXPR(raylet_client_.Disconnect());
-}
+CoreWorker::~CoreWorker() { RAY_IGNORE_EXPR(raylet_client_.Disconnect()); }
 
 }  // namespace ray

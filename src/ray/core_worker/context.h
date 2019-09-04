@@ -10,11 +10,11 @@ struct WorkerThreadContext;
 
 class WorkerContext {
  public:
-  WorkerContext(WorkerType worker_type, const JobID &job_id);
+  WorkerContext(WorkerType worker_type, const WorkerID &worker_id, const JobID &job_id);
 
   const WorkerType GetWorkerType() const;
 
-  const WorkerID &GetCurrentWorkerID() const;
+  const WorkerID &GetWorkerID() const;
 
   const JobID &GetCurrentJobID() const;
 
@@ -35,7 +35,7 @@ class WorkerContext {
   const WorkerType worker_type_;
 
   /// ID for this worker.
-  const WorkerID current_worker_id_;
+  const WorkerID worker_id_;
 
   /// Job ID for this worker.
   JobID current_job_id_;

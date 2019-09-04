@@ -25,11 +25,11 @@ extern "C" {
 
 /*
  * Class:     org_ray_runtime_RayNativeRuntime
- * Method:    nativeInitCoreWorker
+ * Method:    nativeInitCoreWorkerProcess
  * Signature:
  * (ILjava/lang/String;Ljava/lang/String;[BLorg/ray/runtime/gcs/GcsClientOptions;)J
  */
-JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWorker(
+JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWorkerProcess(
     JNIEnv *env, jclass, jint workerMode, jstring storeSocket, jstring rayletSocket,
     jbyteArray jobId, jobject gcsClientOptions) {
   auto native_store_socket = JavaStringToNativeString(env, storeSocket);
@@ -44,8 +44,9 @@ JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWork
     JNIEnv *env = local_env;
     if (!env) {
       // Attach the native thread to JVM.
-      auto status = jvm->AttachCurrentThreadAsDaemon(reinterpret_cast<void **>(&env), NULL);
-      //auto status = jvm->GetEnv(reinterpret_cast<void **>(&env), CURRENT_JNI_VERSION);
+      auto status =
+          jvm->AttachCurrentThreadAsDaemon(reinterpret_cast<void **>(&env), NULL);
+      // auto status = jvm->GetEnv(reinterpret_cast<void **>(&env), CURRENT_JNI_VERSION);
       RAY_CHECK(status == JNI_OK) << "Failed to get JNIEnv. Return code: " << status;
       local_env = env;
     }
@@ -76,10 +77,10 @@ JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWork
   };
 
   try {
-    auto core_worker = new ray::CoreWorker(
+    auto core_worker_process = new ray::CoreWorkerProcess(
         static_cast<ray::WorkerType>(workerMode), ::Language::JAVA, native_store_socket,
-        native_raylet_socket, job_id, gcs_client_options, executor_func, 1);
-    return reinterpret_cast<jlong>(core_worker);
+        native_raylet_socket, job_id, gcs_client_options, executor_func);
+    return reinterpret_cast<jlong>(core_worker_process);
   } catch (const std::exception &e) {
     std::ostringstream oss;
     oss << "Failed to construct core worker: " << e.what();
@@ -94,21 +95,24 @@ JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWork
  * Signature: (JLorg/ray/runtime/task/TaskExecutor;)V
  */
 JNIEXPORT void JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeRunTaskExecutor(
-    JNIEnv *env, jclass o, jlong nativeCoreWorkerPointer, jobject javaTaskExecutor) {
+    JNIEnv *env, jclass o, jlong nativeCoreWorkerProcessPointer,
+    jobject javaTaskExecutor) {
   java_task_executor = javaTaskExecutor;
-  auto core_worker = reinterpret_cast<ray::CoreWorker *>(nativeCoreWorkerPointer);
+  auto core_worker =
+      reinterpret_cast<ray::CoreWorkerProcess *>(nativeCoreWorkerProcessPointer);
   core_worker->Execution().Run();
   java_task_executor = nullptr;
 }
 
 /*
  * Class:     org_ray_runtime_RayNativeRuntime
- * Method:    nativeDestroyCoreWorker
+ * Method:    nativeDestroyCoreWorkerProcess
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeDestroyCoreWorker(
-    JNIEnv *env, jclass o, jlong nativeCoreWorkerPointer) {
-  delete reinterpret_cast<ray::CoreWorker *>(nativeCoreWorkerPointer);
+JNIEXPORT void JNICALL
+Java_org_ray_runtime_RayNativeRuntime_nativeDestroyCoreWorkerProcess(
+    JNIEnv *env, jclass o, jlong nativeCoreWorkerProcessPointer) {
+  delete reinterpret_cast<ray::CoreWorkerProcess *>(nativeCoreWorkerProcessPointer);
 }
 
 /*

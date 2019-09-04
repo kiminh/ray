@@ -6,8 +6,10 @@
 #include "ray/core_worker/lib/java/jni_utils.h"
 #include "ray/raylet/raylet_client.h"
 
-inline RayletClient &GetRayletClientFromPointer(jlong nativeCoreWorkerPointer) {
-  return reinterpret_cast<ray::CoreWorker *>(nativeCoreWorkerPointer)->GetRayletClient();
+inline RayletClient &GetRayletClientFromPointer(jlong nativeCoreWorkerProcessPointer) {
+  return reinterpret_cast<ray::CoreWorkerProcess *>(nativeCoreWorkerProcessPointer)
+      ->GetCoreWorker()
+      ->GetRayletClient();
 }
 
 #ifdef __cplusplus
@@ -23,10 +25,10 @@ using ray::ClientID;
  */
 JNIEXPORT jbyteArray JNICALL
 Java_org_ray_runtime_raylet_NativeRayletClient_nativePrepareCheckpoint(
-    JNIEnv *env, jclass, jlong nativeCoreWorkerPointer, jbyteArray actorId) {
+    JNIEnv *env, jclass, jlong nativeCoreWorkerProcessPointer, jbyteArray actorId) {
   const auto actor_id = JavaByteArrayToId<ActorID>(env, actorId);
   ActorCheckpointID checkpoint_id;
-  auto status = GetRayletClientFromPointer(nativeCoreWorkerPointer)
+  auto status = GetRayletClientFromPointer(nativeCoreWorkerProcessPointer)
                     .PrepareActorCheckpoint(actor_id, checkpoint_id);
   THROW_EXCEPTION_AND_RETURN_IF_NOT_OK(env, status, nullptr);
   jbyteArray result = env->NewByteArray(checkpoint_id.Size());
@@ -42,11 +44,11 @@ Java_org_ray_runtime_raylet_NativeRayletClient_nativePrepareCheckpoint(
  */
 JNIEXPORT void JNICALL
 Java_org_ray_runtime_raylet_NativeRayletClient_nativeNotifyActorResumedFromCheckpoint(
-    JNIEnv *env, jclass, jlong nativeCoreWorkerPointer, jbyteArray actorId,
+    JNIEnv *env, jclass, jlong nativeCoreWorkerProcessPointer, jbyteArray actorId,
     jbyteArray checkpointId) {
   const auto actor_id = JavaByteArrayToId<ActorID>(env, actorId);
   const auto checkpoint_id = JavaByteArrayToId<ActorCheckpointID>(env, checkpointId);
-  auto status = GetRayletClientFromPointer(nativeCoreWorkerPointer)
+  auto status = GetRayletClientFromPointer(nativeCoreWorkerProcessPointer)
                     .NotifyActorResumedFromCheckpoint(actor_id, checkpoint_id);
   THROW_EXCEPTION_AND_RETURN_IF_NOT_OK(env, status, (void)0);
 }
@@ -57,13 +59,13 @@ Java_org_ray_runtime_raylet_NativeRayletClient_nativeNotifyActorResumedFromCheck
  * Signature: (JLjava/lang/String;D[B)V
  */
 JNIEXPORT void JNICALL Java_org_ray_runtime_raylet_NativeRayletClient_nativeSetResource(
-    JNIEnv *env, jclass, jlong nativeCoreWorkerPointer, jstring resourceName,
+    JNIEnv *env, jclass, jlong nativeCoreWorkerProcessPointer, jstring resourceName,
     jdouble capacity, jbyteArray nodeId) {
   const auto node_id = JavaByteArrayToId<ClientID>(env, nodeId);
   const char *native_resource_name = env->GetStringUTFChars(resourceName, JNI_FALSE);
 
   auto status =
-      GetRayletClientFromPointer(nativeCoreWorkerPointer)
+      GetRayletClientFromPointer(nativeCoreWorkerProcessPointer)
           .SetResource(native_resource_name, static_cast<double>(capacity), node_id);
   env->ReleaseStringUTFChars(resourceName, native_resource_name);
   THROW_EXCEPTION_AND_RETURN_IF_NOT_OK(env, status, (void)0);
