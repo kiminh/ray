@@ -61,6 +61,10 @@ class CallbackReply {
   /// make it as an output parameter.
   void ReadAsStringArray(std::vector<std::string> *array) const;
 
+  /// Read this reply data as a scan array.
+  ///
+  /// \param array The result array of scan.
+  /// \return size_t The next cursor for scan.
   size_t ReadAsScanArray(std::vector<std::string> *array) const;
 
  private:

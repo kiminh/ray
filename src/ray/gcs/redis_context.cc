@@ -298,13 +298,11 @@ std::unique_ptr<CallbackReply> RedisContext::RunArgvSync(
     const std::vector<std::string> &args) {
   RAY_CHECK(context_);
   // Build the arguments.
-  std::vector<const char *> argv;
-  std::vector<size_t> argc;
-  for (size_t i = 0; i < args.size(); ++i) {
-    argv.push_back(args[i].data());
-    argc.push_back(args[i].size());
+  std::ostringstream os;
+  for (auto &arg : args) {
+    os << arg << " ";
   }
-  void *redis_reply = redisCommandArgv(context_, args.size(), argv.data(), argc.data());
+  void *redis_reply = redisCommand(context_, os.str().c_str());
   if (redis_reply == nullptr) {
     RAY_LOG(INFO) << "Run redis command failed , err is " << context_->err;
     return nullptr;
