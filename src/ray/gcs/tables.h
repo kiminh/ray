@@ -241,7 +241,7 @@ class Log : public LogInterface<ID, Data>, virtual public PubsubInterface<ID> {
   ///
   /// \param keys Keys that to delete from GCS.
   /// \return Status
-  Status Delete(const std::vector<std::string> &keys);
+  Status SyncDelete(const std::vector<std::string> &keys);
 
   /// Subscribe to any modifications to the key. The caller may choose
   /// to subscribe to all modifications, or to subscribe only to keys that it
@@ -841,6 +841,9 @@ class ProfileTable : private Log<UniqueID, ProfileTableData> {
   /// \return Status.
   Status AddProfileEventBatch(const ProfileTableData &profile_events);
 
+  /// Delete all data from redis synchronously.
+  ///
+  /// \return Status
   Status SyncDeleteAll() { return Log<UniqueID, ProfileTableData>::SyncDeleteAll(); }
 
   /// Returns debug string for class.

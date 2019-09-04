@@ -267,7 +267,7 @@ Status Log<ID, Data>::SyncDeleteAll() {
 
     // Delete from redis.
     if (!keys.empty()) {
-      Status status = Delete(keys);
+      Status status = SyncDelete(keys);
       if (!status.ok()) {
         return status;
       }
@@ -283,7 +283,7 @@ Status Log<ID, Data>::SyncDeleteAll() {
 }
 
 template <typename ID, typename Data>
-Status Log<ID, Data>::Delete(const std::vector<std::string> &keys) {
+Status Log<ID, Data>::SyncDelete(const std::vector<std::string> &keys) {
   if (keys.empty()) {
     return Status::OK();
   }
