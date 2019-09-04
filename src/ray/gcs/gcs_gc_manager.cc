@@ -11,8 +11,6 @@ GcsGCManager::GcsGCManager(RedisGcsClient &gcs_client) : gcs_client_(gcs_client)
 
 Status GcsGCManager::CleanForLevelOneFailover() {
   std::vector<std::function<Status()>> funcs;
-  funcs.emplace_back(std::bind(&GcsGCManager::CleanAllActorCheckpointIdData, this));
-  funcs.emplace_back(std::bind(&GcsGCManager::CleanAllActorCheckpointData, this));
   funcs.emplace_back(std::bind(&GcsGCManager::CleanAllTaskLeaseData, this));
   funcs.emplace_back(std::bind(&GcsGCManager::CleanAllTaskReconstructionData, this));
   funcs.emplace_back(std::bind(&GcsGCManager::CleanAllObjectData, this));
