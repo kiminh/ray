@@ -80,11 +80,10 @@ class WorkerPoolTest : public ::testing::Test {
                                        const Language &language = Language::PYTHON) {
     std::function<void(LocalClientConnection &)> client_handler =
         [this](LocalClientConnection &client) { HandleNewClient(client); };
-    std::function<void(std::shared_ptr<LocalClientConnection>, int64_t, const uint8_t *)>
-        message_handler = [this](std::shared_ptr<LocalClientConnection> client,
-                                 int64_t message_type, const uint8_t *message) {
-          HandleMessage(client, message_type, message);
-        };
+    MessageHandler<boost::asio::local::stream_protocol> message_handler =
+        [this](std::shared_ptr<LocalClientConnection> client, int64_t message_type,
+               uint64_t length,
+               const uint8_t *message) { HandleMessage(client, message_type, message); };
     boost::asio::local::stream_protocol::socket socket(io_service_);
     auto client =
         LocalClientConnection::Create(client_handler, message_handler, std::move(socket),

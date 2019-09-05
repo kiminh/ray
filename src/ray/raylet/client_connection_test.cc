@@ -45,7 +45,8 @@ TEST_F(ClientConnectionTest, SimpleSyncWrite) {
 
   MessageHandler<boost::asio::local::stream_protocol> message_handler =
       [&arr, &num_messages](std::shared_ptr<LocalClientConnection> client,
-                            int64_t message_type, const uint8_t *message) {
+                            int64_t message_type, uint64_t length,
+                            const uint8_t *message) {
         ASSERT_TRUE(!std::memcmp(arr, message, 5));
         num_messages += 1;
       };
@@ -75,14 +76,14 @@ TEST_F(ClientConnectionTest, SimpleAsyncWrite) {
 
   MessageHandler<boost::asio::local::stream_protocol> noop_handler =
       [](std::shared_ptr<LocalClientConnection> client, int64_t message_type,
-         const uint8_t *message) {};
+         uint64_t length, const uint8_t *message) {};
 
   std::shared_ptr<LocalClientConnection> reader = NULL;
 
   MessageHandler<boost::asio::local::stream_protocol> message_handler =
       [&msg1, &msg2, &msg3, &num_messages, &reader](
           std::shared_ptr<LocalClientConnection> client, int64_t message_type,
-          const uint8_t *message) {
+          uint64_t length, const uint8_t *message) {
         if (num_messages == 0) {
           ASSERT_TRUE(!std::memcmp(msg1, message, 5));
         } else if (num_messages == 1) {
@@ -122,7 +123,7 @@ TEST_F(ClientConnectionTest, SimpleAsyncError) {
 
   MessageHandler<boost::asio::local::stream_protocol> noop_handler =
       [](std::shared_ptr<LocalClientConnection> client, int64_t message_type,
-         const uint8_t *message) {};
+         uint64_t length, const uint8_t *message) {};
 
   auto writer = LocalClientConnection::Create(
       client_handler, noop_handler, std::move(in_), "writer", {}, error_message_type_);
@@ -144,7 +145,7 @@ TEST_F(ClientConnectionTest, CallbackWithSharedRefDoesNotLeakConnection) {
 
   MessageHandler<boost::asio::local::stream_protocol> noop_handler =
       [](std::shared_ptr<LocalClientConnection> client, int64_t message_type,
-         const uint8_t *message) {};
+         uint64_t length, const uint8_t *message) {};
 
   auto writer = LocalClientConnection::Create(
       client_handler, noop_handler, std::move(in_), "writer", {}, error_message_type_);
@@ -167,7 +168,8 @@ TEST_F(ClientConnectionTest, ProcessBadMessage) {
 
   MessageHandler<boost::asio::local::stream_protocol> message_handler =
       [&arr, &num_messages](std::shared_ptr<LocalClientConnection> client,
-                            int64_t message_type, const uint8_t *message) {
+                            int64_t message_type, uint64_t length,
+                            const uint8_t *message) {
         ASSERT_TRUE(!std::memcmp(arr, message, 5));
         num_messages += 1;
       };
