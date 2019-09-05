@@ -11,10 +11,10 @@ extern "C" {
  * Class:     org_ray_runtime_RayNativeRuntime
  * Method:    nativeInitCoreWorkerProcess
  * Signature:
- * (ILjava/util/Map;Ljava/lang/String;Ljava/lang/String;[BLorg/ray/runtime/gcs/GcsClientOptions;)J
+ * (ILjava/util/Map;Ljava/lang/String;Ljava/lang/String;[BLorg/ray/runtime/gcs/GcsClientOptions;I)J
  */
 JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWorkerProcess(
-    JNIEnv *, jclass, jint, jobject, jstring, jstring, jbyteArray, jobject);
+    JNIEnv *, jclass, jint, jobject, jstring, jstring, jbyteArray, jobject, jint);
 
 /*
  * Class:     org_ray_runtime_RayNativeRuntime

@@ -27,11 +27,12 @@ extern "C" {
  * Class:     org_ray_runtime_RayNativeRuntime
  * Method:    nativeInitCoreWorkerProcess
  * Signature:
- * (ILjava/util/Map;Ljava/lang/String;Ljava/lang/String;[BLorg/ray/runtime/gcs/GcsClientOptions;)J
+ * (ILjava/util/Map;Ljava/lang/String;Ljava/lang/String;[BLorg/ray/runtime/gcs/GcsClientOptions;I)J
  */
 JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWorkerProcess(
     JNIEnv *env, jclass, jint workerMode, jobject staticWorkerInfo, jstring storeSocket,
-    jstring rayletSocket, jbyteArray jobId, jobject gcsClientOptions) {
+    jstring rayletSocket, jbyteArray jobId, jobject gcsClientOptions,
+    jint numWorkersPerProcess) {
   auto static_worker_info = JavaStringMapToNativeStringMap(env, staticWorkerInfo);
   auto native_store_socket = JavaStringToNativeString(env, storeSocket);
   auto native_raylet_socket = JavaStringToNativeString(env, rayletSocket);
@@ -81,7 +82,7 @@ JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWork
     auto core_worker_process = new ray::CoreWorkerProcess(
         static_cast<ray::WorkerType>(workerMode), ::Language::JAVA, static_worker_info,
         native_store_socket, native_raylet_socket, job_id, gcs_client_options,
-        executor_func);
+        executor_func, numWorkersPerProcess);
     return reinterpret_cast<jlong>(core_worker_process);
   } catch (const std::exception &e) {
     std::ostringstream oss;
