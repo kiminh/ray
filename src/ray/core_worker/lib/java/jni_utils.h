@@ -243,6 +243,42 @@ inline jobject NativeIdVectorToJavaByteArrayList(JNIEnv *env,
   });
 }
 
+/// Convert a Java Map<?, ?> to a C++ std::unordered_map<?, ?>
+template <typename key_type, typename value_type>
+inline std::unordered_map<key_type, value_type> JavaMapToNativeMap(
+    JNIEnv *env, jobject java_map,
+    const std::function<key_type(JNIEnv *, jobject)> &key_converter,
+    const std::function<value_type(JNIEnv *, jobject)> &value_converter) {
+  std::unordered_map<key_type, value_type> native_map;
+  if (java_map) {
+    jobject entry_set = env->CallObjectMethod(java_map, java_map_entry_set);
+    jobject iterator = env->CallObjectMethod(entry_set, java_set_iterator);
+    while (env->CallBooleanMethod(iterator, java_iterator_has_next)) {
+      jobject map_entry = env->CallObjectMethod(iterator, java_iterator_next);
+      key_type key =
+          key_converter(env, env->CallObjectMethod(map_entry, java_map_entry_get_key));
+      value_type value = value_converter(
+          env, env->CallObjectMethod(map_entry, java_map_entry_get_value));
+      native_map.emplace(key, value);
+    }
+  }
+  return native_map;
+}
+
+/// Convert a Java Map<String, String> to a C++ std::unordered_map<std::string,
+/// std::string>
+inline std::unordered_map<std::string, std::string> JavaStringMapToNativeStringMap(
+    JNIEnv *env, jobject java_map) {
+  return JavaMapToNativeMap<std::string, std::string>(
+      env, java_map,
+      [](JNIEnv *env, jobject java_key) {
+        return JavaStringToNativeString(env, (jstring)java_key);
+      },
+      [](JNIEnv *env, jobject java_value) {
+        return JavaStringToNativeString(env, (jstring)java_value);
+      });
+}
+
 /// Convert a C++ ray::Buffer to a Java byte array.
 inline jbyteArray NativeBufferToJavaByteArray(JNIEnv *env,
                                               const std::shared_ptr<ray::Buffer> buffer) {

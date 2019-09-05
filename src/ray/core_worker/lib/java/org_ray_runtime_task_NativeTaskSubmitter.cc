@@ -45,21 +45,14 @@ inline std::vector<ray::TaskArg> ToTaskArgs(JNIEnv *env, jobject args) {
 
 inline std::unordered_map<std::string, double> ToResources(JNIEnv *env,
                                                            jobject java_resources) {
-  std::unordered_map<std::string, double> resources;
-  if (java_resources) {
-    jobject entry_set = env->CallObjectMethod(java_resources, java_map_entry_set);
-    jobject iterator = env->CallObjectMethod(entry_set, java_set_iterator);
-    while (env->CallBooleanMethod(iterator, java_iterator_has_next)) {
-      jobject map_entry = env->CallObjectMethod(iterator, java_iterator_next);
-      std::string key = JavaStringToNativeString(
-          env, (jstring)env->CallObjectMethod(map_entry, java_map_entry_get_key));
-      double value = env->CallDoubleMethod(
-          env->CallObjectMethod(map_entry, java_map_entry_get_value),
-          java_double_double_value);
-      resources.emplace(key, value);
-    }
-  }
-  return resources;
+  return JavaMapToNativeMap<std::string, double>(
+      env, java_resources,
+      [](JNIEnv *env, jobject java_key) {
+        return JavaStringToNativeString(env, (jstring)java_key);
+      },
+      [](JNIEnv *env, jobject java_value) {
+        return env->CallDoubleMethod(java_value, java_double_double_value);
+      });
 }
 
 inline ray::TaskOptions ToTaskOptions(JNIEnv *env, jint numReturns, jobject callOptions) {

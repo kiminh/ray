@@ -87,8 +87,6 @@ class CoreWorkerTaskExecutionInterface {
   std::shared_ptr<boost::asio::io_service> io_service_;
 
   std::unordered_map<WorkerID, std::thread> worker_threads_;
-
-  friend class CoreWorkerProcess;
 };
 
 }  // namespace ray

@@ -1,6 +1,8 @@
-#include "ray/core_worker/core_worker.h"
+#include <chrono>
+
 #include "ray/common/ray_config.h"
 #include "ray/core_worker/context.h"
+#include "ray/core_worker/core_worker.h"
 #include "ray/core_worker/store_provider/local_plasma_provider.h"
 #include "ray/core_worker/store_provider/memory_store_provider.h"
 #include "ray/core_worker/store_provider/plasma_store_provider.h"
@@ -14,19 +16,19 @@ thread_local std::shared_ptr<CoreWorker> CoreWorkerProcess::current_core_worker_
 
 CoreWorkerProcess::CoreWorkerProcess(
     const WorkerType worker_type, const Language language,
+    const std::unordered_map<std::string, std::string> &static_worker_info,
     const std::string &store_socket, const std::string &raylet_socket,
     const JobID &job_id, const gcs::GcsClientOptions &gcs_options,
     const CoreWorkerTaskExecutionInterface::TaskExecutor &execution_callback,
     int num_workers)
     : worker_type_(worker_type),
       language_(language),
+      static_worker_info_(static_worker_info),
       store_socket_(store_socket),
       raylet_socket_(raylet_socket),
       job_id_(job_id),
       io_service_(std::make_shared<boost::asio::io_service>()),
-      io_work_(*io_service_),
-      num_workers_(num_workers),
-      rpc_server_port_(0) {
+      io_work_(*io_service_) {
   RAY_CHECK(num_workers > 0);
   if (worker_type_ == WorkerType::DRIVER) {
     // Driver process can only contain one worker.
@@ -59,16 +61,20 @@ CoreWorkerProcess::CoreWorkerProcess(
       worker_ids.emplace_back(worker_id);
       auto worker = std::make_shared<CoreWorker>(*this, worker_id);
       core_workers_.emplace(worker_id, worker);
+      RegisterWorker(worker_id);
     }
     task_execution_interface_ = std::unique_ptr<CoreWorkerTaskExecutionInterface>(
         new CoreWorkerTaskExecutionInterface(core_workers_, store_providers_,
                                              execution_callback, io_service_,
                                              use_asio_rpc));
-    rpc_server_port_ = task_execution_interface_->worker_server_->GetPort();
   } else {
     const auto worker_id = ComputeDriverIdFromJob(job_id);
+    auto worker = std::make_shared<CoreWorker>(*this, worker_id);
+    worker->ConnectToRaylet(/*rpc_server_port=*/0);
+    core_workers_.emplace(worker_id, worker);
+    RegisterWorker(worker_id);
     // This is a driver. Set the thread local `CoreWorker`.
-    SetCoreWorker(std::make_shared<CoreWorker>(*this, worker_id));
+    SetCoreWorker(worker);
   }
 }
 
@@ -78,6 +84,9 @@ CoreWorkerProcess::~CoreWorkerProcess() {
   io_thread_.join();
   if (task_execution_interface_) {
     task_execution_interface_->Stop();
+  }
+  if (worker_type_ == WorkerType::DRIVER) {
+    SetCoreWorker(nullptr);
   }
   // TODO: join the worker threads.
 }
@@ -135,17 +144,57 @@ void CoreWorkerProcess::InitializeTaskSubmitters(bool use_asio_rpc) {
                              CreateStoreProvider(StoreProviderType::MEMORY))));
 }
 
+void CoreWorkerProcess::RegisterWorker(const WorkerID &worker_id) {
+  std::unordered_map<std::string, std::string> worker_info;
+  auto it = static_worker_info_.find("node_ip_address");
+  if (it != static_worker_info_.end()) {
+    worker_info.emplace("node_ip_address", it->second);
+  }
+  worker_info.emplace("plasma_store_socket", store_socket_);
+  worker_info.emplace("raylet_socket", raylet_socket_);
+  if (worker_type_ == WorkerType::DRIVER) {
+    auto start_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          std::chrono::system_clock::now().time_since_epoch())
+                          .count();
+    worker_info.emplace("driver_id", worker_id.Binary());
+    worker_info.emplace("start_time", std::to_string(start_time));
+    it = static_worker_info_.find("name");
+    if (it != static_worker_info_.end()) {
+      worker_info.emplace("name", it->second);
+    }
+  }
+
+  std::vector<std::string> args;
+  args.emplace_back("HMSET");
+  if (worker_type_ == WorkerType::DRIVER) {
+    args.emplace_back("Drivers:" + worker_id.Binary());
+  } else {
+    args.emplace_back("Workers:" + worker_id.Binary());
+  }
+  for (const auto &entry : worker_info) {
+    args.push_back(entry.first);
+    args.push_back(entry.second);
+  }
+  RAY_CHECK_OK(gcs_client_->primary_context()->RunArgvAsync(args));
+}
+
 CoreWorker::CoreWorker(CoreWorkerProcess &core_worker_process, const WorkerID &worker_id)
     : core_worker_process_(core_worker_process),
       worker_context_(core_worker_process.GetWorkerType(), worker_id,
                       core_worker_process.GetJobId()),
-      raylet_client_(core_worker_process.GetRayletSocket(), worker_id,
-                     (worker_context_.GetWorkerType() == ray::WorkerType::WORKER),
-                     worker_context_.GetCurrentJobID(), core_worker_process.GetLanguage(),
-                     core_worker_process.GetRpcServerPort()),
+      raylet_client_(),
       main_service_(std::make_shared<boost::asio::io_service>()),
       main_work_(*main_service_) {}
 
-CoreWorker::~CoreWorker() { RAY_IGNORE_EXPR(raylet_client_.Disconnect()); }
+void CoreWorker::ConnectToRaylet(int rpc_server_port) {
+  RAY_CHECK(!raylet_client_);
+  raylet_client_ = std::unique_ptr<RayletClient>(
+      new RayletClient(core_worker_process_.GetRayletSocket(), GetWorkerID(),
+                       (worker_context_.GetWorkerType() == ray::WorkerType::WORKER),
+                       worker_context_.GetCurrentJobID(),
+                       core_worker_process_.GetLanguage(), rpc_server_port));
+}
+
+CoreWorker::~CoreWorker() { RAY_IGNORE_EXPR(raylet_client_->Disconnect()); }
 
 }  // namespace ray

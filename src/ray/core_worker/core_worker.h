@@ -28,6 +28,7 @@ class CoreWorkerProcess {
   /// \param[in] langauge Language of this worker.
   CoreWorkerProcess(
       const WorkerType worker_type, const Language language,
+      const std::unordered_map<std::string, std::string> &static_worker_info,
       const std::string &store_socket, const std::string &raylet_socket,
       const JobID &job_id, const gcs::GcsClientOptions &gcs_options,
       const CoreWorkerTaskExecutionInterface::TaskExecutor &execution_callback,
@@ -44,8 +45,6 @@ class CoreWorkerProcess {
   const JobID &GetJobId() const { return job_id_; }
 
   const std::string &GetRayletSocket() const { return raylet_socket_; }
-
-  int GetRpcServerPort() const { return rpc_server_port_; }
 
   /// Return the `CoreWorkerTaskInterface` that contains the methods related to task
   /// submisson.
@@ -71,11 +70,20 @@ class CoreWorkerProcess {
     current_core_worker_ = core_worker;
   }
 
+  void SetCoreWorker(const WorkerID &worker_id) {
+    auto it = core_workers_.find(worker_id);
+    RAY_CHECK(it != core_workers_.end()) << "Worker " << worker_id << " not found.";
+    SetCoreWorker(it->second);
+  }
+
  private:
   void StartIOService();
 
   void InitializeStoreProviders();
   void InitializeTaskSubmitters(bool use_asio_rpc);
+
+  /// Register this worker or driver to GCS.
+  void RegisterWorker(const WorkerID &worker_id);
 
   std::unique_ptr<CoreWorkerStoreProvider> CreateStoreProvider(StoreProviderType type);
 
@@ -84,6 +92,9 @@ class CoreWorkerProcess {
 
   /// Language of this worker.
   const Language language_;
+
+  /// Static worker info used to register worker to GCS.
+  const std::unordered_map<std::string, std::string> static_worker_info_;
 
   /// plasma store socket name.
   const std::string store_socket_;
@@ -102,11 +113,6 @@ class CoreWorkerProcess {
 
   /// The thread to handle IO events.
   std::thread io_thread_;
-
-  /// Number of workers.
-  int num_workers_;
-
-  int rpc_server_port_;
 
   /// GCS client.
   std::unique_ptr<gcs::RedisGcsClient> gcs_client_;
@@ -152,6 +158,8 @@ class CoreWorker {
   /// \param[in] worker_id ID of this worker.
   CoreWorker(CoreWorkerProcess &core_worker_process, const WorkerID &worker_id);
 
+  void ConnectToRaylet(int rpc_server_port);
+
   ~CoreWorker();
 
   /// Type of this worker.
@@ -162,7 +170,10 @@ class CoreWorker {
 
   WorkerContext &GetWorkerContext() { return worker_context_; }
 
-  RayletClient &GetRayletClient() { return raylet_client_; }
+  RayletClient &GetRayletClient() {
+    RAY_CHECK(raylet_client_);
+    return *raylet_client_;
+  }
 
   const WorkerID &GetWorkerID() const { return worker_context_.GetWorkerID(); }
 
@@ -189,7 +200,7 @@ class CoreWorker {
   WorkerContext worker_context_;
 
   /// Raylet client.
-  RayletClient raylet_client_;
+  std::unique_ptr<RayletClient> raylet_client_;
 
   /// Event loop where tasks are processed.
   std::shared_ptr<boost::asio::io_service> main_service_;

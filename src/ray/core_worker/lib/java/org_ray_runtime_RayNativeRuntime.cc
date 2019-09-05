@@ -27,11 +27,12 @@ extern "C" {
  * Class:     org_ray_runtime_RayNativeRuntime
  * Method:    nativeInitCoreWorkerProcess
  * Signature:
- * (ILjava/lang/String;Ljava/lang/String;[BLorg/ray/runtime/gcs/GcsClientOptions;)J
+ * (ILjava/util/Map;Ljava/lang/String;Ljava/lang/String;[BLorg/ray/runtime/gcs/GcsClientOptions;)J
  */
 JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWorkerProcess(
-    JNIEnv *env, jclass, jint workerMode, jstring storeSocket, jstring rayletSocket,
-    jbyteArray jobId, jobject gcsClientOptions) {
+    JNIEnv *env, jclass, jint workerMode, jobject staticWorkerInfo, jstring storeSocket,
+    jstring rayletSocket, jbyteArray jobId, jobject gcsClientOptions) {
+  auto static_worker_info = JavaStringMapToNativeStringMap(env, staticWorkerInfo);
   auto native_store_socket = JavaStringToNativeString(env, storeSocket);
   auto native_raylet_socket = JavaStringToNativeString(env, rayletSocket);
   auto job_id = JavaByteArrayToId<ray::JobID>(env, jobId);
@@ -78,8 +79,9 @@ JNIEXPORT jlong JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeInitCoreWork
 
   try {
     auto core_worker_process = new ray::CoreWorkerProcess(
-        static_cast<ray::WorkerType>(workerMode), ::Language::JAVA, native_store_socket,
-        native_raylet_socket, job_id, gcs_client_options, executor_func);
+        static_cast<ray::WorkerType>(workerMode), ::Language::JAVA, static_worker_info,
+        native_store_socket, native_raylet_socket, job_id, gcs_client_options,
+        executor_func);
     return reinterpret_cast<jlong>(core_worker_process);
   } catch (const std::exception &e) {
     std::ostringstream oss;
@@ -136,6 +138,18 @@ JNIEXPORT void JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeSetup(JNIEnv 
 JNIEXPORT void JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeShutdownHook(JNIEnv *,
                                                                                 jclass) {
   ray::RayLog::ShutDownRayLog();
+}
+
+/*
+ * Class:     org_ray_runtime_RayNativeRuntime
+ * Method:    nativeSetCoreWorker
+ * Signature: (J[B)V
+ */
+JNIEXPORT void JNICALL Java_org_ray_runtime_RayNativeRuntime_nativeSetCoreWorker(
+    JNIEnv *env, jclass, jlong nativeCoreWorkerProcessPointer, jbyteArray workerId) {
+  const auto worker_id = JavaByteArrayToId<ray::WorkerID>(env, workerId);
+  reinterpret_cast<ray::CoreWorkerProcess *>(nativeCoreWorkerProcessPointer)
+      ->SetCoreWorker(worker_id);
 }
 
 #ifdef __cplusplus

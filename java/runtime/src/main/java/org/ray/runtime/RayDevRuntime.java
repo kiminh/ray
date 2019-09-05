@@ -1,5 +1,6 @@
 package org.ray.runtime;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.ray.api.id.JobId;
 import org.ray.runtime.config.RayConfig;
@@ -35,6 +36,16 @@ public class RayDevRuntime extends AbstractRayRuntime {
   @Override
   public void shutdown() {
     taskExecutor = null;
+  }
+
+  @Override
+  public Runnable asyncClosure(Runnable runnable) {
+    return runnable;
+  }
+
+  @Override
+  public Callable asyncClosure(Callable callable) {
+    return callable;
   }
 
   private JobId nextJobId() {

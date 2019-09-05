@@ -11,12 +11,13 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import org.ray.api.id.JobId;
+import org.ray.api.id.UniqueId;
 import org.ray.runtime.config.RayConfig;
 import org.ray.runtime.context.NativeWorkerContext;
 import org.ray.runtime.gcs.GcsClient;
 import org.ray.runtime.gcs.GcsClientOptions;
-import org.ray.runtime.gcs.RedisClient;
 import org.ray.runtime.generated.Common.WorkerType;
 import org.ray.runtime.object.NativeObjectStore;
 import org.ray.runtime.raylet.NativeRayletClient;
@@ -111,6 +112,7 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
     }
     // TODO(qwang): Get object_store_socket_name and raylet_socket_name from Redis.
     nativeCoreWorkerProcessPointer = nativeInitCoreWorkerProcess(rayConfig.workerMode.getNumber(),
+        getStaticWorkerInfo(),
         rayConfig.objectStoreSocketName, rayConfig.rayletSocketName,
         (rayConfig.workerMode == WorkerType.DRIVER ? rayConfig.getJobId() : JobId.NIL).getBytes(),
         new GcsClientOptions(rayConfig));
@@ -121,9 +123,6 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
     objectStore = new NativeObjectStore(workerContext, nativeCoreWorkerProcessPointer);
     taskSubmitter = new NativeTaskSubmitter(nativeCoreWorkerProcessPointer);
     rayletClient = new NativeRayletClient(nativeCoreWorkerProcessPointer);
-
-    // register
-    registerWorker();
 
     LOGGER.info("RayNativeRuntime started with store {}, raylet {}",
         rayConfig.objectStoreSocketName, rayConfig.rayletSocketName);
@@ -140,36 +139,37 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
     }
   }
 
+  @Override
+  public Runnable asyncClosure(Runnable runnable) {
+    UniqueId workerId = workerContext.getCurrentWorkerId();
+    return () -> {
+      nativeSetCoreWorker(nativeCoreWorkerProcessPointer, workerId.getBytes());
+      runnable.run();
+    };
+  }
+
+  @Override
+  public Callable asyncClosure(Callable callable) {
+    UniqueId workerId = workerContext.getCurrentWorkerId();
+    return () -> {
+      nativeSetCoreWorker(nativeCoreWorkerProcessPointer, workerId.getBytes());
+      return callable.call();
+    };
+  }
+
   public void run() {
     nativeRunTaskExecutor(nativeCoreWorkerProcessPointer, taskExecutor);
   }
 
-  /**
-   * Register this worker or driver to GCS.
-   */
-  private void registerWorker() {
-    RedisClient redisClient = new RedisClient(rayConfig.getRedisAddress(), rayConfig.redisPassword);
+  private Map<String, String> getStaticWorkerInfo() {
     Map<String, String> workerInfo = new HashMap<>();
-    String workerId = new String(workerContext.getCurrentWorkerId().getBytes());
-    if (rayConfig.workerMode == WorkerType.DRIVER) {
-      workerInfo.put("node_ip_address", rayConfig.nodeIp);
-      workerInfo.put("driver_id", workerId);
-      workerInfo.put("start_time", String.valueOf(System.currentTimeMillis()));
-      workerInfo.put("plasma_store_socket", rayConfig.objectStoreSocketName);
-      workerInfo.put("raylet_socket", rayConfig.rayletSocketName);
-      workerInfo.put("name", System.getProperty("user.dir"));
-      //TODO: worker.redis_client.hmset(b"Drivers:" + worker.workerId, driver_info)
-      redisClient.hmset("Drivers:" + workerId, workerInfo);
-    } else {
-      workerInfo.put("node_ip_address", rayConfig.nodeIp);
-      workerInfo.put("plasma_store_socket", rayConfig.objectStoreSocketName);
-      workerInfo.put("raylet_socket", rayConfig.rayletSocketName);
-      //TODO: b"Workers:" + worker.workerId,
-      redisClient.hmset("Workers:" + workerId, workerInfo);
-    }
+    workerInfo.put("node_ip_address", rayConfig.nodeIp);
+    workerInfo.put("name", System.getProperty("user.dir"));
+    return workerInfo;
   }
 
-  private static native long nativeInitCoreWorkerProcess(int workerMode, String storeSocket,
+  private static native long nativeInitCoreWorkerProcess(int workerMode,
+      Map<String, String> staticWorkerInfo, String storeSocket,
       String rayletSocket, byte[] jobId, GcsClientOptions gcsClientOptions);
 
   private static native void nativeRunTaskExecutor(long nativeCoreWorkerProcessPointer,
@@ -180,4 +180,7 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
   private static native void nativeSetup(String logDir);
 
   private static native void nativeShutdownHook();
+
+  private static native void nativeSetCoreWorker(long nativeCoreWorkerProcessPointer,
+      byte[] workerId);
 }

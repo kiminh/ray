@@ -223,7 +223,7 @@ bool CoreWorkerTest::WaitForDirectCallActorState(CoreWorkerProcess &worker,
 
 void CoreWorkerTest::TestNormalTask(
     const std::unordered_map<std::string, double> &resources) {
-  CoreWorkerProcess driver(WorkerType::DRIVER, Language::PYTHON,
+  CoreWorkerProcess driver(WorkerType::DRIVER, Language::PYTHON, {},
                            raylet_store_socket_names_[0], raylet_socket_names_[0],
                            NextJobId(), gcs_options_, nullptr);
 
@@ -266,7 +266,7 @@ void CoreWorkerTest::TestNormalTask(
 
 void CoreWorkerTest::TestActorTask(
     const std::unordered_map<std::string, double> &resources, bool is_direct_call) {
-  CoreWorkerProcess driver(WorkerType::DRIVER, Language::PYTHON,
+  CoreWorkerProcess driver(WorkerType::DRIVER, Language::PYTHON, {},
                            raylet_store_socket_names_[0], raylet_socket_names_[0],
                            NextJobId(), gcs_options_, nullptr);
 
@@ -369,7 +369,7 @@ void CoreWorkerTest::TestActorTask(
 void CoreWorkerTest::TestActoPerformance(
     const std::unordered_map<std::string, double> &resources, bool is_direct_call,
     bool use_no_returns) {
-  CoreWorkerProcess driver(WorkerType::DRIVER, Language::PYTHON,
+  CoreWorkerProcess driver(WorkerType::DRIVER, Language::PYTHON, {},
                            raylet_store_socket_names_[0], raylet_socket_names_[0],
                            JobID::FromInt(1), gcs_options_, nullptr);
   std::unique_ptr<ActorHandle> actor_handle;
@@ -431,7 +431,7 @@ void CoreWorkerTest::TestActoPerformance(
 
 void CoreWorkerTest::TestActorReconstruction(
     const std::unordered_map<std::string, double> &resources, bool is_direct_call) {
-  CoreWorkerProcess driver(WorkerType::DRIVER, Language::PYTHON,
+  CoreWorkerProcess driver(WorkerType::DRIVER, Language::PYTHON, {},
                            raylet_store_socket_names_[0], raylet_socket_names_[0],
                            NextJobId(), gcs_options_, nullptr);
 
@@ -489,7 +489,7 @@ void CoreWorkerTest::TestActorReconstruction(
 
 void CoreWorkerTest::TestActorFailure(
     const std::unordered_map<std::string, double> &resources, bool is_direct_call) {
-  CoreWorkerProcess driver(WorkerType::DRIVER, Language::PYTHON,
+  CoreWorkerProcess driver(WorkerType::DRIVER, Language::PYTHON, {},
                            raylet_store_socket_names_[0], raylet_socket_names_[0],
                            NextJobId(), gcs_options_, nullptr);
 
@@ -814,7 +814,7 @@ TEST_F(SingleNodeTest, TestMemoryStoreProvider) {
 }
 
 TEST_F(SingleNodeTest, TestObjectInterface) {
-  CoreWorkerProcess core_worker(WorkerType::DRIVER, Language::PYTHON,
+  CoreWorkerProcess core_worker(WorkerType::DRIVER, Language::PYTHON, {},
                                 raylet_store_socket_names_[0], raylet_socket_names_[0],
                                 JobID::FromInt(1), gcs_options_, nullptr, 1);
 
@@ -872,11 +872,11 @@ TEST_F(SingleNodeTest, TestObjectInterface) {
 }
 
 TEST_F(TwoNodeTest, TestObjectInterfaceCrossNodes) {
-  CoreWorkerProcess worker1(WorkerType::DRIVER, Language::PYTHON,
+  CoreWorkerProcess worker1(WorkerType::DRIVER, Language::PYTHON, {},
                             raylet_store_socket_names_[0], raylet_socket_names_[0],
                             NextJobId(), gcs_options_, nullptr);
 
-  CoreWorkerProcess worker2(WorkerType::DRIVER, Language::PYTHON,
+  CoreWorkerProcess worker2(WorkerType::DRIVER, Language::PYTHON, {},
                             raylet_store_socket_names_[1], raylet_socket_names_[1],
                             NextJobId(), gcs_options_, nullptr);
 

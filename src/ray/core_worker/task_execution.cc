@@ -97,12 +97,15 @@ std::shared_ptr<CoreWorker> CoreWorkerTaskExecutionInterface::GetWorker(
 }
 
 void CoreWorkerTaskExecutionInterface::Run() {
+  int rpc_server_port = worker_server_->GetPort();
   for (const auto &entry : core_workers_) {
     const auto &worker_id = entry.first;
     const auto worker = entry.second;
-    worker_threads_.emplace(worker_id, std::thread([worker_id, worker]() {
+    worker_threads_.emplace(worker_id,
+                            std::thread([worker_id, worker, rpc_server_port]() {
                               RAY_LOG(INFO) << "Worker " << worker_id << " is running.";
                               CoreWorkerProcess::SetCoreWorker(worker);
+                              worker->ConnectToRaylet(rpc_server_port);
                               worker->GetMainService()->run();
                             }));
   }
