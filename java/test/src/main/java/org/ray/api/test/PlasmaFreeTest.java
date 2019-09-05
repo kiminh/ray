@@ -7,6 +7,7 @@ import org.ray.api.RayObject;
 import org.ray.api.TestUtils;
 import org.ray.api.annotation.RayRemote;
 import org.ray.api.id.TaskId;
+import org.ray.runtime.AbstractRayRuntime;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -25,7 +26,7 @@ public class PlasmaFreeTest extends BaseTest {
     Ray.internal().free(ImmutableList.of(helloId.getId()), true, false);
 
     final boolean result = TestUtils.waitForCondition(() ->
-        TestUtils.getRuntime().getObjectStore()
+        ((AbstractRayRuntime) Ray.internal()).getObjectStore()
             .getRaw(ImmutableList.of(helloId.getId()), 0).get(0) == null, 50);
     Assert.assertTrue(result);
   }
@@ -39,7 +40,7 @@ public class PlasmaFreeTest extends BaseTest {
 
     TaskId taskId = TaskId.fromBytes(Arrays.copyOf(helloId.getId().getBytes(), TaskId.LENGTH));
     final boolean result = TestUtils.waitForCondition(
-        () -> !TestUtils.getRuntime().getGcsClient()
+        () -> !(((AbstractRayRuntime) Ray.internal()).getGcsClient())
             .rayletTaskExistsInGcs(taskId), 50);
     Assert.assertTrue(result);
   }

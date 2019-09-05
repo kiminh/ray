@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import java.util.concurrent.Callable;
 import org.ray.api.RayActor;
 import org.ray.api.RayObject;
 import org.ray.api.RayPyActor;
@@ -59,6 +58,11 @@ public abstract class AbstractRayRuntime implements RayRuntime {
     functionManager = new FunctionManager(rayConfig.jobResourcePath);
     runtimeContext = new RuntimeContextImpl(this);
   }
+
+  /**
+   * Start runtime.
+   */
+  public abstract void start() throws Exception;
 
   @Override
   public abstract void shutdown();
@@ -162,16 +166,6 @@ public abstract class AbstractRayRuntime implements RayRuntime {
     PyFunctionDescriptor functionDescriptor = new PyFunctionDescriptor(moduleName, className,
         PYTHON_INIT_METHOD_NAME);
     return (RayPyActor) createActorImpl(functionDescriptor, args, options);
-  }
-
-  @Override
-  public Runnable asyncClosure(Runnable runnable) {
-    return runnable;
-  }
-
-  @Override
-  public Callable asyncClosure(Callable callable) {
-    return callable;
   }
 
   private RayObject callNormalFunction(FunctionDescriptor functionDescriptor,

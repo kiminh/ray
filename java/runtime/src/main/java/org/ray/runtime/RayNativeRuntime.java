@@ -52,6 +52,7 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
     }
 
     RayConfig globalRayConfig = RayConfig.create();
+    // Reset library path at runtime.
     resetLibraryPath(globalRayConfig);
 
     try {
@@ -61,6 +62,10 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
     }
     nativeSetup(globalRayConfig.logDir);
     Runtime.getRuntime().addShutdownHook(new Thread(RayNativeRuntime::nativeShutdownHook));
+  }
+
+  public RayNativeRuntime(RayConfig rayConfig) {
+    super(rayConfig);
   }
 
   private static void resetLibraryPath(RayConfig rayConfig) {
@@ -90,12 +95,8 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
     }
   }
 
-  public RayNativeRuntime(RayConfig rayConfig) {
-    super(rayConfig);
-
-    // Reset library path at runtime.
-    resetLibraryPath(rayConfig);
-
+  @Override
+  public void start() {
     if (rayConfig.getRedisAddress() == null) {
       manager = new RunManager(rayConfig);
       manager.startRayProcesses(true);
