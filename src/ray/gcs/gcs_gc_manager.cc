@@ -15,6 +15,7 @@ Status GcsGCManager::CleanForLevelOneFailover() {
   funcs.emplace_back(std::bind(&GcsGCManager::CleanAllObjectData, this));
   funcs.emplace_back(std::bind(&GcsGCManager::CleanAllErrorData, this));
   funcs.emplace_back(std::bind(&GcsGCManager::CleanAllProfileData, this));
+  funcs.emplace_back(std::bind(&GcsGCManager::CleanAllClientData, this));
 
   std::chrono::milliseconds time_ms(100);
   size_t max_retry_times = 3;
@@ -84,6 +85,11 @@ Status GcsGCManager::CleanAllErrorData() {
 Status GcsGCManager::CleanAllProfileData() {
   auto &profile_table = gcs_client_.profile_table();
   return profile_table.SyncDeleteAll();
+}
+
+Status GcsGCManager::CleanAllClientData() {
+  auto &client_table = gcs_client_.client_table();
+  return client_table.SyncDeleteAll();
 }
 
 }  // namespace gcs
