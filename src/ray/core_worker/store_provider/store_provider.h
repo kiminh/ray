@@ -149,6 +149,7 @@ class CoreWorkerStoreProvider {
           oss << ", ";
         }
         oss << entry.Hex();
+        printed++;
       }
       if (printed < unready.size()) {
         oss << ", etc";

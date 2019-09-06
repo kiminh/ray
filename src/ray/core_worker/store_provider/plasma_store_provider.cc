@@ -170,6 +170,7 @@ void CoreWorkerPlasmaStoreProvider::WarnIfAttemptedTooManyTimes(
         oss << ", ";
       }
       oss << entry.first.Hex();
+      printed++;
     }
     if (printed < remaining.size()) {
       oss << ", etc";
