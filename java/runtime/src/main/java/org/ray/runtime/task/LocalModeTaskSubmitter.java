@@ -4,16 +4,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 import java.nio.ByteBuffer;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -23,9 +22,9 @@ import org.ray.api.id.ObjectId;
 import org.ray.api.id.TaskId;
 import org.ray.api.options.ActorCreationOptions;
 import org.ray.api.options.CallOptions;
+import org.ray.runtime.RayDevRuntime;
 import org.ray.runtime.actor.LocalModeRayActor;
 import org.ray.runtime.context.LocalModeWorkerContext;
-import org.ray.runtime.RayDevRuntime;
 import org.ray.runtime.functionmanager.FunctionDescriptor;
 import org.ray.runtime.functionmanager.JavaFunctionDescriptor;
 import org.ray.runtime.generated.Common.ActorCreationTaskSpec;
@@ -34,8 +33,9 @@ import org.ray.runtime.generated.Common.Language;
 import org.ray.runtime.generated.Common.TaskArg;
 import org.ray.runtime.generated.Common.TaskSpec;
 import org.ray.runtime.generated.Common.TaskType;
-import org.ray.runtime.object.NativeRayObject;
 import org.ray.runtime.object.LocalModeObjectStore;
+import org.ray.runtime.object.NativeRayObject;
+import org.ray.runtime.task.TaskExecutor.ActorContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,16 +49,16 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
   private final Map<ObjectId, Set<TaskSpec>> waitingTasks = new HashMap<>();
   private final Object taskAndObjectLock = new Object();
   private final RayDevRuntime runtime;
+  private final TaskExecutor taskExecutor;
   private final LocalModeObjectStore objectStore;
   private final ExecutorService exec;
-  private final Deque<TaskExecutor> idleTaskExecutors = new ArrayDeque<>();
-  private final Map<ActorId, TaskExecutor> actorTaskExecutors = new HashMap<>();
-  private final Object taskExecutorLock = new Object();
-  private final ThreadLocal<TaskExecutor> currentTaskExecutor = new ThreadLocal<>();
+  private final Map<ActorId, ActorContext> actorContexts = new ConcurrentHashMap<>();
 
-  public LocalModeTaskSubmitter(RayDevRuntime runtime, LocalModeObjectStore objectStore,
+  public LocalModeTaskSubmitter(RayDevRuntime runtime, TaskExecutor taskExecutor,
+      LocalModeObjectStore objectStore,
       int numberThreads) {
     this.runtime = runtime;
+    this.taskExecutor = taskExecutor;
     this.objectStore = objectStore;
     // The thread pool that executes tasks in parallel.
     exec = Executors.newFixedThreadPool(numberThreads);
@@ -75,46 +75,6 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
             submitTaskSpec(task);
           }
         }
-      }
-    }
-  }
-
-  /**
-   * Get the worker of current thread. <br> NOTE: Cannot be used for multi-threading in worker.
-   */
-  public TaskExecutor getCurrentTaskExecutor() {
-    return currentTaskExecutor.get();
-  }
-
-  /**
-   * Get a worker from the worker pool to run the given task.
-   */
-  private TaskExecutor getTaskExecutor(TaskSpec task) {
-    TaskExecutor taskExecutor;
-    synchronized (taskExecutorLock) {
-      if (task.getType() == TaskType.ACTOR_TASK) {
-        taskExecutor = actorTaskExecutors.get(getActorId(task));
-      } else if (task.getType() == TaskType.ACTOR_CREATION_TASK) {
-        taskExecutor = new TaskExecutor(runtime);
-        actorTaskExecutors.put(getActorId(task), taskExecutor);
-      } else if (idleTaskExecutors.size() > 0) {
-        taskExecutor = idleTaskExecutors.pop();
-      } else {
-        taskExecutor = new TaskExecutor(runtime);
-      }
-    }
-    currentTaskExecutor.set(taskExecutor);
-    return taskExecutor;
-  }
-
-  /**
-   * Return the worker to the worker pool.
-   */
-  private void returnTaskExecutor(TaskExecutor worker, TaskSpec taskSpec) {
-    currentTaskExecutor.remove();
-    synchronized (taskExecutorLock) {
-      if (taskSpec.getType() == TaskType.NORMAL_TASK) {
-        idleTaskExecutors.push(worker);
       }
     }
   }
@@ -201,7 +161,7 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
                 .build())
         .build();
     submitTaskSpec(taskSpec);
-    if (numReturns  == 0) {
+    if (numReturns == 0) {
       return ImmutableList.of();
     } else {
       return ImmutableList.of(returnIds.get(0));
@@ -228,7 +188,11 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
       if (unreadyObjects.isEmpty()) {
         // If all dependencies are ready, execute this task.
         exec.submit(() -> {
-          TaskExecutor taskExecutor = getTaskExecutor(taskSpec);
+          if (taskSpec.getType() == TaskType.ACTOR_TASK) {
+            ActorContext actorContext = actorContexts.get(getActorId(taskSpec));
+            Preconditions.checkNotNull(actorContext);
+            taskExecutor.setActorContext(actorContext);
+          }
           try {
             List<NativeRayObject> args = getFunctionArgs(taskSpec).stream()
                 .map(arg -> arg.id != null ?
@@ -253,7 +217,9 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
               objectStore.putRaw(putObject, returnIds.get(i));
             }
           } finally {
-            returnTaskExecutor(taskExecutor, taskSpec);
+            if (taskSpec.getType() == TaskType.ACTOR_CREATION_TASK) {
+              actorContexts.put(getActorId(taskSpec), taskExecutor.getActorContext());
+            }
           }
         });
       } else {

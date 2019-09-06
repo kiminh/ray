@@ -26,8 +26,8 @@ public class RayDevRuntime extends AbstractRayRuntime {
     taskExecutor = new TaskExecutor(this);
     workerContext = new LocalModeWorkerContext(rayConfig.getJobId());
     objectStore = new LocalModeObjectStore(workerContext);
-    taskSubmitter = new LocalModeTaskSubmitter(this, (LocalModeObjectStore) objectStore,
-        rayConfig.numberExecThreadsForDevRuntime);
+    taskSubmitter = new LocalModeTaskSubmitter(this, taskExecutor,
+        (LocalModeObjectStore) objectStore, rayConfig.numberExecThreadsForDevRuntime);
     ((LocalModeObjectStore) objectStore).addObjectPutCallback(
         objectId -> ((LocalModeTaskSubmitter) taskSubmitter).onObjectPut(objectId));
     rayletClient = new LocalModeRayletClient();

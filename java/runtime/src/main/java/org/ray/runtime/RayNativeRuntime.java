@@ -142,11 +142,9 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
   public Runnable asyncClosure(Runnable runnable) {
     UniqueId workerId = workerContext.getCurrentWorkerId();
     ClassLoader currentClassLoader = workerContext.getCurrentClassLoader();
-    TaskExecutor.Context taskExecutorContext = taskExecutor.getContext();
     return () -> {
       nativeSetCoreWorker(nativeCoreWorkerProcessPointer, workerId.getBytes());
       workerContext.setCurrentClassLoader(currentClassLoader);
-      taskExecutor.setContext(taskExecutorContext);
       runnable.run();
     };
   }
