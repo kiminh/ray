@@ -32,33 +32,46 @@ public final class TaskExecutor {
 
   protected final AbstractRayRuntime runtime;
 
-  /**
-   * The current actor object, if this worker is an actor, otherwise null.
-   */
-  protected Object currentActor = null;
+  private final ThreadLocal<Context> context = ThreadLocal.withInitial(Context::new);
 
-  /**
-   * The exception that failed the actor creation task, if any.
-   */
-  private Exception actorCreationException = null;
+  public static class Context {
 
-  /**
-   * Number of tasks executed since last actor checkpoint.
-   */
-  private int numTasksSinceLastCheckpoint = 0;
+    /**
+     * The current actor object, if this worker is an actor, otherwise null.
+     */
+    protected Object currentActor = null;
 
-  /**
-   * IDs of this actor's previous checkpoints.
-   */
-  private List<UniqueId> checkpointIds;
+    /**
+     * The exception that failed the actor creation task, if any.
+     */
+    private Exception actorCreationException = null;
 
-  /**
-   * Timestamp of the last actor checkpoint.
-   */
-  private long lastCheckpointTimestamp = 0;
+    /**
+     * Number of tasks executed since last actor checkpoint.
+     */
+    private int numTasksSinceLastCheckpoint = 0;
+
+    /**
+     * IDs of this actor's previous checkpoints.
+     */
+    private List<UniqueId> checkpointIds;
+
+    /**
+     * Timestamp of the last actor checkpoint.
+     */
+    private long lastCheckpointTimestamp = 0;
+  }
 
   public TaskExecutor(AbstractRayRuntime runtime) {
     this.runtime = runtime;
+  }
+
+  public Context getContext() {
+    return context.get();
+  }
+
+  public void setContext(Context context) {
+    this.context.set(context);
   }
 
   protected List<NativeRayObject> execute(List<String> rayFunctionInfo,
@@ -81,10 +94,10 @@ public final class TaskExecutor {
       // Get local actor object and arguments.
       Object actor = null;
       if (taskType == TaskType.ACTOR_TASK) {
-        if (actorCreationException != null) {
-          throw actorCreationException;
+        if (context.get().actorCreationException != null) {
+          throw context.get().actorCreationException;
         }
-        actor = currentActor;
+        actor = context.get().currentActor;
 
       }
       Object[] args = ArgumentsBuilder.unwrap(runtime.getObjectStore(), argsBytes);
@@ -107,18 +120,18 @@ public final class TaskExecutor {
       } else {
         // TODO (kfstorm): handle checkpoint in core worker.
         maybeLoadCheckpoint(result, runtime.getWorkerContext().getCurrentActorId());
-        currentActor = result;
+        context.get().currentActor = result;
       }
       LOGGER.debug("Finished executing task {}", taskId);
     } catch (Exception e) {
       LOGGER.error("Error executing task " + taskId, e);
       if (taskType != TaskType.ACTOR_CREATION_TASK) {
-        if(rayFunction.hasReturn()) {
+        if (rayFunction.hasReturn()) {
           returnObjects.add(runtime.getObjectStore()
               .serialize(new RayTaskException("Error executing task " + taskId, e)));
         }
       } else {
-        actorCreationException = e;
+        context.get().actorCreationException = e;
       }
     } finally {
       Thread.currentThread().setContextClassLoader(oldLoader);
@@ -142,14 +155,16 @@ public final class TaskExecutor {
       return;
     }
     CheckpointContext checkpointContext = new CheckpointContext(actorId,
-        ++numTasksSinceLastCheckpoint, System.currentTimeMillis() - lastCheckpointTimestamp);
+        ++context.get().numTasksSinceLastCheckpoint,
+        System.currentTimeMillis() - context.get().lastCheckpointTimestamp);
     Checkpointable checkpointable = (Checkpointable) actor;
     if (!checkpointable.shouldCheckpoint(checkpointContext)) {
       return;
     }
-    numTasksSinceLastCheckpoint = 0;
-    lastCheckpointTimestamp = System.currentTimeMillis();
+    context.get().numTasksSinceLastCheckpoint = 0;
+    context.get().lastCheckpointTimestamp = System.currentTimeMillis();
     UniqueId checkpointId = runtime.getRayletClient().prepareCheckpoint(actorId);
+    List<UniqueId> checkpointIds = context.get().checkpointIds;
     checkpointIds.add(checkpointId);
     if (checkpointIds.size() > NUM_ACTOR_CHECKPOINTS_TO_KEEP) {
       ((Checkpointable) actor).checkpointExpired(actorId, checkpointIds.get(0));
@@ -166,9 +181,9 @@ public final class TaskExecutor {
       // Actor checkpointing isn't implemented for SINGLE_PROCESS mode yet.
       return;
     }
-    numTasksSinceLastCheckpoint = 0;
-    lastCheckpointTimestamp = System.currentTimeMillis();
-    checkpointIds = new ArrayList<>();
+    context.get().numTasksSinceLastCheckpoint = 0;
+    context.get().lastCheckpointTimestamp = System.currentTimeMillis();
+    context.get().checkpointIds = new ArrayList<>();
     List<Checkpoint> availableCheckpoints
         = runtime.getGcsClient().getCheckpointsForActor(actorId);
     if (availableCheckpoints.isEmpty()) {

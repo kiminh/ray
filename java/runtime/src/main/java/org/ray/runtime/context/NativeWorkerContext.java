@@ -17,7 +17,7 @@ public class NativeWorkerContext implements WorkerContext {
    */
   private final long nativeCoreWorkerProcessPointer;
 
-  private ClassLoader currentClassLoader;
+  private final ThreadLocal<ClassLoader> currentClassLoader = new ThreadLocal<>();
 
   public NativeWorkerContext(long nativeCoreWorkerProcessPointer) {
     this.nativeCoreWorkerProcessPointer = nativeCoreWorkerProcessPointer;
@@ -40,13 +40,13 @@ public class NativeWorkerContext implements WorkerContext {
 
   @Override
   public ClassLoader getCurrentClassLoader() {
-    return currentClassLoader;
+    return currentClassLoader.get();
   }
 
   @Override
   public void setCurrentClassLoader(ClassLoader currentClassLoader) {
-    if (this.currentClassLoader != currentClassLoader) {
-      this.currentClassLoader = currentClassLoader;
+    if (this.currentClassLoader.get() != currentClassLoader) {
+      this.currentClassLoader.set(currentClassLoader);
     }
   }
 
