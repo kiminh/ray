@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import org.ray.api.Ray;
 import org.ray.streaming.api.collector.Collector;
 import org.ray.streaming.core.command.BatchInfo;
 import org.ray.streaming.core.graph.ExecutionGraph;
@@ -52,7 +53,7 @@ public class MasterProcessor extends StreamProcessor<BatchInfo, MasterOperator> 
       }
     }
 
-    batchControllerThread = new Thread(batchController, "controller-thread");
+    batchControllerThread = new Thread(Ray.wrapRunnable(batchController), "controller-thread");
     batchControllerThread.start();
   }
 

@@ -15,6 +15,7 @@ import org.ray.api.RayObject;
 import org.ray.api.TestUtils;
 import org.ray.api.WaitResult;
 import org.ray.api.annotation.RayRemote;
+import org.ray.api.exception.RayException;
 import org.ray.api.id.ActorId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +57,7 @@ public class MultiThreadingTest extends BaseTest {
     @RayRemote
     public ActorId getCurrentActorId() throws Exception {
       final Object[] result = new Object[1];
-      Thread thread = new Thread(Ray.asyncClosure(() -> {
+      Thread thread = new Thread(Ray.wrapRunnable(() -> {
         try {
           result[0] = Ray.getRuntimeContext().getCurrentActorId();
         } catch (Exception e) {
@@ -144,13 +145,80 @@ public class MultiThreadingTest extends BaseTest {
     Assert.assertEquals(actorId, actorIdTester.getId());
   }
 
+  static boolean testMissingWrapRunnable() throws InterruptedException {
+    final RayObject<Integer> fooObject = Ray.put(1);
+    final RayActor<Echo> fooActor = Ray.createActor(Echo::new);
+    final Runnable[] runnables = new Runnable[]{
+        () -> Ray.put(1),
+        () -> Ray.get(fooObject.getId()),
+        fooObject::get,
+        () -> Ray.wait(ImmutableList.of(fooObject)),
+        Ray::getRuntimeContext,
+        () -> Ray.call(MultiThreadingTest::echo, 1),
+        () -> Ray.createActor(Echo::new),
+        () -> Ray.call(Echo::echo, fooActor, 1),
+    };
+
+    // It's OK to run them in main thread.
+    for (Runnable runnable : runnables) {
+      runnable.run();
+    }
+
+    Exception[] exception = new Exception[1];
+
+    Thread thread = new Thread(Ray.wrapRunnable(() -> {
+      try {
+        // It would be OK to run them in another thread if wrapped the runnable.
+        for (Runnable runnable : runnables) {
+          runnable.run();
+        }
+      } catch (Exception ex) {
+        exception[0] = ex;
+      }
+    }));
+    thread.start();
+    thread.join();
+    if (exception[0] != null) {
+      throw new RuntimeException("Exception occurred in thread.", exception[0]);
+    }
+
+    thread = new Thread(() -> {
+      try {
+        // It wouldn't be OK to run them in another thread if not wrapped the runnable.
+        for (Runnable runnable : runnables) {
+          Assert.expectThrows(RayException.class, runnable::run);
+        }
+      } catch (Exception ex) {
+        exception[0] = ex;
+      }
+    });
+    thread.start();
+    thread.join();
+    if (exception[0] != null) {
+      throw new RuntimeException("Exception occurred in thread.", exception[0]);
+    }
+
+    // Return true here to make the Ray.call returns an RayObject.
+    return true;
+  }
+
+  @Test
+  public void testMissingWrapRunnableInDriver() throws InterruptedException {
+    testMissingWrapRunnable();
+  }
+
+  @Test
+  public void testMissingWrapRunnableInWorker() {
+    Ray.call(MultiThreadingTest::testMissingWrapRunnable).get();
+  }
+
   private static void runTestCaseInMultipleThreads(Runnable testCase, int numRepeats) {
     ExecutorService service = Executors.newFixedThreadPool(NUM_THREADS);
 
     try {
       List<Future<String>> futures = new ArrayList<>();
       for (int i = 0; i < NUM_THREADS; i++) {
-        Callable<String> task = Ray.asyncClosure(() -> {
+        Callable<String> task = Ray.wrapCallable(() -> {
           for (int j = 0; j < numRepeats; j++) {
             TimeUnit.MILLISECONDS.sleep(1);
             testCase.run();

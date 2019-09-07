@@ -199,10 +199,13 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
                     objectStore.getRaw(Collections.singletonList(arg.id), -1).get(0)
                     : new NativeRayObject(arg.data, null))
                 .collect(Collectors.toList());
+            runtime.setIsContextSet(true);
             ((LocalModeWorkerContext) runtime.getWorkerContext()).setCurrentTask(taskSpec);
             List<NativeRayObject> returnObjects = taskExecutor
                 .execute(getJavaFunctionDescriptor(taskSpec).toList(), args);
+            runtime.setIsContextSet(true);
             ((LocalModeWorkerContext) runtime.getWorkerContext()).setCurrentTask(null);
+            runtime.setIsContextSet(false);
             List<ObjectId> returnIds = getReturnIds(taskSpec);
             for (int i = 0; i < returnIds.size(); i++) {
               NativeRayObject putObject;
@@ -216,6 +219,9 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
               }
               objectStore.putRaw(putObject, returnIds.get(i));
             }
+          } catch (Exception ex) {
+            ex.printStackTrace(System.err);
+            System.exit(-1);
           } finally {
             if (taskSpec.getType() == TaskType.ACTOR_CREATION_TASK) {
               actorContexts.put(getActorId(taskSpec), taskExecutor.getActorContext());

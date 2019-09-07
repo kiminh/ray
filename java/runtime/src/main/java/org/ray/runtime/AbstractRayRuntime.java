@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import java.util.concurrent.Callable;
 import org.ray.api.RayActor;
 import org.ray.api.RayObject;
 import org.ray.api.RayPyActor;
@@ -25,6 +26,7 @@ import org.ray.runtime.functionmanager.FunctionManager;
 import org.ray.runtime.functionmanager.PyFunctionDescriptor;
 import org.ray.runtime.gcs.GcsClient;
 import org.ray.runtime.generated.Common.Language;
+import org.ray.runtime.generated.Common.WorkerType;
 import org.ray.runtime.object.ObjectStore;
 import org.ray.runtime.object.RayObjectImpl;
 import org.ray.runtime.raylet.RayletClient;
@@ -53,8 +55,11 @@ public abstract class AbstractRayRuntime implements RayRuntime {
   protected RayletClient rayletClient;
   protected WorkerContext workerContext;
 
+  private final ThreadLocal<Boolean> isContextSet = ThreadLocal.withInitial(() -> false);
+
   public AbstractRayRuntime(RayConfig rayConfig) {
     this.rayConfig = rayConfig;
+    setIsContextSet(rayConfig.workerMode == WorkerType.DRIVER);
     functionManager = new FunctionManager(rayConfig.jobResourcePath);
     runtimeContext = new RuntimeContextImpl(this);
   }
@@ -69,28 +74,33 @@ public abstract class AbstractRayRuntime implements RayRuntime {
 
   @Override
   public <T> RayObject<T> put(T obj) {
+    checkIsContextSet();
     ObjectId objectId = objectStore.put(obj);
     return new RayObjectImpl<>(objectId);
   }
 
   @Override
   public <T> T get(ObjectId objectId) throws RayException {
+    checkIsContextSet();
     List<T> ret = get(ImmutableList.of(objectId));
     return ret.get(0);
   }
 
   @Override
   public <T> List<T> get(List<ObjectId> objectIds) {
+    checkIsContextSet();
     return objectStore.get(objectIds);
   }
 
   @Override
   public void free(List<ObjectId> objectIds, boolean localOnly, boolean deleteCreatingTasks) {
+    checkIsContextSet();
     objectStore.delete(objectIds, localOnly, deleteCreatingTasks);
   }
 
   @Override
   public void setResource(String resourceName, double capacity, UniqueId nodeId) {
+    checkIsContextSet();
     Preconditions.checkArgument(Double.compare(capacity, 0) >= 0);
     if (nodeId == null) {
       nodeId = UniqueId.NIL;
@@ -100,11 +110,13 @@ public abstract class AbstractRayRuntime implements RayRuntime {
 
   @Override
   public <T> WaitResult<T> wait(List<RayObject<T>> waitList, int numReturns, int timeoutMs) {
+    checkIsContextSet();
     return objectStore.wait(waitList, numReturns, timeoutMs);
   }
 
   @Override
   public RayObject call(RayFunc func, Object[] args, CallOptions options) {
+    checkIsContextSet();
     FunctionDescriptor functionDescriptor =
         functionManager.getFunction(workerContext.getCurrentJobId(), func)
             .functionDescriptor;
@@ -114,6 +126,7 @@ public abstract class AbstractRayRuntime implements RayRuntime {
 
   @Override
   public RayObject call(RayFunc func, RayActor<?> actor, Object[] args) {
+    checkIsContextSet();
     FunctionDescriptor functionDescriptor =
         functionManager.getFunction(workerContext.getCurrentJobId(), func)
             .functionDescriptor;
@@ -125,6 +138,7 @@ public abstract class AbstractRayRuntime implements RayRuntime {
   @SuppressWarnings("unchecked")
   public <T> RayActor<T> createActor(RayFunc actorFactoryFunc,
       Object[] args, ActorCreationOptions options) {
+    checkIsContextSet();
     FunctionDescriptor functionDescriptor =
         functionManager.getFunction(workerContext.getCurrentJobId(), actorFactoryFunc)
             .functionDescriptor;
@@ -143,6 +157,7 @@ public abstract class AbstractRayRuntime implements RayRuntime {
   @Override
   public RayObject callPy(String moduleName, String functionName, Object[] args,
       CallOptions options) {
+    checkIsContextSet();
     checkPyArguments(args);
     PyFunctionDescriptor functionDescriptor = new PyFunctionDescriptor(moduleName, "",
         functionName);
@@ -152,6 +167,7 @@ public abstract class AbstractRayRuntime implements RayRuntime {
 
   @Override
   public RayObject callPy(RayPyActor pyActor, String functionName, Object... args) {
+    checkIsContextSet();
     checkPyArguments(args);
     PyFunctionDescriptor functionDescriptor = new PyFunctionDescriptor(pyActor.getModuleName(),
         pyActor.getClassName(), functionName);
@@ -162,10 +178,35 @@ public abstract class AbstractRayRuntime implements RayRuntime {
   @Override
   public RayPyActor createPyActor(String moduleName, String className, Object[] args,
       ActorCreationOptions options) {
+    checkIsContextSet();
     checkPyArguments(args);
     PyFunctionDescriptor functionDescriptor = new PyFunctionDescriptor(moduleName, className,
         PYTHON_INIT_METHOD_NAME);
     return (RayPyActor) createActorImpl(functionDescriptor, args, options);
+  }
+
+  @Override
+  public Runnable wrapRunnable(Runnable runnable) {
+    return () -> {
+      setIsContextSet(true);
+      try {
+        runnable.run();
+      } finally {
+        setIsContextSet(false);
+      }
+    };
+  }
+
+  @Override
+  public <T> Callable<T> wrapCallable(Callable<T> callable) {
+    return () -> {
+      setIsContextSet(true);
+      try {
+        return callable.call();
+      } finally {
+        setIsContextSet(false);
+      }
+    };
   }
 
   private RayObject callNormalFunction(FunctionDescriptor functionDescriptor,
@@ -210,30 +251,51 @@ public abstract class AbstractRayRuntime implements RayRuntime {
   }
 
   public WorkerContext getWorkerContext() {
+    checkIsContextSet();
     return workerContext;
   }
 
   public ObjectStore getObjectStore() {
+    checkIsContextSet();
     return objectStore;
   }
 
   public RayletClient getRayletClient() {
+    checkIsContextSet();
     return rayletClient;
   }
 
   public FunctionManager getFunctionManager() {
+    checkIsContextSet();
     return functionManager;
   }
 
   public RayConfig getRayConfig() {
+    checkIsContextSet();
     return rayConfig;
   }
 
   public RuntimeContext getRuntimeContext() {
+    checkIsContextSet();
     return runtimeContext;
   }
 
   public GcsClient getGcsClient() {
+    checkIsContextSet();
     return gcsClient;
+  }
+
+  public void setIsContextSet(boolean isContextSet) {
+    this.isContextSet.set(isContextSet);
+  }
+
+  private void checkIsContextSet() {
+    if (!this.isContextSet.get()) {
+      throw new RayException(
+          "`Ray.wrapRunnable` or `Ray.wrapCallable` is not called on current thread."
+              + " If you want to use Ray API in your own threads,"
+              + " please wrap your `Runnable`s or `Callable`s with"
+              + " `Ray.wrapRunnable` or `Ray.wrapCallable`.");
+    }
   }
 }

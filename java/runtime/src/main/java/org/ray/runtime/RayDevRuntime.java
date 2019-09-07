@@ -38,16 +38,6 @@ public class RayDevRuntime extends AbstractRayRuntime {
     taskExecutor = null;
   }
 
-  @Override
-  public Runnable asyncClosure(Runnable runnable) {
-    return runnable;
-  }
-
-  @Override
-  public Callable asyncClosure(Callable callable) {
-    return callable;
-  }
-
   private JobId nextJobId() {
     return JobId.fromInt(jobCounter.getAndIncrement());
   }

@@ -76,6 +76,7 @@ public final class TaskExecutor {
 
   protected List<NativeRayObject> execute(List<String> rayFunctionInfo,
       List<NativeRayObject> argsBytes) {
+    runtime.setIsContextSet(true);
     JobId jobId = runtime.getWorkerContext().getCurrentJobId();
     TaskType taskType = runtime.getWorkerContext().getCurrentTaskType();
     TaskId taskId = runtime.getWorkerContext().getCurrentTaskId();
@@ -139,6 +140,7 @@ public final class TaskExecutor {
     } finally {
       Thread.currentThread().setContextClassLoader(oldLoader);
       runtime.getWorkerContext().setCurrentClassLoader(null);
+      runtime.setIsContextSet(false);
     }
     return returnObjects;
   }

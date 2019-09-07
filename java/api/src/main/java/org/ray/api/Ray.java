@@ -124,8 +124,8 @@ public final class Ray extends RayCall {
    * @param runnable The runnable to wrap.
    * @return The wrapped runnable.
    */
-  public static Runnable asyncClosure(Runnable runnable) {
-    return runtime.asyncClosure(runnable);
+  public static Runnable wrapRunnable(Runnable runnable) {
+    return runtime.wrapRunnable(runnable);
   }
 
   /**
@@ -134,8 +134,8 @@ public final class Ray extends RayCall {
    * @param callable The callable to wrap.
    * @return The wrapped callable.
    */
-  public static Callable asyncClosure(Callable callable) {
-    return runtime.asyncClosure(callable);
+  public static <T> Callable<T> wrapCallable(Callable<T> callable) {
+    return runtime.wrapCallable(callable);
   }
 
   /**
