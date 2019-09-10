@@ -18,8 +18,6 @@ class CoreWorker;
 /// local and remote store, remote access is done via raylet.
 class CoreWorkerPlasmaStoreProvider : public CoreWorkerStoreProvider {
  public:
-  CoreWorkerPlasmaStoreProvider(const std::string &store_socket);
-
   /// Put an object with specified ID into object store.
   ///
   /// \param[in] object The ray object.

@@ -70,6 +70,7 @@ CoreWorkerProcess::CoreWorkerProcess(
   } else {
     const auto worker_id = ComputeDriverIdFromJob(job_id);
     auto worker = std::make_shared<CoreWorker>(*this, worker_id);
+    worker->ConnectToStore();
     worker->ConnectToRaylet(/*rpc_server_port=*/0);
     core_workers_.emplace(worker_id, worker);
     RegisterWorker(worker_id);
@@ -109,11 +110,10 @@ std::unique_ptr<CoreWorkerStoreProvider> CoreWorkerProcess::CreateStoreProvider(
   switch (type) {
   case StoreProviderType::LOCAL_PLASMA:
     return std::unique_ptr<CoreWorkerStoreProvider>(
-        new CoreWorkerLocalPlasmaStoreProvider(store_socket_));
+        new CoreWorkerLocalPlasmaStoreProvider());
     break;
   case StoreProviderType::PLASMA:
-    return std::unique_ptr<CoreWorkerStoreProvider>(
-        new CoreWorkerPlasmaStoreProvider(store_socket_));
+    return std::unique_ptr<CoreWorkerStoreProvider>(new CoreWorkerPlasmaStoreProvider());
     break;
   case StoreProviderType::MEMORY:
     return std::unique_ptr<CoreWorkerStoreProvider>(
@@ -185,6 +185,10 @@ CoreWorker::CoreWorker(CoreWorkerProcess &core_worker_process, const WorkerID &w
       raylet_client_(),
       main_service_(std::make_shared<boost::asio::io_service>()),
       main_work_(*main_service_) {}
+
+void CoreWorker::ConnectToStore() {
+  RAY_ARROW_CHECK_OK(store_client_.Connect(core_worker_process_.GetStoreSocket()));
+}
 
 void CoreWorker::ConnectToRaylet(int rpc_server_port) {
   RAY_CHECK(!raylet_client_);

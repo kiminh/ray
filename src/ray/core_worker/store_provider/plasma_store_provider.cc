@@ -7,10 +7,6 @@
 
 namespace ray {
 
-CoreWorkerPlasmaStoreProvider::CoreWorkerPlasmaStoreProvider(
-    const std::string &store_socket)
-    : local_store_provider_(store_socket) {}
-
 Status CoreWorkerPlasmaStoreProvider::Put(const RayObject &object,
                                           const ObjectID &object_id) {
   return local_store_provider_.Put(object, object_id);

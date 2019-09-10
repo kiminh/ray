@@ -6,40 +6,31 @@
 
 namespace ray {
 
-CoreWorkerLocalPlasmaStoreProvider::CoreWorkerLocalPlasmaStoreProvider(
-    const std::string &store_socket) {
-  RAY_ARROW_CHECK_OK(store_client_.Connect(store_socket));
-}
-
 Status CoreWorkerLocalPlasmaStoreProvider::Put(const RayObject &object,
                                                const ObjectID &object_id) {
   auto plasma_id = object_id.ToPlasmaId();
   auto data = object.GetData();
   auto metadata = object.GetMetadata();
   std::shared_ptr<arrow::Buffer> out_buffer;
-  {
-    std::unique_lock<std::mutex> guard(store_client_mutex_);
-    arrow::Status status = store_client_.Create(
-        plasma_id, data ? data->Size() : 0, metadata ? metadata->Data() : nullptr,
-        metadata ? metadata->Size() : 0, &out_buffer);
-    if (plasma::IsPlasmaObjectExists(status)) {
-      // TODO(hchen): Should we propagate this error out of `ObjectInterface::put`?
-      RAY_LOG(WARNING) << "Trying to put an object that already existed in plasma: "
-                       << object_id << ".";
-      return Status::OK();
-    }
-    RAY_ARROW_RETURN_NOT_OK(status);
+
+  auto &store_client = CoreWorkerProcess::GetCoreWorker()->GetStoreClient();
+  arrow::Status status = store_client.Create(
+      plasma_id, data ? data->Size() : 0, metadata ? metadata->Data() : nullptr,
+      metadata ? metadata->Size() : 0, &out_buffer);
+  if (plasma::IsPlasmaObjectExists(status)) {
+    // TODO(hchen): Should we propagate this error out of `ObjectInterface::put`?
+    RAY_LOG(WARNING) << "Trying to put an object that already existed in plasma: "
+                     << object_id << ".";
+    return Status::OK();
   }
+  RAY_ARROW_RETURN_NOT_OK(status);
 
   if (data != nullptr) {
     memcpy(out_buffer->mutable_data(), data->Data(), data->Size());
   }
 
-  {
-    std::unique_lock<std::mutex> guard(store_client_mutex_);
-    RAY_ARROW_RETURN_NOT_OK(store_client_.Seal(plasma_id));
-    RAY_ARROW_RETURN_NOT_OK(store_client_.Release(plasma_id));
-  }
+  RAY_ARROW_RETURN_NOT_OK(store_client.Seal(plasma_id));
+  RAY_ARROW_RETURN_NOT_OK(store_client.Release(plasma_id));
   return Status::OK();
 }
 
@@ -53,10 +44,8 @@ Status CoreWorkerLocalPlasmaStoreProvider::Get(
   }
 
   std::vector<plasma::ObjectBuffer> object_buffers;
-  {
-    std::unique_lock<std::mutex> guard(store_client_mutex_);
-    RAY_ARROW_RETURN_NOT_OK(store_client_.Get(plasma_ids, timeout_ms, &object_buffers));
-  }
+  auto &store_client = CoreWorkerProcess::GetCoreWorker()->GetStoreClient();
+  RAY_ARROW_RETURN_NOT_OK(store_client.Get(plasma_ids, timeout_ms, &object_buffers));
 
   (*results).resize(object_ids.size(), nullptr);
   for (size_t i = 0; i < object_buffers.size(); i++) {
@@ -98,8 +87,8 @@ Status CoreWorkerLocalPlasmaStoreProvider::Delete(const std::vector<ObjectID> &o
     plasma_ids.push_back(object_id.ToPlasmaId());
   }
 
-  std::unique_lock<std::mutex> guard(store_client_mutex_);
-  RAY_ARROW_RETURN_NOT_OK(store_client_.Delete(plasma_ids));
+  auto &store_client = CoreWorkerProcess::GetCoreWorker()->GetStoreClient();
+  RAY_ARROW_RETURN_NOT_OK(store_client.Delete(plasma_ids));
   return Status::OK();
 }
 

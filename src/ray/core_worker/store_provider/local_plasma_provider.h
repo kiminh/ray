@@ -16,8 +16,6 @@ class CoreWorker;
 /// The class provides implementations for accessing local plasma store.
 class CoreWorkerLocalPlasmaStoreProvider : public CoreWorkerStoreProvider {
  public:
-  CoreWorkerLocalPlasmaStoreProvider(const std::string &store_socket);
-
   /// See `CoreWorkerStoreProvider::Put` for semantics.
   Status Put(const RayObject &object, const ObjectID &object_id) override;
 
@@ -35,13 +33,6 @@ class CoreWorkerLocalPlasmaStoreProvider : public CoreWorkerStoreProvider {
   /// Note that `local_only` msut be true, and `delete_creating_tasks` must be false here.
   Status Delete(const std::vector<ObjectID> &object_ids, bool local_only = true,
                 bool delete_creating_tasks = false) override;
-
- private:
-  /// Plasma store client.
-  plasma::PlasmaClient store_client_;
-
-  /// Mutex to protect store_client_.
-  std::mutex store_client_mutex_;
 };
 
 }  // namespace ray

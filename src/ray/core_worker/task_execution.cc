@@ -105,6 +105,7 @@ void CoreWorkerTaskExecutionInterface::Run() {
                             std::thread([worker_id, worker, rpc_server_port]() {
                               RAY_LOG(INFO) << "Worker " << worker_id << " is running.";
                               CoreWorkerProcess::SetCoreWorker(worker);
+                              worker->ConnectToStore();
                               worker->ConnectToRaylet(rpc_server_port);
                               worker->GetMainService()->run();
                             }));

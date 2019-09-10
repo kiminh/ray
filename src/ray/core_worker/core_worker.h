@@ -44,6 +44,8 @@ class CoreWorkerProcess {
 
   const JobID &GetJobId() const { return job_id_; }
 
+  const std::string &GetStoreSocket() const { return store_socket_; }
+
   const std::string &GetRayletSocket() const { return raylet_socket_; }
 
   /// Return the `CoreWorkerTaskInterface` that contains the methods related to task
@@ -160,6 +162,8 @@ class CoreWorker {
 
   void ConnectToRaylet(int rpc_server_port);
 
+  void ConnectToStore();
+
   ~CoreWorker();
 
   /// Type of this worker.
@@ -169,6 +173,8 @@ class CoreWorker {
   Language GetLanguage() const { return core_worker_process_.GetLanguage(); }
 
   WorkerContext &GetWorkerContext() { return worker_context_; }
+
+  plasma::PlasmaClient &GetStoreClient() { return store_client_; }
 
   RayletClient &GetRayletClient() {
     RAY_CHECK(raylet_client_);
@@ -198,6 +204,9 @@ class CoreWorker {
 
   /// Worker context.
   WorkerContext worker_context_;
+
+  /// Plasma store client.
+  plasma::PlasmaClient store_client_;
 
   /// Raylet client.
   std::unique_ptr<RayletClient> raylet_client_;
