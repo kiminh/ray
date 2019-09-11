@@ -130,10 +130,7 @@ class ActorHandle {
 class CoreWorkerTaskInterface {
  public:
   CoreWorkerTaskInterface(WorkerContext &worker_context,
-                          std::unique_ptr<RayletClient> &raylet_client,
-                          CoreWorkerObjectInterface &object_interface,
-                          boost::asio::io_service &io_service,
-                          gcs::RedisGcsClient &gcs_client, bool use_asio_rpc);
+      CoreWorkerTaskSubmitterMap &task_submitters);
 
   /// Submit a normal task.
   ///
@@ -195,8 +192,7 @@ class CoreWorkerTaskInterface {
   WorkerContext &worker_context_;
 
   /// All the task submitters supported.
-  EnumUnorderedMap<TaskTransportType, std::unique_ptr<CoreWorkerTaskSubmitter>>
-      task_submitters_;
+  CoreWorkerTaskSubmitterMap &task_submitters_;
 
   friend class CoreWorkerTest;
 };

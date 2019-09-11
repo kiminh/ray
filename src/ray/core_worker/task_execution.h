@@ -36,8 +36,9 @@ class CoreWorkerTaskExecutionInterface {
 
   CoreWorkerTaskExecutionInterface(WorkerContext &worker_context,
                                    std::unique_ptr<RayletClient> &raylet_client,
-                                   CoreWorkerObjectInterface &object_interface,
-                                   const TaskExecutor &executor, bool use_asio_prc);
+                                   CoreWorkerStoreProviderMap &store_providers,
+                                   const TaskExecutor &executor,
+                                   bool use_asio_rpc);
 
   /// Start receiving and executing tasks.
   /// \return void.
@@ -69,8 +70,9 @@ class CoreWorkerTaskExecutionInterface {
 
   /// Reference to the parent CoreWorker's context.
   WorkerContext &worker_context_;
-  /// Reference to the parent CoreWorker's objects interface.
-  CoreWorkerObjectInterface &object_interface_;
+
+
+  CoreWorkerStoreProviderMap &store_providers_;
 
   // Task execution callback.
   TaskExecutor execution_callback_;

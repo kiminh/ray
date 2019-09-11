@@ -90,10 +90,15 @@ class AsioRpcClientImpl : public RpcClient,
                     const Request &request, const ClientCallback<Reply> &callback,
                     bool requires_reply = true) {
     if (connection_ == nullptr || !is_connected_) {
-      // There are errors, invoke the callback.
+      // Dispatch to io_service_ thread to make sure all the callbacks are
+      // always execute in that thread, to avoid potential deadlock issues
+      // for upper level code.
       auto status = Status::Invalid("server is not connected");
-      Reply reply;
-      callback(status, reply);
+      io_service_.dispatch([status, callback] {
+        // There are errors, invoke the callback.
+        Reply reply;
+        callback(status, reply);
+      });
       return status;
     }
 

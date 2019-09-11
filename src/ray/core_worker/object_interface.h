@@ -8,6 +8,7 @@
 #include "ray/core_worker/common.h"
 #include "ray/core_worker/context.h"
 #include "ray/core_worker/store_provider/store_provider.h"
+#include "ray/core_worker/transport/transport.h"
 
 namespace ray {
 
@@ -19,8 +20,8 @@ class CoreWorkerMemoryStore;
 class CoreWorkerObjectInterface {
  public:
   CoreWorkerObjectInterface(WorkerContext &worker_context,
-                            std::unique_ptr<RayletClient> &raylet_client,
-                            const std::string &store_socket);
+                            CoreWorkerStoreProviderMap &store_providers,
+                            const CoreWorkerTaskSubmitterMap &task_submitters);
 
   /// Put an object into object store.
   ///
@@ -120,18 +121,11 @@ class CoreWorkerObjectInterface {
 
   /// Reference to the parent CoreWorker's context.
   WorkerContext &worker_context_;
-  /// Reference to the parent CoreWorker's raylet client.
-  std::unique_ptr<RayletClient> &raylet_client_;
-
-  /// Store socket name.
-  std::string store_socket_;
-
-  /// In-memory store for return objects. This is used for `MEMORY` store provider.
-  std::shared_ptr<CoreWorkerMemoryStore> memory_store_;
 
   /// All the store providers supported.
-  EnumUnorderedMap<StoreProviderType, std::unique_ptr<CoreWorkerStoreProvider>>
-      store_providers_;
+  CoreWorkerStoreProviderMap &store_providers_;
+
+  const CoreWorkerTaskSubmitterMap &task_submitters_;
 
   friend class CoreWorkerTaskInterface;
 
