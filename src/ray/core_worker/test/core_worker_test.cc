@@ -552,11 +552,15 @@ void CoreWorkerTest::TestActorFailure(
 void CoreWorkerTest::TestStoreProvider(StoreProviderType type) {
   std::unique_ptr<CoreWorkerStoreProvider> provider_ptr;
   std::shared_ptr<CoreWorkerMemoryStore> memory_store;
+  std::unique_ptr<CoreWorkerProcess> core_worker_process;
 
   switch (type) {
   case StoreProviderType::LOCAL_PLASMA:
+    core_worker_process = std::unique_ptr<CoreWorkerProcess>(new CoreWorkerProcess(
+        WorkerType::DRIVER, Language::PYTHON, {}, raylet_store_socket_names_[0],
+        raylet_socket_names_[0], NextJobId(), gcs_options_, nullptr));
     provider_ptr = std::unique_ptr<CoreWorkerStoreProvider>(
-        new CoreWorkerLocalPlasmaStoreProvider(raylet_store_socket_names_[0]));
+        new CoreWorkerLocalPlasmaStoreProvider());
     break;
   case StoreProviderType::MEMORY:
     memory_store = std::make_shared<CoreWorkerMemoryStore>();
