@@ -244,7 +244,8 @@ void Log<ID, Data>::Delete(const JobID &job_id, const ID &id) {
 template <typename ID, typename Data>
 Status Log<ID, Data>::SyncDeleteAll() {
   size_t total_count = 0;
-  std::string match_pattern = rpc::TablePrefix_Name(prefix_) + "*";
+  std::string table_prefix = GetTablePrefix();
+  std::string match_pattern = table_prefix + "*";
   size_t batch_count = RayConfig::instance().maximum_gcs_deletion_batch_size();
   size_t cursor = 0;
   for (;;) {
@@ -254,15 +255,14 @@ Status Log<ID, Data>::SyncDeleteAll() {
                                      "COUNT", std::to_string(batch_count)};
     std::unique_ptr<CallbackReply> reply_ptr = shard_contexts_[0]->RunArgvSync(args);
     if (!reply_ptr) {
-      RAY_LOG(INFO) << "Scan redis return error, table prefix is "
-                    << rpc::TablePrefix_Name(prefix_);
+      RAY_LOG(ERROR) << "Scan redis return error, table prefix is " << table_prefix;
       return Status::RedisError("Redis Error");
     }
 
     std::vector<std::string> keys;
     cursor = reply_ptr->ReadAsScanArray(&keys);
     total_count += keys.size();
-    RAY_LOG(DEBUG) << "Scan cursor is " << cursor << ", current matched keys size is "
+    RAY_LOG(INFO) << "Scan cursor is " << cursor << ", current matched keys size is "
                    << keys.size() << ", match pattern is " << match_pattern;
 
     // Delete from redis.
@@ -276,7 +276,7 @@ Status Log<ID, Data>::SyncDeleteAll() {
     if (cursor == 0) {
       // Scan done.
       RAY_LOG(INFO) << "SyncDeleteAll done, total deleted count is " << total_count
-                    << ", table prefix is " << rpc::TablePrefix_Name(prefix_);
+                    << ", table prefix is " << table_prefix;
       return Status::OK();
     }
   }
@@ -289,7 +289,8 @@ Status Log<ID, Data>::SyncDelete(const std::vector<std::string> &keys) {
   }
 
   std::unordered_map<RedisContext *, std::ostringstream> sharded_data;
-  size_t prefix_len = rpc::TablePrefix_Name(prefix_).length();
+  std::string table_prefix = GetTablePrefix();
+  size_t prefix_len = table_prefix.length();
   for (size_t i = 0; i < keys.size(); ++i) {
     const auto &key = keys[i];
     if (key.length() == (prefix_len + ID::Size())) {
@@ -318,14 +319,13 @@ Status Log<ID, Data>::SyncDelete(const std::vector<std::string> &keys) {
           reinterpret_cast<const uint8_t *>(send_data.c_str()), send_data.size(), prefix_,
           pubsub_channel_);
       if (!reply) {
-        RAY_LOG(INFO) << "Delete keys failed, table prefix is "
-                      << rpc::TablePrefix_Name(prefix_);
+        RAY_LOG(INFO) << "Delete keys failed, table prefix is " << table_prefix;
         return Status::RedisError("Delete keys from redis failed.");
       }
       Status status = reply->ReadAsStatus();
       if (!status.ok()) {
-        RAY_LOG(INFO) << "Delete keys failed, table prefix is "
-                      << rpc::TablePrefix_Name(prefix_) << ", status is " << status;
+        RAY_LOG(INFO) << "Delete keys failed, table prefix is " << table_prefix
+                      << ", status is " << status;
         return status;
       }
     }
@@ -847,6 +847,7 @@ template class Table<ActorID, ActorCheckpointIdData>;
 
 template class Log<ClientID, ResourceTableData>;
 template class Hash<ClientID, ResourceTableData>;
+template class Hash<WorkerID, WorkerTableData>;
 
 }  // namespace gcs
 

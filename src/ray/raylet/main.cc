@@ -4,6 +4,7 @@
 #include "ray/common/ray_config.h"
 #include "ray/common/status.h"
 #include "ray/common/task/task_common.h"
+#include "ray/gcs/gcs_gc_manager.h"
 #include "ray/raylet/raylet.h"
 #include "ray/stats/stats.h"
 
@@ -169,6 +170,8 @@ int main(int argc, char *argv[]) {
                      const boost::system::error_code &error, int signal_number) {
     auto shutdown_callback = [&server, &main_service, &gcs_client]() {
       server.reset();
+      ray::gcs::GcsGCManager gc_manager(*gcs_client);
+      gc_manager.CleanForLevelOneFailover();
       gcs_client->Disconnect();
       main_service.stop();
       RAY_LOG(INFO) << "Raylet server received SIGTERM message, shutting down...";

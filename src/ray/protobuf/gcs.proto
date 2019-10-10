@@ -26,7 +26,8 @@ enum TablePrefix {
   ACTOR_CHECKPOINT = 15;
   ACTOR_CHECKPOINT_ID = 16;
   NODE_RESOURCE = 17;
-  TABLE_PREFIX_MAX = 18;
+  RAYLET_WORKER = 18;
+  TABLE_PREFIX_MAX = 19;
 }
 
 // The channel that Add operations to the Table should be published on, if any.
@@ -44,7 +45,8 @@ enum TablePubsub {
   TASK_LEASE_PUBSUB = 10;
   JOB_PUBSUB = 11;
   NODE_RESOURCE_PUBSUB = 12;
-  TABLE_PUBSUB_MAX = 13;
+  RAYLET_WORKER_PUBSUB = 13;
+  TABLE_PUBSUB_MAX = 14;
 }
 
 enum GcsChangeMode {
@@ -278,3 +280,8 @@ enum ErrorType {
   // Indicates that a task failed due to user code failure.
   TASK_EXECUTION_EXCEPTION = 3;
 }
+
+message WorkerTableData {
+  string value = 1;
+}
+

@@ -117,6 +117,9 @@ RedisModuleString *PrefixedKeyString(RedisModuleCtx *ctx, RedisModuleString *pre
   if (!ParseTablePrefix(prefix_enum, &prefix).ok()) {
     return nullptr;
   }
+//  if (prefix == TablePrefix::RAYLET_WORKER) {
+//    return RedisString_Format(ctx, "Workers:%S", keyname);
+//  }
   return RedisString_Format(ctx, "%s%S", TablePrefix_Name(prefix).c_str(), keyname);
 }
 
@@ -140,8 +143,12 @@ Status OpenPrefixedKey(RedisModuleKey **out, RedisModuleCtx *ctx,
                        int mode, RedisModuleString **mutated_key_str) {
   TablePrefix prefix;
   RAY_RETURN_NOT_OK(ParseTablePrefix(prefix_enum, &prefix));
-  *out = OpenPrefixedKey(ctx, TablePrefix_Name(prefix).c_str(), keyname, mode,
-                         mutated_key_str);
+//  if (prefix == TablePrefix::RAYLET_WORKER) {
+//    *out = OpenPrefixedKey(ctx, "Workers:", keyname, mode, mutated_key_str);
+//  } else {
+    *out = OpenPrefixedKey(ctx, TablePrefix_Name(prefix).c_str(), keyname, mode,
+                           mutated_key_str);
+//  }
   return Status::OK();
 }
 
@@ -772,7 +779,7 @@ static Status DeleteKeyHelper(RedisModuleCtx *ctx, RedisModuleString *prefix_str
   // Garbage cleaning is required during the Failover process. At this point
   // we need to support clean up the Set even the length is greater than 0.
   if (key_type == REDISMODULE_KEYTYPE_STRING || key_type == REDISMODULE_KEYTYPE_LIST ||
-      key_type == REDISMODULE_KEYTYPE_SET) {
+      key_type == REDISMODULE_KEYTYPE_SET || key_type == REDISMODULE_KEYTYPE_HASH) {
     RAY_RETURN_NOT_OK(
         OpenPrefixedKey(&delete_key, ctx, prefix_str, id_data, REDISMODULE_WRITE));
     RedisModule_DeleteKey(delete_key);

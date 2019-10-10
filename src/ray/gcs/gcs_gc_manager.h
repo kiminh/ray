@@ -83,6 +83,11 @@ class GcsGCManager {
   /// \return Status
   Status CleanAllClientData();
 
+  /// Clean all worker data from GCS WorkerTable.
+  ///
+  /// \return Status
+  Status CleanAllWorkerData();
+
   RedisGcsClient &gcs_client_;
 };
 

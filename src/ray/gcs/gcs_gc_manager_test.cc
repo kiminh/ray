@@ -86,6 +86,16 @@ TEST_F(GcsGCManagerTest, CleanForLevelOneFailover) {
   }
   WaitPendingDone(wait_pending_timeout_);
 
+  WorkerID worker_id = WorkerID::FromRandom();
+  RAY_LOG(INFO) << "worker_id size=" << worker_id.Size() << " hex=" << worker_id.Hex();
+  std::vector<std::string> args = {"HMSET", "Workers:" + worker_id.Binary(),
+      "f1", "\"hello\"", "f2", "\"world\""};
+  std::unique_ptr<CallbackReply> reply_ptr
+      = gcs_client_->primary_context()->RunArgvSync(args);
+  if (!reply_ptr) {
+     RAY_LOG(ERROR) << "HMSET reply error";
+  }
+
   // clean
   RAY_CHECK_OK(gc_manager_->CleanForLevelOneFailover());
 

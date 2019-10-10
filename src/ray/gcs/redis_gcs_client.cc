@@ -136,6 +136,7 @@ Status RedisGcsClient::Connect(boost::asio::io_service &io_service) {
   resource_table_.reset(new DynamicResourceTable({primary_context_}, this));
 
   actor_accessor_.reset(new ActorStateAccessor(*this));
+  worker_table_.reset(new WorkerTable(shard_contexts_, this));
 
   Status status = Attach(io_service);
   is_connected_ = status.ok();
@@ -219,6 +220,8 @@ ActorCheckpointIdTable &RedisGcsClient::actor_checkpoint_id_table() {
 }
 
 DynamicResourceTable &RedisGcsClient::resource_table() { return *resource_table_; }
+
+WorkerTable &RedisGcsClient::worker_table() { return *worker_table_; }
 
 }  // namespace gcs
 

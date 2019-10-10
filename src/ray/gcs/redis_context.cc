@@ -304,7 +304,8 @@ std::unique_ptr<CallbackReply> RedisContext::RunArgvSync(
   }
   void *redis_reply = redisCommand(context_, os.str().c_str());
   if (redis_reply == nullptr) {
-    RAY_LOG(INFO) << "Run redis command failed , err is " << context_->err;
+    RAY_LOG(INFO) << "Run redis command failed , err is " << context_->err
+                  << "errstr is " << context_->errstr;
     return nullptr;
   } else {
     return std::unique_ptr<CallbackReply>(new CallbackReply(

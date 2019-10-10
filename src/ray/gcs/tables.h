@@ -39,6 +39,7 @@ using rpc::TablePubsub;
 using rpc::TaskLeaseData;
 using rpc::TaskReconstructionData;
 using rpc::TaskTableData;
+using rpc::WorkerTableData;
 
 class RedisContext;
 
@@ -237,6 +238,8 @@ class Log : public LogInterface<ID, Data>, virtual public PubsubInterface<ID> {
     return shard_contexts_[index(key) % shard_contexts_.size()];
   }
 
+  virtual std::string GetTablePrefix() const { return rpc::TablePrefix_Name(prefix_); }
+
   /// Delete several keys from redis synchronously.
   ///
   /// \param keys Keys that to delete from GCS.
@@ -395,6 +398,7 @@ class Table : private Log<ID, Data>,
   using Log<ID, Data>::prefix_;
   using Log<ID, Data>::command_type_;
   using Log<ID, Data>::GetRedisContext;
+  using Log<ID, Data>::GetTablePrefix;
 
   int64_t num_adds_ = 0;
   int64_t num_lookups_ = 0;
@@ -606,6 +610,11 @@ class Hash : private Log<ID, Data>,
                        const std::vector<std::string> &keys,
                        const HashRemoveCallback &remove_callback) override;
 
+  /// Delete all data from redis synchronously.
+  ///
+  /// \return Status
+  Status SyncDeleteAll() { return Log<ID, Data>::SyncDeleteAll(); }
+
   /// Returns debug string for class.
   ///
   /// \return string.
@@ -634,6 +643,30 @@ class DynamicResourceTable : public Hash<ClientID, ResourceTableData> {
   };
 
   virtual ~DynamicResourceTable(){};
+};
+
+/// Expose SyncDeleteAll. Not support other methods yet.
+/// TODO(micafan) Use protobuf type (which is required by parent class Hash)
+/// WorkerTableData instead of real data type std::string for temporary solution.
+/// Make data type unify with worker in future.
+class WorkerTable : public Hash<WorkerID, WorkerTableData> {
+ public:
+  WorkerTable(const std::vector<std::shared_ptr<RedisContext>> &contexts,
+              RedisGcsClient *client)
+      : Hash(contexts, client) {
+    pubsub_channel_ = TablePubsub::RAYLET_WORKER_PUBSUB;
+    prefix_ = TablePrefix::RAYLET_WORKER;
+  }
+
+  ~WorkerTable() override = default;
+
+  /// Delete all data from redis synchronously.
+  ///
+  /// \return Status
+  Status SyncDeleteAll() { return Hash<WorkerID, WorkerTableData>::SyncDeleteAll(); }
+
+ protected:
+  std::string GetTablePrefix() const { return "Workers:"; }
 };
 
 class ObjectTable : public Set<ObjectID, ObjectTableData> {
