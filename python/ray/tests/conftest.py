@@ -28,7 +28,7 @@ def generate_internal_config_map(**kwargs):
 
 def get_default_fixure_internal_config():
     internal_config = json.dumps({
-        "initial_reconstruction_timeout_milliseconds": 200,
+        "initial_reconstruction_timeout_milliseconds": 1000,
         "num_heartbeats_timeout": 10,
     })
     return internal_config
