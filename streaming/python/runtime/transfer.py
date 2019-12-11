@@ -262,9 +262,6 @@ def _to_native_conf(conf):
     config = streaming_pb.StreamingConfig()
     if Config.STREAMING_JOB_NAME in conf:
         config.job_name = conf[Config.STREAMING_JOB_NAME]
-    if Config.TASK_JOB_ID in conf:
-        job_id = conf[Config.TASK_JOB_ID]
-        config.task_job_id = job_id.hex()
     if Config.STREAMING_WORKER_NAME in conf:
         config.worker_name = conf[Config.STREAMING_WORKER_NAME]
     if Config.STREAMING_OP_NAME in conf:

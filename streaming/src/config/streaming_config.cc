@@ -18,10 +18,6 @@ void StreamingConfig::FromProto(const uint8_t *data, uint32_t size) {
   if (!config.job_name().empty()) {
     SetJobName(config.job_name());
   }
-  if (!config.task_job_id().empty()) {
-    STREAMING_CHECK(config.task_job_id().size() == 2 * JobID::Size());
-    SetTaskJobId(config.task_job_id());
-  }
   if (!config.worker_name().empty()) {
     SetWorkerName(config.worker_name());
   }
@@ -77,12 +73,6 @@ void StreamingConfig::SetOpName(const std::string &op_name) {
 const std::string &StreamingConfig::GetWorkerName() const { return worker_name_; }
 void StreamingConfig::SetWorkerName(const std::string &worker_name) {
   StreamingConfig::worker_name_ = worker_name;
-}
-
-const std::string &StreamingConfig::GetTaskJobId() const { return task_job_id_; }
-
-void StreamingConfig::SetTaskJobId(const std::string &task_job_id) {
-  StreamingConfig::task_job_id_ = task_job_id;
 }
 
 }  // namespace streaming

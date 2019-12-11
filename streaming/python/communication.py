@@ -97,8 +97,6 @@ class DataInput(object):
             input_actors.append(actor)
         logger.info("DataInput input_actors %s", input_actors)
         conf = {
-            Config.TASK_JOB_ID: ray.runtime_context._get_runtime_context()
-            .current_driver_id,
             Config.CHANNEL_TYPE: self.env.config.channel_type
         }
         self.reader = transfer.DataReader(channels, input_actors, conf)
@@ -216,8 +214,6 @@ class DataOutput(object):
         logger.info("DataOutput output_actors %s", to_actors)
 
         conf = {
-            Config.TASK_JOB_ID: ray.runtime_context._get_runtime_context()
-            .current_driver_id,
             Config.CHANNEL_TYPE: self.env.config.channel_type
         }
         self.writer = transfer.DataWriter(channel_ids, to_actors, conf)
