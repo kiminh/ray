@@ -1,14 +1,15 @@
 package org.ray.streaming.runtime.master.manager.graph;
 
-import com.alipay.streaming.runtime.executiongraph.ExecutionGraph;
-import com.alipay.streaming.runtime.executiongraph.ExecutionJobVertex;
-import com.alipay.streaming.runtime.executiongraph.OperatorNode;
-import com.alipay.streaming.runtime.jobgraph.JobGraph;
-import com.alipay.streaming.runtime.monitor.event.payload.RescaleInfo;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
 import org.ray.api.RayActor;
+
+import org.ray.streaming.runtime.core.graph.Graphs;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
+import org.ray.streaming.runtime.core.graph.executiongraph.OperatorNode;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
 
 public interface GraphManager extends Serializable {
 
@@ -39,7 +40,6 @@ public interface GraphManager extends Serializable {
    * @return changed execution graph
    */
   ExecutionGraph getChangedExecutionGraph();
-
 
   /**
    * Get execution job vertex by specified op name with current graph
@@ -98,14 +98,6 @@ public interface GraphManager extends Serializable {
   int getOperatorParallelism(String opName);
 
   /**
-   * Update parallelism for specified operator
-   *
-   * @param rescaleInfo: rescale info
-   * @return the changed execution job vertex
-   */
-  ExecutionJobVertex updateOperatorParallelism(RescaleInfo rescaleInfo);
-
-  /**
    * Update changed execution graph
    *
    * @param executionGraph
@@ -139,18 +131,6 @@ public interface GraphManager extends Serializable {
    * get changed execution job vertex
    */
   ExecutionJobVertex getChangedExecutionJobVertex();
-
-  /**
-   * @return is scaling up graph
-   */
-  Boolean isScalingUp();
-
-  /**
-   * set rescaling flag
-   *
-   * @parm flag: true: scaling up, false: scaling down
-   */
-  void setRescalingFlag(Boolean flag);
 
   /**
    * Create input and output info and setup relation for every vertex.

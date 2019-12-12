@@ -15,6 +15,10 @@
   <description>ray streaming runtime</description>
   <packaging>jar</packaging>
 
+  <properties>
+    <hadoop.version>2.7.2</hadoop.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.ray</groupId>
@@ -55,6 +59,21 @@
       <groupId>org.testng</groupId>
       <artifactId>testng</artifactId>
       <version>6.9.10</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hadoop.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-hdfs</artifactId>
+      <version>${hadoop.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.4</version>
     </dependency>
     <dependency>
       <groupId>org.aeonbits.owner</groupId>

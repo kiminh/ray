@@ -1,8 +1,5 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
-import com.alipay.streaming.runtime.jobgraph.JobEdge;
-import com.alipay.streaming.runtime.jobgraph.JobVertex;
-import com.alipay.streaming.runtime.jobgraph.LanguageType;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,6 +7,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.ray.streaming.runtime.core.graph.jobgraph.JobEdge;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobVertex;
+import org.ray.streaming.runtime.core.graph.jobgraph.LanguageType;
 
 public class ExecutionJobVertex implements Serializable {
 

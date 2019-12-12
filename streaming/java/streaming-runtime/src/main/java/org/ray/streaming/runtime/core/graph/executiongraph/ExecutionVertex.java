@@ -1,21 +1,22 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
-import com.alipay.streaming.runtime.config.Configuration;
-import com.alipay.streaming.runtime.config.types.OperatorType;
-import com.alipay.streaming.runtime.jobgraph.JobVertex.OpInfo;
-import com.alipay.streaming.runtime.scheduler.Slot;
-import com.alipay.streaming.runtime.utils.AbstractID;
-import com.alipay.streaming.runtime.utils.LoggerFactory;
-import com.alipay.streaming.runtime.worker.JobWorker;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 import org.ray.api.RayActor;
 import org.ray.api.id.ActorId;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.ray.streaming.runtime.config.Configuration;
+import org.ray.streaming.runtime.config.types.OperatorType;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobVertex.OpInfo;
+import org.ray.streaming.runtime.core.resource.Slot;
+import org.ray.streaming.runtime.worker.JobWorker;
 
 public class ExecutionVertex implements Serializable {
 

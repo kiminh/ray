@@ -1,21 +1,5 @@
 package org.ray.streaming.runtime.master.manager.graph;
 
-import com.alipay.streaming.runtime.executiongraph.ExecutionEdge;
-import com.alipay.streaming.runtime.executiongraph.ExecutionGraph;
-import com.alipay.streaming.runtime.executiongraph.ExecutionJobVertex;
-import com.alipay.streaming.runtime.executiongraph.ExecutionVertex;
-import com.alipay.streaming.runtime.executiongraph.ExecutionVertexState;
-import com.alipay.streaming.runtime.executiongraph.IntermediateResultPartition;
-import com.alipay.streaming.runtime.executiongraph.OperatorNode;
-import com.alipay.streaming.runtime.jobgraph.JobGraph;
-import com.alipay.streaming.runtime.jobgraph.JobVertex;
-import com.alipay.streaming.runtime.master.JobMaster;
-import com.alipay.streaming.runtime.master.JobMasterRuntimeContext;
-import com.alipay.streaming.runtime.monitor.event.payload.RescaleInfo;
-import com.alipay.streaming.runtime.queue.impl.plasma.QueueUtils;
-import com.alipay.streaming.runtime.resourcemanager.ContainerID;
-import com.alipay.streaming.runtime.utils.GraphBuilder;
-import com.alipay.streaming.runtime.utils.LoggerFactory;
 import com.google.common.collect.Maps;
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -30,6 +14,16 @@ import org.ray.api.RayActor;
 import org.ray.api.RayPyActor;
 import org.ray.api.id.ActorId;
 import org.slf4j.Logger;
+
+import org.ray.streaming.runtime.core.graph.Graphs;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertexState;
+import org.ray.streaming.runtime.core.graph.executiongraph.OperatorNode;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobVertex;
+import org.ray.streaming.runtime.core.resource.ContainerID;
 
 public class GraphManagerImpl implements GraphManager {
 
@@ -173,35 +167,6 @@ public class GraphManagerImpl implements GraphManager {
     return exeJobVertex.getParallelism();
   }
 
-  @Override
-  public ExecutionJobVertex updateOperatorParallelism(RescaleInfo rescaleInfo) {
-    // find changed executionJobVertex by op name
-    String opName = rescaleInfo.getOpName();
-    int parallelismDelta = rescaleInfo.getParallelismDelta();
-
-    ExecutionJobVertex changedExeJobVertex = findExecutionJobVertexByOpName4Update(opName);
-    setChangedExecutionJobVertex(changedExeJobVertex);
-
-    int oldParallelism = changedExeJobVertex.getParallelism();
-    int newParallelism = oldParallelism + parallelismDelta;
-    LOG.info("Update operator {} parallelism from {} to {}.", opName, oldParallelism,
-        newParallelism);
-
-    // update logical graph parallelism
-    changedExeJobVertex.getJobVertex().setParallelism(newParallelism);
-
-    // update execution graph parallelism
-    if (parallelismDelta > 0) {
-      changedExeJobVertex.scaleup(newParallelism, getChangedExecutionGraph());
-    } else {
-      changedExeJobVertex.scaledown(newParallelism, rescaleInfo.getSpecificIndexes());
-    }
-
-    // update execution graph max parallelism
-    updateExecutionGraphMaxParallelism(getChangedExecutionGraph());
-
-    return changedExeJobVertex;
-  }
 
   private int updateExecutionGraphMaxParallelism(ExecutionGraph executionGraph) {
     int currentMaxParallelism = executionGraph.getExeJobVertices().values()

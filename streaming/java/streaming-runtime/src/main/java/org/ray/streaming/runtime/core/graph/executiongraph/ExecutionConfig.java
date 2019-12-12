@@ -4,6 +4,8 @@ import com.alipay.streaming.runtime.config.Configuration;
 import com.alipay.streaming.runtime.config.worker.WorkerConfig;
 import java.io.Serializable;
 
+import org.ray.streaming.runtime.config.Configuration;
+
 public class ExecutionConfig implements Serializable {
 
   private static final String WORKER_PARALLELISM_INDEX = "worker_parallelism_index";

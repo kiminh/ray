@@ -2,13 +2,14 @@ package org.ray.streaming.runtime.core.graph.jobgraph;
 
 import com.alipay.streaming.runtime.wrapper.StreamCollector;
 import com.antfin.arc.arch.partition.IPartitioner;
-import com.antfin.arch.engine.processor.Processor;
 import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.ray.streaming.runtime.core.processor.Processor;
 
 public class JobVertex implements Serializable {
 

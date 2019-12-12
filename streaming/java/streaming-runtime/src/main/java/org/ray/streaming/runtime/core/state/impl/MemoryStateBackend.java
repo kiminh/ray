@@ -1,13 +1,15 @@
 package org.ray.streaming.runtime.core.state.impl;
 
-import com.alipay.streaming.runtime.config.global.StateBackendConfig;
-import com.alipay.streaming.runtime.state.StateBackend;
-import com.alipay.streaming.runtime.utils.LoggerFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.lang3.NotImplementedException;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.ray.streaming.runtime.config.global.StateBackendConfig;
+import org.ray.streaming.runtime.core.state.StateBackend;
 
 public class MemoryStateBackend implements StateBackend<String, byte[], StateBackendConfig> {
 

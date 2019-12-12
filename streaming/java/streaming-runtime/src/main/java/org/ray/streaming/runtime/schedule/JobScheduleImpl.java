@@ -11,6 +11,8 @@ import org.ray.streaming.runtime.cluster.ResourceManager;
 import org.ray.streaming.plan.Plan;
 import org.ray.streaming.plan.PlanVertex;
 import org.ray.streaming.schedule.IJobSchedule;
+
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.worker.JobWorker;
 import org.ray.streaming.runtime.worker.context.WorkerContext;
 

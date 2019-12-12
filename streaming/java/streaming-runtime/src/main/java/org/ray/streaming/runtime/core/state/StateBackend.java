@@ -1,8 +1,9 @@
 package org.ray.streaming.runtime.core.state;
 
-import com.alipay.streaming.runtime.config.global.StateBackendConfig;
 import java.util.List;
 import java.util.Map;
+
+import org.ray.streaming.runtime.config.global.StateBackendConfig;
 
 public interface StateBackend<K, V, C extends StateBackendConfig> {
 

@@ -1,9 +1,10 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
-import com.alipay.streaming.runtime.jobgraph.DistributionPattern;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.ray.streaming.runtime.core.graph.jobgraph.DistributionPattern;
 
 public class IntermediateResult implements Serializable {
 

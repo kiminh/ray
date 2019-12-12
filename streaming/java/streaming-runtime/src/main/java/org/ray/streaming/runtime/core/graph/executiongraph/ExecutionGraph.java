@@ -1,8 +1,5 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
-import com.alipay.streaming.runtime.jobgraph.JobVertexID;
-import com.alipay.streaming.runtime.utils.LoggerFactory;
-import com.alipay.streaming.runtime.utils.Serializer;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
@@ -23,6 +20,9 @@ import java.util.stream.Collectors;
 import org.ray.api.RayActor;
 import org.ray.api.id.ActorId;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.ray.streaming.runtime.core.graph.jobgraph.JobVertexID;
 
 /**
  * ExecutionGraph is the physical plan for scheduling

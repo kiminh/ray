@@ -1,10 +1,8 @@
 package org.ray.streaming.runtime.core.state;
 
-import com.alipay.streaming.runtime.config.StreamingGlobalConfig;
-import com.alipay.streaming.runtime.config.types.StateBackendType;
-import com.alipay.streaming.runtime.state.impl.AtomicFsBackend;
-import com.alipay.streaming.runtime.state.impl.MemoryStateBackend;
-import com.alipay.streaming.runtime.state.impl.hbase.HBaseStateBackend;
+import org.ray.streaming.runtime.config.StreamingGlobalConfig;
+import org.ray.streaming.runtime.config.types.StateBackendType;
+import org.ray.streaming.runtime.core.state.impl.MemoryStateBackend;
 
 public class StateBackendFactory {
 
@@ -17,13 +15,8 @@ public class StateBackendFactory {
       case MEMORY:
         stateBackend = new MemoryStateBackend(config.stateBackendConfig);
         break;
-      case PANGU:
-        stateBackend = new AtomicFsBackend(config.stateBackendPanguConfig);
-        break;
-      case HBASE:
-        stateBackend = new HBaseStateBackend(config.stateBackendHBaseConfig);
-        break;
       default:
+        stateBackend = new MemoryStateBackend(config.stateBackendConfig);
         break;
     }
     return stateBackend;
