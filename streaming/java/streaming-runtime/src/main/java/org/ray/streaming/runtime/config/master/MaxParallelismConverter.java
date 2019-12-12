@@ -4,7 +4,7 @@ import java.lang.reflect.Method;
 import org.aeonbits.owner.ConfigFactory;
 import org.aeonbits.owner.Converter;
 import org.apache.commons.lang3.StringUtils;
-import org.ray.streaming.runtime.util.EnvUtil;
+import org.ray.streaming.runtime.utils.EnvUtil;
 
 /**
  *
