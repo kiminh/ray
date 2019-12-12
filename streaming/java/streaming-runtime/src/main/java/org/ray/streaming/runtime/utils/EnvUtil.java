@@ -1,7 +1,7 @@
 package org.ray.streaming.runtime.utils;
 
 /**
- * 
+ *
  */
 public class EnvUtil {
 
