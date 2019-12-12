@@ -3,7 +3,6 @@ package org.ray.streaming.runtime.schedule;
 import java.io.Serializable;
 import java.util.List;
 import org.ray.api.RayActor;
-import org.ray.streaming.runtime.core.graph.ExecutionGraph;
 import org.ray.streaming.runtime.worker.JobWorker;
 import org.ray.streaming.plan.Plan;
 
