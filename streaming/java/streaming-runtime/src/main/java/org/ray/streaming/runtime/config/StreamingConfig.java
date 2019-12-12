@@ -1,11 +1,25 @@
 package org.ray.streaming.runtime.config;
 
+import java.io.Serializable;
+import java.util.Map;
+
 /**
- * Alipay.com Inc
- * Copyright (c) 2004-2019 All Rights Reserved.
  *
- * @author yangjianzhang on 2019-12-12.
  */
-public class StreamingConfig {
+public class StreamingConfig implements Serializable {
+
+  public StreamingMasterConfig masterConfig;
+  public StreamingWorkerConfig workerConfigTemplate;
+
+  public StreamingConfig(Map<String, String> conf) {
+    masterConfig = new StreamingMasterConfig(conf);
+    workerConfigTemplate = new StreamingWorkerConfig(conf);
+  }
+
+  public Map<String, String> getMap() {
+    Map<String, String> wholeConfigMap = masterConfig.configMap;
+    wholeConfigMap.putAll(workerConfigTemplate.configMap);
+    return wholeConfigMap;
+  }
 
 }
