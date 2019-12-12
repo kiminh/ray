@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.transfer;
+package org.ray.streaming.runtime.core.queue.transfer;
 
 public class ChannelInterruptException extends RuntimeException {
   public ChannelInterruptException() {

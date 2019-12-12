@@ -13,7 +13,7 @@ import org.ray.streaming.runtime.core.graph.ExecutionNode;
 import org.ray.streaming.runtime.core.graph.ExecutionTask;
 import org.ray.streaming.runtime.core.processor.ProcessBuilder;
 import org.ray.streaming.runtime.core.processor.StreamProcessor;
-import org.ray.streaming.runtime.worker.JobWorker;
+import org.ray.streaming.runtime.worker.JobWorker2;
 import org.ray.streaming.plan.Plan;
 import org.ray.streaming.plan.PlanEdge;
 import org.ray.streaming.plan.PlanVertex;
@@ -28,7 +28,7 @@ public class TaskAssignImpl implements ITaskAssign {
    * @return The physical execution graph.
    */
   @Override
-  public ExecutionGraph assign(Plan plan, List<RayActor<JobWorker>> workers) {
+  public ExecutionGraph assign(Plan plan, List<RayActor<JobWorker2>> workers) {
     List<PlanVertex> planVertices = plan.getPlanVertexList();
     List<PlanEdge> planEdges = plan.getPlanEdgeList();
 
