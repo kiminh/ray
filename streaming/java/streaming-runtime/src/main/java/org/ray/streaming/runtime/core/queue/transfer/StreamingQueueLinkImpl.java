@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.transfer;
+package org.ray.streaming.runtime.core.queue.transfer;
 
 import org.ray.api.Ray;
 import org.ray.api.id.ActorId;
@@ -7,7 +7,7 @@ import org.ray.runtime.RayMultiWorkerNativeRuntime;
 import org.ray.runtime.RayNativeRuntime;
 import org.ray.runtime.functionmanager.FunctionDescriptor;
 import org.ray.runtime.functionmanager.JavaFunctionDescriptor;
-import org.ray.streaming.runtime.worker.JobWorker;
+import org.ray.streaming.runtime.worker.JobWorker2;
 import org.ray.streaming.util.ConfigKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,10 +35,10 @@ public class StreamingQueueLinkImpl  {
   private RayRuntime runtime = null;
 
   public StreamingQueueLinkImpl() {
-    // Use JobWorker defaultly.
-    streamingTransferFunction = new JavaFunctionDescriptor(JobWorker.class.getName(),
+    // Use JobWorker2 defaultly.
+    streamingTransferFunction = new JavaFunctionDescriptor(JobWorker2.class.getName(),
         "onStreamingTransfer", "([B)V");
-    streamingTransferSyncFunction = new JavaFunctionDescriptor(JobWorker.class.getName(),
+    streamingTransferSyncFunction = new JavaFunctionDescriptor(JobWorker2.class.getName(),
         "onStreamingTransferSync", "([B)[B");
   }
 

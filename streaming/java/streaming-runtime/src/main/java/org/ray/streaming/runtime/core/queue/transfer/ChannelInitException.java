@@ -1,9 +1,9 @@
-package org.ray.streaming.runtime.transfer;
+package org.ray.streaming.runtime.core.queue.transfer;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.ray.streaming.runtime.transfer.ChannelUtils;
+import org.ray.streaming.runtime.core.queue.transfer.ChannelUtils;
 
 public class ChannelInitException extends Exception {
 

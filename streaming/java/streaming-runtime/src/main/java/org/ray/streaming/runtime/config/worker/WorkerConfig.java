@@ -1,19 +1,18 @@
 package org.ray.streaming.runtime.config.worker;
 
-import org.aeonbits.owner.Config.DefaultValue;
-import org.aeonbits.owner.Config.Key;
+import org.aeonbits.owner.Config;
+import org.ray.streaming.runtime.transfer.QueueConfigKeys;
 
-import com.alipay.streaming.runtime.config.Config;
-import com.alipay.streaming.runtime.core.queue.impl.plasma.QueueConfigKeys;
-
+/**
+ *
+ */
 public interface WorkerConfig extends Config {
-
   String WORKER_ID_INTERNAL = WorkerConfig.PY_WORKER_ID;
   String WORKER_NAME_INTERNAL = QueueConfigKeys.STREAMING_WORKER_NAME;
-  String OPERATOR_TYPE_INTERNAL = QueueConfigKeys.OPERATOR_TYPE;
+  //String OPERATOR_TYPE_INTERNAL = QueueConfigKeys.OPERATOR_TYPE;
   String OPERATOR_NAME_INTERNAL = QueueConfigKeys.STREAMING_OP_NAME;
   String JOB_NAME_INTERNAL = QueueConfigKeys.STREAMING_JOB_NAME;
-  String RELIABILITY_LEVEL_INTERNAL = QueueConfigKeys.RELIABILITY_LEVEL;
+  //String RELIABILITY_LEVEL_INTERNAL = QueueConfigKeys.RELIABILITY_LEVEL;
   String STATE_VERSION = "streaming.state.version";
 
   /**
@@ -27,7 +26,7 @@ public interface WorkerConfig extends Config {
   String PY_CP_PANGU_CLUSTER_NAME = "cp_pangu_cluster_name";
   String PY_CP_PANGU_ROOT_DIR = "cp_pangu_root_dir";
   String PY_CP_PANGU_USER_MYSQL_URL = "cp_pangu_user_mysql_url";
-//  String PY_CP_LOCAL_DISK_ROOT_DIR = "cp_local_disk_root_dir";
+  //  String PY_CP_LOCAL_DISK_ROOT_DIR = "cp_local_disk_root_dir";
   String PY_METRICS_TYPE = "metrics_type";
   String PY_METRICS_URL = "metrics_url";
   String PY_METRICS_USER_NAME = "metrics_user_name";
@@ -44,9 +43,9 @@ public interface WorkerConfig extends Config {
   @Key(value = WORKER_NAME_INTERNAL)
   String workerName();
 
-  @DefaultValue(value = "source")
-  @Key(value = OPERATOR_TYPE_INTERNAL)
-  String operatorType();
+//  @DefaultValue(value = "source")
+//  @Key(value = OPERATOR_TYPE_INTERNAL)
+//  String operatorType();
 
   @DefaultValue(value = "default-operator-name")
   @Key(value = OPERATOR_NAME_INTERNAL)
@@ -55,4 +54,5 @@ public interface WorkerConfig extends Config {
   @DefaultValue(value = "")
   @Key(value = STATE_VERSION)
   String stateVersion();
+
 }

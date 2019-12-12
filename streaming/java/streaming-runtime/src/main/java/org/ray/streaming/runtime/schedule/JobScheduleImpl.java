@@ -7,13 +7,14 @@ import java.util.Map;
 import org.ray.api.Ray;
 import org.ray.api.RayActor;
 import org.ray.api.RayObject;
-import org.ray.streaming.runtime.cluster.ResourceManager;
+import org.ray.streaming.runtime.master.graphmanager.ResourceManager;
+import org.ray.streaming.runtime.core.graph.ExecutionGraph;
+import org.ray.streaming.runtime.core.graph.ExecutionNode;
+import org.ray.streaming.runtime.core.graph.ExecutionTask;
 import org.ray.streaming.plan.Plan;
 import org.ray.streaming.plan.PlanVertex;
+import org.ray.streaming.runtime.worker.JobWorker2;
 import org.ray.streaming.schedule.IJobSchedule;
-
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
-import org.ray.streaming.runtime.worker.JobWorker;
 import org.ray.streaming.runtime.worker.context.WorkerContext;
 
 public class JobScheduleImpl implements IJobSchedule {
@@ -37,7 +38,7 @@ public class JobScheduleImpl implements IJobSchedule {
     System.setProperty("ray.raylet.config.num_workers_per_process_java", "1");
     Ray.init();
 
-    List<RayActor<JobWorker>> workers = this.resourceManager.createWorker(getPlanWorker());
+    List<RayActor<JobWorker2>> workers = this.resourceManager.createWorker(getPlanWorker());
     ExecutionGraph executionGraph = this.taskAssign.assign(this.plan, workers);
 
     List<ExecutionNode> executionNodes = executionGraph.getExecutionNodeList();
@@ -46,8 +47,8 @@ public class JobScheduleImpl implements IJobSchedule {
       List<ExecutionTask> executionTasks = executionNode.getExecutionTasks();
       for (ExecutionTask executionTask : executionTasks) {
         int taskId = executionTask.getTaskId();
-        RayActor<JobWorker> streamWorker = executionTask.getWorker();
-        waits.add(Ray.call(JobWorker::init, streamWorker,
+        RayActor<JobWorker2> streamWorker = executionTask.getWorker();
+        waits.add(Ray.call(JobWorker2::init, streamWorker,
             new WorkerContext(taskId, executionGraph, jobConfig)));
       }
     }
