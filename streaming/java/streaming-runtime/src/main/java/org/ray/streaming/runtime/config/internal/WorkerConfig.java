@@ -2,8 +2,6 @@ package org.ray.streaming.runtime.config.internal;
 
 import org.aeonbits.owner.Config;
 
-import org.ray.streaming.runtime.transfer.QueueConfigKeys;
-
 /**
  *
  */

@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
  * @param <P> Type of the specific operator class.
  */
 public abstract class StreamProcessor<T, P extends Operator> implements Processor<T> {
-  private static final Logger LOGGER = LoggerFactory.getLogger(StreamProcessor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(StreamProcessor.class);
 
   protected List<Collector> collectors;
   protected RuntimeContext runtimeContext;
@@ -31,7 +31,7 @@ public abstract class StreamProcessor<T, P extends Operator> implements Processo
     if (operator != null) {
       this.operator.open(collectors, runtimeContext);
     }
-    LOGGER.info("opened {}", this);
+    LOG.info("opened {}", this);
   }
 
   @Override
