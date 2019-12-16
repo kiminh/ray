@@ -17,6 +17,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.base.Preconditions;
+import org.apache.commons.configuration.BaseConfiguration;
+import org.apache.commons.configuration.Configuration;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.ray.api.Checkpointable;
@@ -25,9 +27,16 @@ import org.ray.api.annotation.RayRemote;
 import org.ray.api.id.ActorId;
 import org.ray.api.id.UniqueId;
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
-import org.ray.streaming.runtime.utils.KryoUtils;
-import org.ray.streaming.runtime.utils.Serializer;
+import org.ray.streaming.runtime.config.internal.WorkerConfig;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobEdge;
+import org.ray.streaming.runtime.core.processor.OneInputProcessor;
+import org.ray.streaming.runtime.core.processor.Processor;
+import org.ray.streaming.runtime.core.processor.SourceProcessor;
+import org.ray.streaming.runtime.core.processor.TwoInputProcessor;
+import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.worker.task.ControlMessage;
+import org.ray.streaming.runtime.worker.task.SourceStreamTask;
 import org.ray.streaming.runtime.worker.task.StreamTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,44 +45,36 @@ import org.slf4j.LoggerFactory;
  * The streaming worker implementation class, it is ray actor.
  */
 @RayRemote
-public class JobWorker implements IJobWorker, Checkpointable {
+public class JobWorker implements IJobWorker {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobWorker.class);
 
+  /**
+   * Worker(execution vertex) configuration
+   */
+  private StreamingWorkerConfig workerConfig;
 
   /**
    * The context of job worker
    */
-  protected JobWorkerContext context;
+  protected JobWorkerContext workerContext;
+
+  private ExecutionVertex executionVertex;
 
   /**
    * The thread of stream task
    */
   private StreamTask task;
 
-  /**
-   * Rollback relations fields
-   */
-  public Collection<String> abnormalQueues;
-  public AtomicBoolean wasReconstructed = new AtomicBoolean(false);
-  private int rollbackCnt = 0;
 
-  /**
-   * The flag of check if need checkpoint
-   */
-  private boolean shouldCheckpoint = false;
 
-  /**
-   * Worker(execution vertex) configuration
-   */
-  private StreamingWorkerConfig conf;
-  private ExecutionVertex executionVertex;
   private byte[] executionVertexBytes;
 
   /**
    * Control message
    */
   private volatile boolean hasMessage = false;
+
   private Object lock = new Object();
 
   public JobWorker() {
@@ -83,80 +84,33 @@ public class JobWorker implements IJobWorker, Checkpointable {
     LOG.info("Job worker begin init.");
 
     Map<String, String> confMap = KryoUtils.readFromByteArray(confBytes);
-    conf = new StreamingWorkerConfig(confMap);
-    LOG.info("Job worker conf is {}.", conf.configMap);
-
-    // init state backend
-    //this.stateBackend = StateBackendFactory.getStateBackend(conf);
+    workerConfig = new StreamingWorkerConfig(confMap);
+    LOG.info("Job worker conf is {}.", workerConfig.configMap);
 
     LOG.info("Job worker init success.");
   }
 
-  // ----------------------------------------------------------------------
-  // Ray Checkpointable Interface
-  // ----------------------------------------------------------------------
-
-  /**
-   * Whether this actor needs to be checkpointed.
-   */
   @Override
-  public boolean shouldCheckpoint(CheckpointContext checkpointContext) {
-    return false;
-  }
-
-  /**
-   * Ray Checkpointable Interface Save a checkpoint to persistent storage.
-   */
-  @Override
-  public void saveCheckpoint(ActorId actorId, UniqueId checkpointId) {
-
-  }
-
-  /**
-   * Ray Checkpointable Interface Load actor's previous checkpoint, and restore actor's state.
-   */
-  @Override
-  public UniqueId loadCheckpoint(ActorId actorId, List<Checkpoint> availableCheckpoints) {
-    return null;
-  }
-
-  @Override
-  public void checkpointExpired(ActorId actorId, UniqueId checkpointId) {
-  }
-
-  // ----------------------------------------------------------------------
-  // Job Worker Start
-  // ----------------------------------------------------------------------
-  @Override
-  public void registerContext(JobWorkerContext ctx) {
-    LOG.info("Register worker context {}. workerId: {}.", ctx, ctx.workerId);
-    boolean isFirstRegister = (this.context == null);
+  public void init(JobWorkerContext workerContext) {
+    LOG.info("Init worker context {}. workerId: {}.", workerContext, workerContext.workerId);
     ExecutionVertex executionVertex = null;
-    if (null != ctx.executionVertexBytes) {
-      executionVertex = KryoUtils.readFromByteArray(ctx.executionVertexBytes);
+    if (null != workerContext.executionVertexBytes) {
+      executionVertex = KryoUtils.readFromByteArray(workerContext.executionVertexBytes);
     }
-
-    this.context = ctx;
-    this.conf = new StreamingWorkerConfig(ctx.conf);
-
-    this.hasMessage = !context.mailbox.isEmpty();
+    this.workerContext = workerContext;
+    this.workerConfig = new StreamingWorkerConfig(workerContext.conf);
     this.executionVertex = executionVertex;
+  }
 
-    Configuration configuration = new BaseConfiguration();
-    configuration.addProperty(WorkerConfig.STATE_VERSION, conf.workerConfig.stateVersion());
-    RuntimeContext.setRuntimeEnv(new RuntimeEnvironment(configuration));
-
-    // init extra resource
-    String extraResource = conf.extraResourceConfig.extraResourceUrl();
-    if (!StringUtils.isEmpty(extraResource)) {
-      if (initExtraResource(extraResource)) {
-        LOG.info("Initiate extra resource success. Extra resource is {}.", extraResource);
-      } else {
-        LOG.info("Initiate extra resource fail. Extra resource is {}.", extraResource);
-      }
-    } else {
-      LOG.info("No extra resource need for job. Skip initiating extra resource.");
+  @Override
+  public void start() {
+    if (task != null) {
+      task.close();
+      task = null;
     }
+
+    task = createStreamTask();
+
   }
 
   // ----------------------------------------------------------------------
@@ -269,22 +223,6 @@ public class JobWorker implements IJobWorker, Checkpointable {
 
 
 
-  private File downloadFileByHttpClient(String url, File localTargetFile) throws IOException {
-    HttpClientUtil.getFile(url, localTargetFile);
-    return localTargetFile;
-  }
-
-  private File downloadFileByOssClient(String endpoint, String accessKeyId, String accessKeySecret,
-      String bucket, String objectKey, File localTargetFile) {
-    OssClientUtil oss = new OssClientUtil(endpoint, accessKeyId, accessKeySecret);
-    oss.getFile(bucket, objectKey, localTargetFile);
-    return localTargetFile;
-  }
-
-  public WorkerMetrics getMetrics() {
-    return metrics;
-  }
-
   public void setContext(JobWorkerContext context) {
     this.context = context;
   }
@@ -301,7 +239,7 @@ public class JobWorker implements IJobWorker, Checkpointable {
     return task;
   }
 
-  private StreamTask createStreamTask(long checkpointId) {
+  private StreamTask createStreamTask() {
     StreamTask task;
     Processor processor = this.executionVertex.getExeJobVertex().getJobVertex().getProcessor();
     if (processor instanceof SourceProcessor) {
@@ -332,11 +270,6 @@ public class JobWorker implements IJobWorker, Checkpointable {
     return task;
   }
 
-  private String getJobWorkerContextKey() {
-    return conf.checkpointConfig.jobWorkerContextCpPrefixKey()
-        + conf.commonConfig.jobName()
-        + "_" + conf.workerConfig.workerId();
-  }
 
   private static StreamingWorkerConfig getJobWorkerConf(final byte[] confBytes) {
     Map<String, String> confMap = KryoUtils.readFromByteArray(confBytes);
@@ -349,43 +282,6 @@ public class JobWorker implements IJobWorker, Checkpointable {
     workerTags.put("op_name", this.context.opName);
     workerTags.put("worker_id", this.context.workerId.toString());
     return workerTags;
-  }
-
-
-  public class WorkerState {
-
-    JobWorker.StateType type;
-
-    public WorkerState() {
-      this.type = JobWorker.StateType.INIT;
-    }
-
-    public void setType(JobWorker.StateType type) {
-      this.type = type;
-    }
-
-    public JobWorker.StateType getType() {
-      return type;
-    }
-  }
-
-  public enum StateType {
-    /**
-     * INIT/RUNNING/WAIT_ROLLBACK
-     */
-    INIT(1),
-    RUNNING(2),
-    WAIT_ROLLBACK(3);
-
-    private int value;
-
-    StateType(int value) {
-      this.value = value;
-    }
-
-    public int getValue() {
-      return value;
-    }
   }
 
   public StreamingWorkerConfig getConf() {
