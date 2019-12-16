@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.util;
+package org.ray.streaming.runtime.utils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;

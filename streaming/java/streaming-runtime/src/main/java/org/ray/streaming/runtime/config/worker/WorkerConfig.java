@@ -1,7 +1,7 @@
 package org.ray.streaming.runtime.config.worker;
 
 import org.aeonbits.owner.Config;
-import org.ray.streaming.runtime.transfer.QueueConfigKeys;
+import org.ray.streaming.runtime.core.queue.transfer.QueueConfigKeys;
 
 /**
  *
