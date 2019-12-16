@@ -1,9 +1,10 @@
-package org.ray.streaming.runtime.transfer;
+package org.ray.streaming.runtime.core.transfer;
 
 import com.google.common.base.Preconditions;
 import org.ray.runtime.RayNativeRuntime;
 import org.ray.runtime.functionmanager.FunctionDescriptor;
 import org.ray.runtime.functionmanager.JavaFunctionDescriptor;
+
 import org.ray.streaming.runtime.util.JniUtils;
 
 /**

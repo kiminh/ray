@@ -3,7 +3,7 @@ package org.ray.streaming.runtime.streamingqueue;
 import org.ray.api.Ray;
 import org.ray.runtime.RayMultiWorkerNativeRuntime;
 import org.ray.runtime.functionmanager.JavaFunctionDescriptor;
-import org.ray.streaming.runtime.transfer.TransferHandler;
+import org.ray.streaming.runtime.core.transfer.TransferHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

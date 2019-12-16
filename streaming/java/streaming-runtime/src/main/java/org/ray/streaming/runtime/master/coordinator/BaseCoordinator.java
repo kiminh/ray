@@ -1,12 +1,12 @@
 package org.ray.streaming.runtime.master.coordinator;
 
-import com.alipay.streaming.runtime.graphmanager.GraphManager;
-import com.alipay.streaming.runtime.master.JobMaster;
-import com.alipay.streaming.runtime.master.JobMasterRuntimeContext;
-import com.alipay.streaming.runtime.metrics.MasterMetrics;
-import com.alipay.streaming.runtime.utils.LoggerFactory;
 import org.ray.api.Ray;
 import org.slf4j.Logger;
+
+import org.ray.streaming.runtime.master.JobMaster;
+import org.ray.streaming.runtime.master.JobMasterRuntimeContext;
+import org.ray.streaming.runtime.master.graphmanager.GraphManager;
+import org.ray.streaming.runtime.util.LoggerFactory;
 
 public abstract class BaseCoordinator implements Runnable {
 
@@ -16,7 +16,6 @@ public abstract class BaseCoordinator implements Runnable {
 
   protected final JobMasterRuntimeContext runtimeContext;
   protected final GraphManager graphManager;
-  protected final MasterMetrics metrics;
 
   private Thread t;
   protected volatile boolean closed;
@@ -25,7 +24,6 @@ public abstract class BaseCoordinator implements Runnable {
     this.jobMaster = jobMaster;
     this.runtimeContext = jobMaster.getRuntimeContext();
     this.graphManager = jobMaster.getGraphManager();
-    this.metrics = jobMaster.getMetrics();
   }
 
   public void start() {

@@ -1,11 +1,12 @@
 package org.ray.streaming.runtime.core.state.serde.impl;
 
-import com.alipay.streaming.runtime.utils.LoggerFactory;
-import com.alipay.streaming.runtime.utils.Md5Util;
 import com.google.common.base.Preconditions;
 import java.io.Serializable;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
+
+import org.ray.streaming.runtime.util.LoggerFactory;
+import org.ray.streaming.runtime.util.Md5Util;
 
 public abstract class AbstractSerDe implements Serializable {
 

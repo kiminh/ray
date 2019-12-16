@@ -1,21 +1,19 @@
-package org.ray.streaming.runtime.transfer;
+package org.ray.streaming.runtime.core.transfer;
 
-import com.google.common.base.Preconditions;
 import java.lang.ref.Reference;
 import java.nio.ByteBuffer;
 import java.util.Random;
 import java.util.Set;
 
-import javax.xml.bind.DatatypeConverter;
-
-import org.ray.runtime.RayNativeRuntime;
-import org.ray.streaming.runtime.util.JniUtils;
-
 import com.google.common.base.FinalizablePhantomReference;
 import com.google.common.base.FinalizableReferenceQueue;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
-
+import javax.xml.bind.DatatypeConverter;
+import org.ray.runtime.RayNativeRuntime;
 import sun.nio.ch.DirectBuffer;
+
+import org.ray.streaming.runtime.util.JniUtils;
 
 /**
  * ChannelID is used to identify a transfer channel between a upstream worker

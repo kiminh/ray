@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.core.queue;
+package org.ray.streaming.runtime.core.transfer;
 
 import com.google.common.base.Preconditions;
 import javax.xml.bind.DatatypeConverter;

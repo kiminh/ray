@@ -1,12 +1,4 @@
-package org.ray.streaming.runtime.core.queue.transfer;
-
-import org.ray.api.id.ActorId;
-import org.ray.runtime.RayNativeRuntime;
-import org.ray.streaming.runtime.util.JniUtils;
-import org.ray.streaming.runtime.util.Platform;
-import org.ray.streaming.util.Config;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package org.ray.streaming.runtime.core.transfer;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -15,6 +7,14 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Preconditions;
+import org.ray.api.id.ActorId;
+import org.ray.runtime.RayNativeRuntime;
+import org.ray.streaming.util.Config;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.ray.streaming.runtime.util.JniUtils;
+import org.ray.streaming.runtime.util.Platform;
 
 /**
  * Data Writer is a wrapper of streaming c++ DataWriter, which sends data
@@ -46,8 +46,8 @@ public class DataWriter {
    * @param conf           configuration
    */
   public DataWriter(List<String> outputChannels,
-                    List<ActorId> toActors,
-                    Map<String, String> conf) {
+      List<ActorId> toActors,
+      Map<String, String> conf) {
     Preconditions.checkArgument(!outputChannels.isEmpty());
     Preconditions.checkArgument(outputChannels.size() == toActors.size());
     byte[][] outputChannelsBytes = outputChannels.stream()
@@ -150,3 +150,4 @@ public class DataWriter {
   private native void closeWriterNative(long nativeQueueProducerPtr);
 
 }
+

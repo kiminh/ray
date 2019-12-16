@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.core.queue.transfer;
+package org.ray.streaming.runtime.core.transfer;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -7,15 +7,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import com.google.common.base.Preconditions;
 import org.ray.api.id.ActorId;
 import org.ray.runtime.RayNativeRuntime;
-import org.ray.streaming.runtime.util.JniUtils;
-import org.ray.streaming.runtime.util.Platform;
 import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
+import org.ray.streaming.runtime.util.JniUtils;
+import org.ray.streaming.runtime.util.Platform;
 
 /**
  * Data Reader is wrapper of streaming c++ DataReader, which read data
@@ -37,8 +37,8 @@ public class DataReader {
   private Queue<DataMessage> buf = new LinkedList<>();
 
   public DataReader(List<String> inputChannels,
-                    List<ActorId> fromActors,
-                    Map<String, String> conf) {
+      List<ActorId> fromActors,
+      Map<String, String> conf) {
     Preconditions.checkArgument(inputChannels.size() > 0);
     Preconditions.checkArgument(inputChannels.size() == fromActors.size());
     byte[][] inputChannelsBytes = inputChannels.stream()

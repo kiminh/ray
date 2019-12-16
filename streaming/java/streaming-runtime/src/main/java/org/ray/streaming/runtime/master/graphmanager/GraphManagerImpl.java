@@ -27,7 +27,7 @@ import org.ray.streaming.runtime.core.graph.executiongraph.IntermediateResultPar
 import org.ray.streaming.runtime.core.graph.executiongraph.OperatorNode;
 import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
 import org.ray.streaming.runtime.core.graph.jobgraph.JobVertex;
-import org.ray.streaming.runtime.core.queue.QueueUtils;
+import org.ray.streaming.runtime.core.transfer.QueueUtils;
 import org.ray.streaming.runtime.core.resource.ContainerID;
 import org.ray.streaming.runtime.master.JobMaster;
 import org.ray.streaming.runtime.master.JobMasterRuntimeContext;

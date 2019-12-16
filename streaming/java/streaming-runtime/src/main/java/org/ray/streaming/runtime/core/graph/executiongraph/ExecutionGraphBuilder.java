@@ -8,11 +8,11 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 
-import com.alipay.streaming.runtime.jobgraph.JobEdge;
-import com.alipay.streaming.runtime.jobgraph.JobGraph;
-import com.alipay.streaming.runtime.jobgraph.JobVertex;
-import com.alipay.streaming.runtime.jobgraph.JobVertexID;
-import com.alipay.streaming.runtime.utils.LoggerFactory;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobEdge;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobVertex;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobVertexID;
+import org.ray.streaming.runtime.util.LoggerFactory;
 
 public class ExecutionGraphBuilder {
 
@@ -71,5 +71,4 @@ public class ExecutionGraphBuilder {
       exeJobVertex.connectNewIntermediateResultAsInput(input, producerEjv);
     }
   }
-
 }
