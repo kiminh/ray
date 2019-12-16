@@ -4,11 +4,10 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.ray.api.RayActor;
-import org.ray.streaming.runtime.worker.JobWorker2;
+import org.ray.streaming.runtime.worker.JobWorker;
 
 /**
  * Physical execution graph.
@@ -16,8 +15,8 @@ import org.ray.streaming.runtime.worker.JobWorker2;
 public class ExecutionGraph implements Serializable {
   private long buildTime;
   private List<ExecutionNode> executionNodeList;
-  private List<RayActor<JobWorker2>> sourceWorkers = new ArrayList<>();
-  private List<RayActor<JobWorker2>> sinkWorkers = new ArrayList<>();
+  private List<RayActor<JobWorker>> sourceWorkers = new ArrayList<>();
+  private List<RayActor<JobWorker>> sinkWorkers = new ArrayList<>();
 
   public ExecutionGraph(List<ExecutionNode> executionNodes) {
     this.executionNodeList = executionNodes;
@@ -36,11 +35,11 @@ public class ExecutionGraph implements Serializable {
     buildTime = System.currentTimeMillis();
   }
 
-  public List<RayActor<JobWorker2>> getSourceWorkers() {
+  public List<RayActor<JobWorker>> getSourceWorkers() {
     return sourceWorkers;
   }
 
-  public List<RayActor<JobWorker2>> getSinkWorkers() {
+  public List<RayActor<JobWorker>> getSinkWorkers() {
     return sinkWorkers;
   }
 

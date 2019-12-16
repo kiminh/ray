@@ -2,10 +2,12 @@ package org.ray.streaming.runtime.config;
 
 import java.util.HashMap;
 import java.util.Map;
+
 import org.aeonbits.owner.ConfigFactory;
-import org.ray.streaming.runtime.config.worker.WorkerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.ray.streaming.runtime.config.internal.WorkerConfig;
 
 /**
  *
