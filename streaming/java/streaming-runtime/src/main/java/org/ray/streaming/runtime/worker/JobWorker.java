@@ -1,33 +1,15 @@
 package org.ray.streaming.runtime.worker;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.channels.FileLock;
-import java.nio.channels.OverlappingFileLockException;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.base.Preconditions;
-import org.apache.commons.configuration.BaseConfiguration;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.ray.api.Checkpointable;
-import org.ray.api.Ray;
 import org.ray.api.annotation.RayRemote;
-import org.ray.api.id.ActorId;
-import org.ray.api.id.UniqueId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
-import org.ray.streaming.runtime.config.internal.WorkerConfig;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.graph.jobgraph.JobEdge;
 import org.ray.streaming.runtime.core.processor.OneInputProcessor;
@@ -38,8 +20,6 @@ import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.worker.task.ControlMessage;
 import org.ray.streaming.runtime.worker.task.SourceStreamTask;
 import org.ray.streaming.runtime.worker.task.StreamTask;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The streaming worker implementation class, it is ray actor.
@@ -65,8 +45,6 @@ public class JobWorker implements IJobWorker {
    * The thread of stream task
    */
   private StreamTask task;
-
-
 
   private byte[] executionVertexBytes;
 
@@ -119,8 +97,6 @@ public class JobWorker implements IJobWorker {
 
   @Override
   public boolean destroy() {
-    shouldCheckpoint = true;
-
     try {
       if (task != null) {
         // make sure the runner is closed
@@ -147,14 +123,14 @@ public class JobWorker implements IJobWorker {
   private boolean insertControlMessage(ControlMessage message) {
     try {
       synchronized (lock) {
-        LOG.info("Worker {} before inserting, mailbox: {}, hasMessage: {}.", context.workerId,
-            context.mailbox, hasMessage);
+        LOG.info("Worker {} before inserting, mailbox: {}, hasMessage: {}.", workerContext.workerId,
+            workerContext.mailbox, hasMessage);
 
-        context.mailbox.put(message);
+        workerContext.mailbox.put(message);
         hasMessage = true;
 
-        LOG.info("Worker {} after inserting, mailbox: {}, hasMessage: {}.", context.workerId,
-            context.mailbox, hasMessage);
+        LOG.info("Worker {} after inserting, mailbox: {}, hasMessage: {}.", workerContext.workerId,
+            workerContext.mailbox, hasMessage);
       }
     } catch (InterruptedException e) {
       LOG.error("Failed to insert control message to mailbox.", e);
@@ -172,14 +148,14 @@ public class JobWorker implements IJobWorker {
   public ControlMessage pollControlMessage() {
     ControlMessage message;
     synchronized (lock) {
-      LOG.info("Worker {} before polling, mailbox: {}, hasMessage: {}.", context.workerId,
-          context.mailbox, hasMessage);
+      LOG.info("Worker {} before polling, mailbox: {}, hasMessage: {}.", workerContext.workerId,
+          workerContext.mailbox, hasMessage);
 
-      message = context.mailbox.poll();
-      hasMessage = !context.mailbox.isEmpty();
+      message = workerContext.mailbox.poll();
+      hasMessage = !workerContext.mailbox.isEmpty();
 
       LOG.info("Worker {} polled message from mailbox: {}, remaining: {}, hasMessage: {}.",
-          context.workerId, message, context.mailbox, hasMessage);
+          workerContext.workerId, message, workerContext.mailbox, hasMessage);
       return message;
     }
   }
@@ -192,23 +168,6 @@ public class JobWorker implements IJobWorker {
   public boolean hasControlMessage() {
     return this.hasMessage;
   }
-
-  /**
-   * Hot update worker context
-   *
-   * @param newContext job worker context which is updated
-   */
-  @Override
-  public void updateContext(JobWorkerContext newContext) {
-    try {
-      LOG.info("Insert update context control message into mailbox.");
-      ControlMessage<JobWorkerContext> message = new ControlMessage(newContext, UPDATE_CONTEXT);
-      insertControlMessage(message);
-    } catch (Exception e) {
-      LOG.error("Failed to update context.", e);
-    }
-  }
-
 
   @Override
   public void shutdown() {
@@ -224,11 +183,11 @@ public class JobWorker implements IJobWorker {
 
 
   public void setContext(JobWorkerContext context) {
-    this.context = context;
+    this.workerContext = context;
   }
 
   public JobWorkerContext getContext() {
-    return context;
+    return workerContext;
   }
 
   public ExecutionVertex getExecutionVertex() {
@@ -278,9 +237,9 @@ public class JobWorker implements IJobWorker {
 
   private Map<String, String> getJobWorkerTags() {
     Map<String, String> workerTags = new HashMap<>();
-    workerTags.put("worker_name", this.context.workerName);
-    workerTags.put("op_name", this.context.opName);
-    workerTags.put("worker_id", this.context.workerId.toString());
+    workerTags.put("worker_name", this.workerContext.workerName);
+    workerTags.put("op_name", this.workerContext.opName);
+    workerTags.put("worker_id", this.workerContext.workerId.toString());
     return workerTags;
   }
 

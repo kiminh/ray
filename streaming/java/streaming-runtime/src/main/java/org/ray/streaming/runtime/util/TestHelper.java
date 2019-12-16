@@ -1,13 +1,11 @@
 package org.ray.streaming.runtime.util;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.io.FileUtils;
 import org.ray.api.id.UniqueId;
 import org.ray.api.runtimecontext.NodeInfo;
 

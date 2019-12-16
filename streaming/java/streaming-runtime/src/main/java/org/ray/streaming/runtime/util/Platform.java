@@ -3,12 +3,10 @@ package org.ray.streaming.runtime.util;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import com.google.common.base.Preconditions;
-
 import sun.misc.Unsafe;
 import sun.nio.ch.DirectBuffer;
 

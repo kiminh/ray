@@ -39,6 +39,7 @@ import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.util.RayUtils;
 import org.ray.streaming.runtime.util.TestHelper;
+import org.ray.streaming.runtime.worker.JobWorker;
 
 public class ResourceManagerImpl implements ResourceManager {
 
@@ -265,16 +266,6 @@ public class ResourceManagerImpl implements ResourceManager {
     nodeInfoMap.forEach((k, v) ->
         containerResources.put(resources.containerMap.get(k), v.resources));
     return containerResources;
-  }
-
-  @Override
-  public void saveResources() {
-    LOG.info("Save resources in runtime context: {}.", resources);
-    if (TestHelper.isUTPattern()) {
-      return;
-    }
-    Preconditions.checkArgument(jobMaster != null, "Job master is null when saving resources.");
-    jobMaster.saveContext();
   }
 
   @Override

@@ -1,16 +1,17 @@
 package org.ray.streaming.runtime.core.collector;
 
+import java.nio.ByteBuffer;
+import java.util.Collection;
+
 import org.ray.runtime.util.Serializer;
 import org.ray.streaming.api.collector.Collector;
 import org.ray.streaming.api.partition.Partition;
 import org.ray.streaming.message.Record;
-import org.ray.streaming.runtime.core.transfer.ChannelID;
-import org.ray.streaming.runtime.transfer.DataWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
-import java.util.Collection;
+import org.ray.streaming.runtime.core.transfer.ChannelID;
+import org.ray.streaming.runtime.core.transfer.DataWriter;
 
 public class OutputCollector implements Collector<Record> {
   private static final Logger LOGGER = LoggerFactory.getLogger(OutputCollector.class);

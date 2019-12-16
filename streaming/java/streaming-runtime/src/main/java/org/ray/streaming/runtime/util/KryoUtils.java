@@ -1,5 +1,16 @@
 package org.ray.streaming.runtime.util;
 
+import java.lang.invoke.SerializedLambda;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Kryo.DefaultInstantiatorStrategy;
 import com.esotericsoftware.kryo.KryoException;
@@ -33,20 +44,11 @@ import de.javakaffee.kryoserializers.guava.TreeMultimapSerializer;
 import de.javakaffee.kryoserializers.guava.UnmodifiableNavigableSetSerializer;
 import de.javakaffee.kryoserializers.jodatime.JodaLocalDateSerializer;
 import de.javakaffee.kryoserializers.jodatime.JodaLocalDateTimeSerializer;
-import java.lang.invoke.SerializedLambda;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import org.objenesis.strategy.StdInstantiatorStrategy;
-import org.ray.streaming.runtime.config.StreamingConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.ray.streaming.runtime.config.StreamingConfig;
 
 /**
  *

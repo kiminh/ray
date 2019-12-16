@@ -30,7 +30,5 @@ public interface ResourceManager {
 
   Map<Container, Map<String, Double>> getContainerResources();
 
-  void saveResources();
-
   StreamingMasterConfig getConf();
 }

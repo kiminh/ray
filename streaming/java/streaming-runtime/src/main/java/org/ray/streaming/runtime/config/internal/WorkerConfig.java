@@ -7,11 +7,11 @@ import org.aeonbits.owner.Config;
  */
 public interface WorkerConfig extends Config {
   String WORKER_ID_INTERNAL = WorkerConfig.PY_WORKER_ID;
-  String WORKER_NAME_INTERNAL = QueueConfigKeys.STREAMING_WORKER_NAME;
-  //String OPERATOR_TYPE_INTERNAL = QueueConfigKeys.OPERATOR_TYPE;
-  String OPERATOR_NAME_INTERNAL = QueueConfigKeys.STREAMING_OP_NAME;
-  String JOB_NAME_INTERNAL = QueueConfigKeys.STREAMING_JOB_NAME;
-  //String RELIABILITY_LEVEL_INTERNAL = QueueConfigKeys.RELIABILITY_LEVEL;
+  String WORKER_NAME_INTERNAL = "StreamingWorkerName";
+  String OPERATOR_NAME_INTERNAL = "StreamingOpName";
+  String JOB_NAME_INTERNAL = "StreamingJobName";
+  String RELIABILITY_LEVEL_INTERNAL = "reliability_level";
+  String OPERATOR_TYPE_INTERNAL = "operator_type";
   String STATE_VERSION = "streaming.state.version";
 
   /**

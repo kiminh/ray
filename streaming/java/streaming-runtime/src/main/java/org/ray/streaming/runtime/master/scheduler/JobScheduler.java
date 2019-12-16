@@ -33,6 +33,7 @@ import org.ray.streaming.runtime.master.resourcemanager.ResourceManager;
 import org.ray.streaming.runtime.master.scheduler.controller.WorkerLifecycleController;
 import org.ray.streaming.runtime.master.scheduler.strategy.SlotAssignStrategy;
 import org.ray.streaming.runtime.util.KryoUtils;
+import org.ray.streaming.runtime.worker.JobWorkerContext;
 
 public class JobScheduler implements IJobScheduler {
 
@@ -253,22 +254,6 @@ public class JobScheduler implements IJobScheduler {
 
     // pass worker config template (common part)
     workerConfMap.putAll(workerConfigTemplate.configMap);
-
-    // set queue type and queue size
-    QueueConfig queueConfig = workerConfigTemplate.queueConfig;
-    workerConfMap.put(QueueConfig.QUEUE_SIZE_INTERNAL, queueConfig.queueSize() + "");
-
-    // be careful: 'queue type' only support lower case, e.g. plasma_queue
-    if (QueueType.PLASMA_QUEUE.equals(QueueType.valueOf(queueConfig.queueType().toUpperCase()))) {
-      workerConfMap.put(QueueConfig.QUEUE_TYPE_INTERNAL, QueueType.PLASMA_QUEUE.name().toLowerCase());
-      LOG.info("Use plasma queue, size is {}.", workerConfMap.get(QueueConfig.QUEUE_SIZE));
-    } else if (QueueType.STREAMING_QUEUE.equals(QueueType.valueOf(queueConfig.queueType().toUpperCase()))) {
-      workerConfMap.put(QueueConfig.QUEUE_TYPE_INTERNAL, QueueType.STREAMING_QUEUE.name().toLowerCase());
-      LOG.info("Use streaming queue, size is {}.", workerConfMap.get(QueueConfig.QUEUE_SIZE));
-    } else {
-      workerConfMap.put(QueueConfig.QUEUE_TYPE_INTERNAL, QueueType.MEMORY_QUEUE.name().toLowerCase());
-      LOG.info("Use memory queue.");
-    }
 
     // set operator type of queue
     if (executionVertex.isSourceVertex()) {
