@@ -8,14 +8,12 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
-import org.ray.api.Checkpointable;
 import org.ray.api.Ray;
 import org.ray.api.RayActor;
 import org.ray.api.RayObject;
 import org.ray.api.annotation.RayRemote;
 import org.ray.api.id.ActorId;
 import org.ray.api.id.ObjectId;
-import org.ray.api.id.UniqueId;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
@@ -34,11 +32,10 @@ import org.ray.streaming.runtime.master.scheduler.JobScheduler;
 import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.util.ModuleNameAppender;
-import org.ray.streaming.runtime.util.Serializer;
 import org.ray.streaming.runtime.util.TestHelper;
 
 @RayRemote
-public class JobMaster implements IJobMaster, Checkpointable {
+public class JobMaster implements IJobMaster {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobMaster.class);
 
@@ -120,46 +117,6 @@ public class JobMaster implements IJobMaster, Checkpointable {
           }
           return true;
         }).collect(Collectors.toList());
-  }
-
-  @Override
-  public byte[] requestJobWorkerRollback(byte[] requestBytes) {
-    return null;
-  }
-
-  @Override
-  public byte[] reportJobWorkerCommit(byte[] reportBytes) {
-    return null;
-  }
-
-  @Override
-  public boolean shouldCheckpoint(CheckpointContext checkpointContext) {
-    return true;
-  }
-
-  @Override
-  public void saveCheckpoint(ActorId actorId, UniqueId checkpointId) {
-    saveContext();
-  }
-
-  public synchronized void saveContext() {
-    if (runtimeContext != null && conf != null) {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Save JobMaster context.");
-      }
-
-      byte[] contextBytes = Serializer.encode(runtimeContext);
-      //TODO: save
-    }
-  }
-
-  @Override
-  public UniqueId loadCheckpoint(ActorId actorId, List<Checkpoint> availableCheckpoints) {
-    return null;
-  }
-
-  @Override
-  public void checkpointExpired(ActorId actorId, UniqueId checkpointId) {
   }
 
   @Override
@@ -248,14 +205,6 @@ public class JobMaster implements IJobMaster, Checkpointable {
     return runtimeContext;
   }
 
-
-
-  @Override
-  public byte[] reportJobWorkerInitiativeRollback(byte[] reportBytes) {
-    return null;
-  }
-
-
   public ResourceManager getResourceManager() {
     return resourceManager;
   }
@@ -268,11 +217,9 @@ public class JobMaster implements IJobMaster, Checkpointable {
     return stateBackend;
   }
 
-
   public StreamingMasterConfig getConf() {
     return conf;
   }
-
 
   private String getActorName(ActorId id) {
     return graphManager.getExecutionGraph().getActorName(id);
