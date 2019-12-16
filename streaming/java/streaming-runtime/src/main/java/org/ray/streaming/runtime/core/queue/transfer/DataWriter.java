@@ -1,67 +1,109 @@
 package org.ray.streaming.runtime.core.queue.transfer;
 
-import org.ray.runtime.functionmanager.FunctionDescriptor;
+import org.ray.api.id.ActorId;
+import org.ray.runtime.RayNativeRuntime;
+import org.ray.streaming.runtime.util.JniUtils;
 import org.ray.streaming.runtime.util.Platform;
+import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
+
+/**
+ * Data Writer is a wrapper of streaming c++ DataWriter, which sends data
+ * to downstream workers
+ */
 public class DataWriter {
+  private static final Logger LOGGER = LoggerFactory.getLogger(DataWriter.class);
 
-  private static final Logger LOG = LoggerFactory.getLogger(DataWriter.class);
+  static {
+    try {
+      Class.forName(RayNativeRuntime.class.getName());
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
+    JniUtils.loadLibrary("streaming_java");
+  }
 
-  private long nativeQueueProducerPtr;
-  private byte[][] subscribedQueues;
-  transient private List<String> subscribedQueuesStringId;
+  private long nativeWriterPtr;
   private ByteBuffer buffer = ByteBuffer.allocateDirect(0);
   private long bufferAddress;
+
   {
     ensureBuffer(0);
   }
 
-  public DataWriter(long nativeQueueProducerPtr, byte[][] subscribedQueues) {
-    this.nativeQueueProducerPtr = nativeQueueProducerPtr;
-    this.subscribedQueues = subscribedQueues;
-    this.subscribedQueuesStringId = new ArrayList<>();
-
-    for (byte[] idBytes : subscribedQueues) {
-      subscribedQueuesStringId.add(ChannelUtils.qidBytesToString(idBytes));
+  /**
+   * @param outputChannels output channels ids
+   * @param toActors       downstream output actors
+   * @param conf           configuration
+   */
+  public DataWriter(List<String> outputChannels,
+                    List<ActorId> toActors,
+                    Map<String, String> conf) {
+    Preconditions.checkArgument(!outputChannels.isEmpty());
+    Preconditions.checkArgument(outputChannels.size() == toActors.size());
+    byte[][] outputChannelsBytes = outputChannels.stream()
+        .map(ChannelID::idStrToBytes).toArray(byte[][]::new);
+    byte[][] toActorsBytes = toActors.stream()
+        .map(ActorId::getBytes).toArray(byte[][]::new);
+    long channelSize = Long.parseLong(
+        conf.getOrDefault(Config.CHANNEL_SIZE, Config.CHANNEL_SIZE_DEFAULT));
+    long[] msgIds = new long[outputChannels.size()];
+    for (int i = 0; i < outputChannels.size(); i++) {
+      msgIds[i] = 0;
     }
+    String channelType = conf.getOrDefault(Config.CHANNEL_TYPE, Config.DEFAULT_CHANNEL_TYPE);
+    boolean isMock = false;
+    if (Config.MEMORY_CHANNEL.equals(channelType)) {
+      isMock = true;
+    }
+    this.nativeWriterPtr = createWriterNative(
+        outputChannelsBytes,
+        toActorsBytes,
+        msgIds,
+        channelSize,
+        ChannelUtils.toNativeConf(conf),
+        isMock
+    );
+    LOGGER.info("create DataWriter succeed");
   }
 
   /**
-   * produce msg into the specified queue
+   * Write msg into the specified channel
    *
    * @param id   channel id
    * @param item message item data section is specified by [position, limit).
    */
-  public void produce(ChannelID id, ByteBuffer item) {
+  public void write(ChannelID id, ByteBuffer item) {
     int size = item.remaining();
     ensureBuffer(size);
     buffer.clear();
     buffer.put(item);
-    writeMessageNative(nativeQueueProducerPtr, id.getNativeIDPtr(), bufferAddress, size);
+    writeMessageNative(nativeWriterPtr, id.getNativeIDPtr(), bufferAddress, size);
   }
 
   /**
-   * produce msg into the specified queues
+   * Write msg into the specified channels
    *
-   * @param ids   channel ids
+   * @param ids  channel ids
    * @param item message item data section is specified by [position, limit).
-   *            item doesn't have to be a direct buffer.
+   *             item doesn't have to be a direct buffer.
    */
-  public void produce(Set<ChannelID> ids, ByteBuffer item) {
+  public void write(Set<ChannelID> ids, ByteBuffer item) {
     int size = item.remaining();
     ensureBuffer(size);
     for (ChannelID id : ids) {
       buffer.clear();
       buffer.put(item.duplicate());
-      writeMessageNative(nativeQueueProducerPtr, id.getNativeIDPtr(), bufferAddress, size);
+      writeMessageNative(nativeWriterPtr, id.getNativeIDPtr(), bufferAddress, size);
     }
   }
 
@@ -74,44 +116,37 @@ public class DataWriter {
   }
 
   /**
-   * stop produce to avoid blocking
+   * stop writer
    */
   public void stop() {
-    stopProducerNative(nativeQueueProducerPtr);
+    stopWriterNative(nativeWriterPtr);
   }
 
   /**
-   * close produce to release resource
+   * close writer to release resources
    */
   public void close() {
-    if (nativeQueueProducerPtr == 0) {
+    if (nativeWriterPtr == 0) {
       return;
     }
-    LOG.info("closing channel producer.");
-    closeProducerNative(nativeQueueProducerPtr);
-    nativeQueueProducerPtr = 0;
-    LOG.info("closing channel producer done.");
+    LOGGER.info("closing data writer.");
+    closeWriterNative(nativeWriterPtr);
+    nativeWriterPtr = 0;
+    LOGGER.info("closing data writer done.");
   }
 
-  private native long createDataWriterNative(
-      long coreWorker,
-      byte[][] outputActorIds,
-      FunctionDescriptor asyncFunction,
-      FunctionDescriptor syncFunction,
+  private static native long createWriterNative(
       byte[][] outputQueueIds,
-      long[] seqIds,
-      long queueSize,
-      long[] creatorTypes,
-      byte[] fbsConfigBytes);
-
-  private native void onTransfer(long handler, byte[] buffer);
-
-  private native byte[] onTransferSync(long handler, byte[] buffer);
+      byte[][] outputActorIds,
+      long[] msgIds,
+      long channelSize,
+      byte[] confBytes,
+      boolean isMock);
 
   private native long writeMessageNative(long nativeQueueProducerPtr, long nativeIDPtr, long address, int size);
 
-  private native void stopProducerNative(long nativeQueueProducerPtr);
+  private native void stopWriterNative(long nativeQueueProducerPtr);
 
-  private native void closeProducerNative(long nativeQueueProducerPtr);
+  private native void closeWriterNative(long nativeQueueProducerPtr);
 
 }
