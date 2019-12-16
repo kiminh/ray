@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.master.manager.graph;
+package org.ray.streaming.runtime.master.graphmanager;
 
 import java.io.Serializable;
 import java.util.Map;

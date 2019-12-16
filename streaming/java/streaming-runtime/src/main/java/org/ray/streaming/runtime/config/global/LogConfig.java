@@ -1,8 +1,8 @@
 package org.ray.streaming.runtime.config.global;
 
-import static org.aeonbits.owner.Config.DisableableFeature.*;
-
 import org.aeonbits.owner.Config;
+
+import static org.aeonbits.owner.Config.DisableableFeature.PARAMETER_FORMATTING;
 
 /**
  *

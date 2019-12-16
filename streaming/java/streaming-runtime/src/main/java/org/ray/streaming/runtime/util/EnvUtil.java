@@ -1,4 +1,6 @@
-package org.ray.streaming.runtime.utils;
+package org.ray.streaming.runtime.util;
+
+import java.lang.management.ManagementFactory;
 
 /**
  *
@@ -12,4 +14,7 @@ public class EnvUtil {
     return env != null;
   }
 
+  public static String getJvmPid() {
+    return ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
+  }
 }

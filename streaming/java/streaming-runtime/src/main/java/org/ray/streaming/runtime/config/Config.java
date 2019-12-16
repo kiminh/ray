@@ -1,6 +1,7 @@
 package org.ray.streaming.runtime.config;
 
 import java.io.Serializable;
+
 import javax.accessibility.Accessible;
 
 /**

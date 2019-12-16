@@ -1,10 +1,9 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
-import com.alipay.streaming.runtime.config.Configuration;
-import com.alipay.streaming.runtime.config.worker.WorkerConfig;
 import java.io.Serializable;
 
 import org.ray.streaming.runtime.config.Configuration;
+import org.ray.streaming.runtime.config.internal.WorkerConfig;
 
 public class ExecutionConfig implements Serializable {
 

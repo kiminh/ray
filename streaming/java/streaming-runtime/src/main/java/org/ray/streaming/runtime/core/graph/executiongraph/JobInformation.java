@@ -1,8 +1,9 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
-import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import java.util.Map;
+
+import com.google.common.base.MoreObjects;
 
 public class JobInformation implements Serializable {
 

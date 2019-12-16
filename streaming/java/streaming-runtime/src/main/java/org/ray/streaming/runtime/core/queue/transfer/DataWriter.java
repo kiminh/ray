@@ -1,7 +1,7 @@
 package org.ray.streaming.runtime.core.queue.transfer;
 
 import org.ray.runtime.functionmanager.FunctionDescriptor;
-import org.ray.streaming.runtime.utils.Platform;
+import org.ray.streaming.runtime.util.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

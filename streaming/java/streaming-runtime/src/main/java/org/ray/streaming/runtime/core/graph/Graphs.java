@@ -1,9 +1,10 @@
 package org.ray.streaming.runtime.core.graph;
 
-import com.alipay.streaming.runtime.jobgraph.JobGraph;
 import java.io.Serializable;
+
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
+import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
 
 public class Graphs implements Serializable {
 

@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.utils;
+package org.ray.streaming.runtime.util;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Kryo.DefaultInstantiatorStrategy;

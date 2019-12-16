@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.master.manager.graph;
+package org.ray.streaming.runtime.master.graphmanager;
 
 import com.google.common.collect.Maps;
 import java.util.ArrayDeque;
@@ -10,20 +10,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+
 import org.ray.api.RayActor;
 import org.ray.api.RayPyActor;
 import org.ray.api.id.ActorId;
 import org.slf4j.Logger;
 
+import org.ray.streaming.runtime.core.graph.GraphBuilder;
 import org.ray.streaming.runtime.core.graph.Graphs;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionEdge;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertexState;
+import org.ray.streaming.runtime.core.graph.executiongraph.IntermediateResultPartition;
 import org.ray.streaming.runtime.core.graph.executiongraph.OperatorNode;
 import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
 import org.ray.streaming.runtime.core.graph.jobgraph.JobVertex;
+import org.ray.streaming.runtime.core.queue.QueueUtils;
 import org.ray.streaming.runtime.core.resource.ContainerID;
+import org.ray.streaming.runtime.master.JobMaster;
+import org.ray.streaming.runtime.master.JobMasterRuntimeContext;
+import org.ray.streaming.runtime.util.LoggerFactory;
 
 public class GraphManagerImpl implements GraphManager {
 
@@ -250,16 +258,6 @@ public class GraphManagerImpl implements GraphManager {
   @Override
   public ExecutionJobVertex getChangedExecutionJobVertex() {
     return getGraphs().getChangedExecutionJobVertex();
-  }
-
-  @Override
-  public Boolean isScalingUp() {
-    return getGraphs().isScalingUp();
-  }
-
-  @Override
-  public void setRescalingFlag(Boolean flag) {
-    getGraphs().setScalingUp(flag);
   }
 
   private void setChangedExecutionJobVertex(ExecutionJobVertex executionJobVertex) {
