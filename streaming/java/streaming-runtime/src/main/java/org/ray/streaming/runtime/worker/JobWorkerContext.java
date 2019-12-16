@@ -8,6 +8,9 @@ import com.google.common.base.MoreObjects;
 import org.ray.api.RayActor;
 import org.ray.api.id.ActorId;
 import org.ray.api.id.UniqueId;
+import org.ray.streaming.runtime.config.types.OperatorType;
+import org.ray.streaming.runtime.master.JobMaster;
+import org.ray.streaming.runtime.worker.task.ControlMessage;
 
 /**
  *
@@ -71,7 +74,6 @@ public class JobWorkerContext {
     this.inputActors = Collections.unmodifiableMap(inputActors);
     this.outputActors = Collections.unmodifiableMap(outputActors);
     this.executionVertexBytes = executionVertexBytes;
-    this.rollbackTriggerId = 0L;
   }
 
   @Override
