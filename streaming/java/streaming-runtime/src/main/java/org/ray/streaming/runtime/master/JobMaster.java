@@ -105,20 +105,6 @@ public class JobMaster implements IJobMaster {
     return true;
   }
 
-  private List<RayActor> findAddedActors(ExecutionGraph oldGraph, ExecutionGraph newGraph) {
-    List<RayActor> newActors = newGraph.getAllActors();
-    List<RayActor> oldActors = oldGraph.getAllActors();
-    return newActors.stream()
-        .filter(actor -> {
-          for (RayActor oldActor : oldActors) {
-            if (actor.getId().equals(oldActor.getId())) {
-              return false;
-            }
-          }
-          return true;
-        }).collect(Collectors.toList());
-  }
-
   @Override
   public Boolean destroy() {
     graphManager.getExecutionGraph().getAllActors()
@@ -190,11 +176,6 @@ public class JobMaster implements IJobMaster {
         .collect(Collectors.toList());
     Ray.get(waitObjectIds);
     LOG.info("Start workers success, cost {}ms.", System.currentTimeMillis() - startWaitTs);
-  }
-
-  @Override
-  public Long getLastCheckpointId() {
-    return null;
   }
 
   public RayActor getJobMasterActor() {
