@@ -40,13 +40,12 @@ public class JobWorker implements IJobWorker {
   protected JobWorkerContext workerContext;
 
   private ExecutionVertex executionVertex;
+  private byte[] executionVertexBytes;
 
   /**
    * The thread of stream task
    */
   private StreamTask task;
-
-  private byte[] executionVertexBytes;
 
   /**
    * Control message
@@ -69,7 +68,7 @@ public class JobWorker implements IJobWorker {
   }
 
   @Override
-  public void init(JobWorkerContext workerContext) {
+  public Boolean init(JobWorkerContext workerContext) {
     LOG.info("Init worker context {}. workerId: {}.", workerContext, workerContext.workerId);
     ExecutionVertex executionVertex = null;
     if (null != workerContext.executionVertexBytes) {
@@ -78,6 +77,8 @@ public class JobWorker implements IJobWorker {
     this.workerContext = workerContext;
     this.workerConfig = new StreamingWorkerConfig(workerContext.conf);
     this.executionVertex = executionVertex;
+
+    return true;
   }
 
   @Override
@@ -96,7 +97,7 @@ public class JobWorker implements IJobWorker {
   // ----------------------------------------------------------------------
 
   @Override
-  public boolean destroy() {
+  public Boolean destroy() {
     try {
       if (task != null) {
         // make sure the runner is closed

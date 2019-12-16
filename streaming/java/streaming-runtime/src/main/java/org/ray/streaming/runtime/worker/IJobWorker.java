@@ -5,21 +5,25 @@ package org.ray.streaming.runtime.worker;
  */
 public interface IJobWorker {
 
-
-  void init(JobWorkerContext workerContext);
+  /**
+   * Init job worker with context.
+   * @param workerContext
+   * @return Init result.
+   */
+  Boolean init(JobWorkerContext workerContext);
 
   /**
-   *
+   * Start job worker working progress.
    */
   void start();
 
   /**
-   * Destroy worker
+   * Destroy worker.
    */
-  boolean destroy();
+  Boolean destroy();
 
   /**
-   * Shutdown worker in purpose
+   * Shutdown worker in purpose.
    */
   void shutdown();
 }

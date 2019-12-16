@@ -1,15 +1,23 @@
 package org.ray.streaming.runtime.master;
 
+import org.ray.api.RayActor;
+
 public interface IJobMaster {
 
   /**
-   * Register job master context.
-   * @return the boolean
+   * Init job master.
+   * @param isRecover true: when in failover
+   * @return
    */
-  Boolean registerContext(boolean isRecover);
+  Boolean init(boolean isRecover);
 
   /**
-   * Destroy job master.
+   * Start all job workers.
    */
-  Boolean destroy();
+  void startAllWorkers();
+
+  /**
+   * Destroy all job workers.
+   */
+  Boolean destroyAllWorkers();
 }

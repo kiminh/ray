@@ -32,6 +32,7 @@ import org.ray.streaming.runtime.master.graphmanager.GraphManager;
 import org.ray.streaming.runtime.master.resourcemanager.ResourceManager;
 import org.ray.streaming.runtime.master.scheduler.controller.WorkerLifecycleController;
 import org.ray.streaming.runtime.master.scheduler.strategy.SlotAssignStrategy;
+import org.ray.streaming.runtime.rpc.call.RemoteCallWorker;
 import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.worker.JobWorkerContext;
 
@@ -130,45 +131,42 @@ public class JobScheduler implements IJobScheduler {
    * @param executionGraph
    */
   private void run(ExecutionGraph executionGraph) {
-    registerWorkersContext(executionGraph, jobConf.workerConfigTemplate);
-    registerMasterContext();
+    initWorkers(executionGraph, jobConf.workerConfigTemplate);
+    initMaster();
     startAllWorkers();
-  }
-
-  private void registerMasterContext() {
-    jobMaster.registerContext(false);
   }
 
   private void startAllWorkers() {
     jobMaster.startAllWorkers();
   }
 
-  /**
-   * Register workers context
-   * @param executionGraph
-   */
-  private void registerWorkersContext(ExecutionGraph executionGraph,
+  private void initMaster() {
+    jobMaster.init(false);
+  }
+
+  private void initWorkers(ExecutionGraph executionGraph,
       final StreamingWorkerConfig configTemplate) {
-    LOG.info("Begin register worker context.");
+    LOG.info("Begin initiating workers.");
 
     RayActor<JobMaster> masterActor = jobMaster.getJobMasterActor();
-    List<RayObject<Object>> rayObjects = new ArrayList<>();
 
     // setup vertex
     graphManager.setupExecutionVertex(executionGraph);
 
     // register worker context
+    long waitStartTime = System.currentTimeMillis();
     executionGraph.getAllExecutionVertices().forEach(vertex -> {
       JobWorkerContext ctx = buildJobWorkerContext(vertex, configTemplate, masterActor);
-      rayObjects.add(RemoteCallWorker.registerContext(vertex.getActor(), ctx));
+      boolean initResult = workerController.initWorker(vertex.getActor(), ctx);
+
+      if (initResult) {
+        LOG.error("Init workers occur error.");
+        return;
+      }
     });
 
-    long waitStartTime = System.currentTimeMillis();
-    List<ObjectId> waitingRayObjectIds = rayObjects.stream().map(x -> x.getId())
-        .collect(Collectors.toList());
-    Ray.get(waitingRayObjectIds);
     long waitEndTime = System.currentTimeMillis();
-    LOG.info("Finish register worker context. cost {} ms.", waitEndTime - waitStartTime);
+    LOG.info("Finish initiating workers. Cost {} ms.", waitEndTime - waitStartTime);
   }
 
   private JobWorkerContext buildJobWorkerContext(
@@ -277,54 +275,10 @@ public class JobScheduler implements IJobScheduler {
     // job name
     workerConfMap.put(WorkerConfig.JOB_NAME_INTERNAL, workerConfigTemplate.commonConfig.jobName());
 
-    // reliability level
-    workerConfMap.put(WorkerConfig.RELIABILITY_LEVEL_INTERNAL,
-        workerConfigTemplate.reliabilityConfig.reliabilityLevel());
-
-    // compatible python
-    compatiblePythonWorkerConfig(workerConfMap, workerConfigTemplate);
-
     // set conf map into vertex
     executionVertex.updateJobConfig(workerConfMap);
 
     return workerConfMap;
-  }
-
-  /**
-   * The following key and value must be equal with StreamingConstants in python
-   * package: python.streaming.runtime.core.constant
-   * py: streaming_constants.py
-   */
-  private void compatiblePythonWorkerConfig(Map<String, String> workerConfMap,
-      StreamingWorkerConfig workerConfigTemplate) {
-    workerConfMap.put(WorkerConfig.PY_CP_MODE,
-        "save_checkpoint_" + workerConfigTemplate.checkpointConfig.cpMode());
-    workerConfMap.put(WorkerConfig.PY_CP_MODE_PY,
-        "save_checkpoint_" + workerConfigTemplate.checkpointConfig.cpMode() + "_py");
-    workerConfMap.put(WorkerConfig.PY_CP_STATE_BACKEND_TYPE,
-        "cp_state_backend_" + workerConfigTemplate.stateBackendConfig.stateBackendType());
-    workerConfMap.put(WorkerConfig.PY_CP_PANGU_CLUSTER_NAME,
-        workerConfigTemplate.stateBackendPanguConfig.panguClusterName());
-    workerConfMap.put(WorkerConfig.PY_CP_PANGU_ROOT_DIR,
-        workerConfigTemplate.stateBackendPanguConfig.panguRootDir());
-    workerConfMap.put(WorkerConfig.PY_CP_PANGU_USER_MYSQL_URL,
-        workerConfigTemplate.stateBackendPanguConfig.panguUserMysqlUrl());
-    workerConfMap.put(WorkerConfig.PY_METRICS_TYPE,
-        workerConfigTemplate.metricConfig.metricType());
-    workerConfMap.put(WorkerConfig.PY_METRICS_URL,
-        workerConfigTemplate.metricPrometheusConfig.prometheusUrl());
-    workerConfMap.put(WorkerConfig.PY_METRICS_USER_NAME,
-        workerConfigTemplate.metricPrometheusConfig.prometheusUserName());
-    workerConfMap.put(WorkerConfig.PY_RELIABILITY_LEVEL,
-        workerConfigTemplate.reliabilityConfig.reliabilityLevel());
-    workerConfMap.put(WorkerConfig.PY_QUEUE_TYPE,
-        workerConfigTemplate.queueConfig.queueType());
-    workerConfMap.put(WorkerConfig.PY_QUEUE_SIZE,
-        workerConfigTemplate.queueConfig.queueSize() + "");
-    workerConfMap.put(CommonConfig.PY_JOB_NAME,
-        workerConfMap.get(WorkerConfig.JOB_NAME_INTERNAL));
-    workerConfMap.put(WorkerConfig.PY_WORKER_ID,
-        workerConfMap.get(WorkerConfig.WORKER_ID_INTERNAL));
   }
 
   /**

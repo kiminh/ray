@@ -29,6 +29,7 @@ import org.ray.streaming.runtime.master.graphmanager.GraphManagerImpl;
 import org.ray.streaming.runtime.master.resourcemanager.ResourceManager;
 import org.ray.streaming.runtime.master.resourcemanager.ResourceManagerImpl;
 import org.ray.streaming.runtime.master.scheduler.JobScheduler;
+import org.ray.streaming.runtime.master.scheduler.controller.WorkerLifecycleController;
 import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.util.ModuleNameAppender;
@@ -47,6 +48,7 @@ public class JobMaster implements IJobMaster {
   private ResourceManager resourceManager;
   private JobScheduler scheduler;
   private GraphManager graphManager;
+  private WorkerLifecycleController workerController;
   private RayActor jobMasterActor;
   private Executor executor;
   private int updateOperatorIndex = 0;
@@ -77,7 +79,7 @@ public class JobMaster implements IJobMaster {
   }
 
   @Override
-  public Boolean registerContext(boolean isRecover) {
+  public Boolean init(boolean isRecover) {
     LOG.info("Begin register job master context. Is recover: {}.", isRecover);
 
     if (this.runtimeContext.getGraphs() == null) {
@@ -93,6 +95,8 @@ public class JobMaster implements IJobMaster {
       scheduler = new JobScheduler(this);
     }
 
+    workerController = new WorkerLifecycleController(resourceManager);
+
     ExecutionGraph executionGraph = graphManager.getExecutionGraph();
     Preconditions.checkArgument(executionGraph != null, "no execution graph");
 
@@ -105,12 +109,7 @@ public class JobMaster implements IJobMaster {
     return true;
   }
 
-  @Override
-  public Boolean destroy() {
-    graphManager.getExecutionGraph().getAllActors()
-        .forEach(actor -> RemoteCallWorker.destroy(actor));
-    return true;
-  }
+
 
   public boolean submitJob(RayActor jobMasterActor, byte[] jobGraphByteArray) {
     JobGraph jobGraph = KryoUtils.readFromByteArray(jobGraphByteArray);
@@ -131,51 +130,45 @@ public class JobMaster implements IJobMaster {
   }
 
   /**
-   * Start all workers function only invokes rollback method of all workers, not means workers are
-   * ready and finish this rollback task.
+   * Start all workers.
    */
+  @Override
   public void startAllWorkers() {
+    LOG.info("Start to start all workers.");
+    long startWaitTs = System.currentTimeMillis();
+
     try {
-      startWorkers(graphManager.getExecutionGraph().getAllActors(), false);
+      startWorkersByList(graphManager.getExecutionGraph().getAllActors());
     } catch (Exception e) {
+      LOG.error("Failed to start all workers.", e);
     }
+
+    LOG.info("Finish to start all workers, cost {} ms.", System.currentTimeMillis() - startWaitTs);
   }
 
-  private void startWorkers(List<RayActor> addedActors, boolean isRescaling) {
-    LOG.info("Begin start workers.");
-
-    List<RayObject<Object>> workerRollbackObjList = new ArrayList<>();
-    // all queues is regarded as abnormal when job is fresh started.
-    // because we have no queue crated at that time.
-    ExecutionGraph executionGraph;
-    if (isRescaling) {
-      executionGraph = graphManager.getChangedExecutionGraph();
-    } else {
-      executionGraph = graphManager.getExecutionGraph();
-    }
+  /**
+   * Start workers by actor list.
+   * @param addedActors actor list
+   */
+  private void startWorkersByList(List<RayActor> addedActors) {
+    ExecutionGraph executionGraph = graphManager.getExecutionGraph();
 
     executionGraph.getSourceActors()
         .stream()
         .filter(addedActors::contains)
-        .forEach(actor ->
-            workerRollbackObjList
-                .add(RemoteCallWorker.rollback(actor, runtimeContext.lastCheckpointId,
-                graphManager.getExecutionGraph().getQueuesByActor(actor))));
+        .forEach(actor -> workerController.startWorker(actor));
 
     executionGraph.getNonSourceActors()
         .stream()
         .filter(addedActors::contains)
-        .forEach(actor ->
-            workerRollbackObjList
-                .add(RemoteCallWorker.rollback(actor, runtimeContext.lastCheckpointId,
-                graphManager.getExecutionGraph().getQueuesByActor(actor))));
-    // Following code block may be removed if it isn't needed to check all workers have been
-    // to finish rollback action.
-    long startWaitTs = System.currentTimeMillis();
-    List<ObjectId> waitObjectIds = workerRollbackObjList.stream().map(x -> x.getId())
-        .collect(Collectors.toList());
-    Ray.get(waitObjectIds);
-    LOG.info("Start workers success, cost {}ms.", System.currentTimeMillis() - startWaitTs);
+        .forEach(actor -> workerController.startWorker(actor));
+  }
+
+  @Override
+  public Boolean destroyAllWorkers() {
+    graphManager.getExecutionGraph().getAllActors()
+        .forEach(actor -> workerController.destroyWorker(actor));
+    return true;
   }
 
   public RayActor getJobMasterActor() {
