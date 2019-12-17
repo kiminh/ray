@@ -166,8 +166,8 @@ public class JobMaster implements IJobMaster {
 
   @Override
   public Boolean destroyAllWorkers() {
-    graphManager.getExecutionGraph().getAllActors()
-        .forEach(actor -> workerController.destroyWorker(actor));
+    graphManager.getExecutionGraph().getAllExecutionVertices()
+        .forEach(vertex -> workerController.destroyWorker(vertex));
     return true;
   }
 

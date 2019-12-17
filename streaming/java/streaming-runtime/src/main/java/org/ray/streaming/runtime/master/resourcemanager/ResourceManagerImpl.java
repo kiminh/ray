@@ -1,7 +1,6 @@
 package org.ray.streaming.runtime.master.resourcemanager;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,24 +9,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import com.alibaba.fastjson.JSON;
-import com.google.common.base.Preconditions;
 import org.ray.api.Ray;
-import org.ray.api.RayActor;
-import org.ray.api.RayObject;
-import org.ray.api.RayPyActor;
 import org.ray.api.id.UniqueId;
-import org.ray.api.options.ActorCreationOptions;
 import org.ray.api.runtimecontext.NodeInfo;
 import org.slf4j.Logger;
 
-import com.alipay.streaming.runtime.remotecall.RemoteCallWorker;
-import com.alipay.streaming.runtime.worker.JobWorker;
-import org.ray.streaming.runtime.config.Configuration;
 import org.ray.streaming.runtime.config.StreamingMasterConfig;
 import org.ray.streaming.runtime.config.types.SlotAssignStrategyType;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
-import org.ray.streaming.runtime.core.graph.jobgraph.LanguageType;
 import org.ray.streaming.runtime.core.resource.Container;
 import org.ray.streaming.runtime.core.resource.Resource;
 import org.ray.streaming.runtime.core.resource.Resources;
@@ -35,11 +24,9 @@ import org.ray.streaming.runtime.master.JobMaster;
 import org.ray.streaming.runtime.master.JobMasterRuntimeContext;
 import org.ray.streaming.runtime.master.scheduler.strategy.SlotAssignStrategy;
 import org.ray.streaming.runtime.master.scheduler.strategy.SlotAssignStrategyFactory;
-import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.util.RayUtils;
 import org.ray.streaming.runtime.util.TestHelper;
-import org.ray.streaming.runtime.worker.JobWorker;
 
 public class ResourceManagerImpl implements ResourceManager {
 
@@ -85,63 +72,31 @@ public class ResourceManagerImpl implements ResourceManager {
   }
 
   @Override
-  public RayActor allocateActor(
-      final Container container,
-      final LanguageType language,
-      final Configuration configuration,
-      final ExecutionVertex exeVertex) {
+  public Map<String, Double> allocateActor(final ExecutionVertex executionVertex) {
+    Container container = executionVertex.getSlot().getContainer();
     LOG.info("Start to allocate actor in container: {}.", container);
 
-    // create actor
-    Map<String, Double> userCustomResources = exeVertex.getExeJobVertex().getJobVertex()
+    // allocate actor
+    Map<String, Double> userCustomResources = executionVertex.getExeJobVertex().getJobVertex()
         .getResources();
-    LOG.info("User custom resource for vertex {} is: {}.", exeVertex.getTaskNameWithSubtask(),
+    LOG.info("User custom resource for vertex {} is: {}.", executionVertex.getTaskNameWithSubtask(),
         userCustomResources);
     Map<String, Double> resources = new HashMap<>(userCustomResources);
     String resourceKey = container.getName();
     resources.put(resourceKey, 1.0);
 
-    // Using direct call actor when QUEUE_TYPE: StreamingQueue is specified.
-    ActorCreationOptions options = new ActorCreationOptions.Builder()
-        .setResources(resources)
-        .setMaxReconstructions(ActorCreationOptions.INFINITE_RECONSTRUCTIONS)
-        .createActorCreationOptions();
-    RayActor actor;
-    if (LanguageType.JAVA == language) {
-      actor = Ray.createActor(JobWorker::new,
-          KryoUtils.writeToByteArray(exeVertex.getExecutionConfig().getConfiguration().toStringMap()),
-          options);
-    } else {
-      Configuration executionVertexConfig = exeVertex.getExecutionConfig().getConfiguration();
-      Map<String, Object> kvMap = executionVertexConfig.toMap();
-      String jsonConfig = JSON.toJSONString(kvMap);
-      actor = Ray.createPyActor(
-          "streaming.runtime.core.worker.dynamic_py_worker",
-          "DynamicPyWorker",
-          jsonConfig.getBytes(),
-          options);
-
-      LOG.info("Call python actor init.");
-      RayObject object = Ray.callPy((RayPyActor) actor, "init", jsonConfig.getBytes(),
-          jsonConfig.getBytes());
-      Ray.wait(Arrays.asList(object));
-      LOG.info("Python actor init success.");
-    }
-
-    LOG.info("Allocate actor {} succeeded in container {}.", actor.getId(), container);
-    return actor;
+    LOG.info("Allocate actor [vertexId={}] succeeded in container {}.",
+        executionVertex.getId(), container);
+    return resources;
   }
 
   @Override
-  public boolean deallocateActor(final RayActor actor) {
-    LOG.info("Start deallocate actor {}.", actor.getId());
+  public void deallocateActor(final ExecutionVertex executionVertex) {
+    LOG.info("Start deallocate actor {}.", executionVertex.getActorId());
 
     // TODO: decrease container allocated actor num
 
-    // ray call actor shutdown without reconstruction
-    RemoteCallWorker.shutdownWithoutReconstruction(actor);
-    LOG.info("Deallocate actor {} success.", actor.getId());
-    return true;
+    LOG.info("Deallocate actor {} success.", executionVertex.getActorId());
   }
 
   @Override
@@ -205,7 +160,6 @@ public class ResourceManagerImpl implements ResourceManager {
         addNodes.addAll(transferNodes);
         LOG.info("TransferNodes {} add to addNodes {}.", transferNodes, addNodes);
         resources.hotBackupNodes.removeAll(transferNodes);
-        saveResources();
       }
     }
 
@@ -232,15 +186,7 @@ public class ResourceManagerImpl implements ResourceManager {
           unregisterContainer(deletedContainer, true);
         }
       }
-      saveResources();
     }
-  }
-
-  /**
-   * just for ut
-   */
-  public void clear() {
-    resources.containerMap.clear();
   }
 
   @Override

@@ -9,8 +9,10 @@ import org.ray.api.RayActor;
 import org.ray.api.RayObject;
 import org.ray.api.RayPyActor;
 import org.ray.api.WaitResult;
+import org.ray.api.options.ActorCreationOptions;
 import org.slf4j.Logger;
 
+import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.worker.JobWorker;
 import org.ray.streaming.runtime.worker.JobWorkerContext;
@@ -18,6 +20,10 @@ import org.ray.streaming.runtime.worker.JobWorkerContext;
 public class RemoteCallWorker extends RemoteCallBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(RemoteCallWorker.class);
+
+  public static RayActor createWorker(byte[] confBytes, ActorCreationOptions options) {
+    return Ray.createActor(JobWorker::new, confBytes, options);
+  }
 
   public static RayObject<Boolean> initWorker(RayActor actor, JobWorkerContext ctx) {
     LOG.info("Call worker to init, actor: {}, context: {}.", actor.getId(), ctx);
@@ -65,41 +71,5 @@ public class RemoteCallWorker extends RemoteCallBase {
 
     LOG.info("Finish call worker to destroy.");
     return result;
-  }
-
-  private static List<Object> waitAndGetObjectList(
-      Map<RayObject<Object>, RayActor> objectRayActorMap, int timeoutMs) {
-    WaitResult<Object> waitRet = null;
-    int waitingSize = objectRayActorMap.keySet().size();
-    LOG.info("Wait and get object list size {}.", waitingSize);
-    while (null == waitRet || waitRet.getReady().size() != waitingSize) {
-      long currentTs = System.currentTimeMillis();
-      waitRet =
-          Ray.wait(objectRayActorMap.keySet().stream().collect(Collectors.toList()),
-                   waitingSize,
-                   timeoutMs);
-      List<RayObject<Object>> unreadyList = waitRet.getUnready();
-      if (unreadyList.size() > 0) {
-        String unreadyActorsCombineStr =
-            unreadyList.stream()
-                .map(objId -> objectRayActorMap.get(objId).getId().toString())
-                .reduce(" ", (str1, str2) -> str1 + "," + str2);
-        LOG.warn("Unready size {}, list => {}", unreadyList.size(), unreadyActorsCombineStr);
-        long tsDiff = System.currentTimeMillis() - currentTs;
-        if (tsDiff < timeoutMs) {
-          try {
-            Thread.sleep(timeoutMs - tsDiff);
-          } catch (InterruptedException e) {
-            e.printStackTrace();
-          }
-        }
-      } else {
-        LOG.info("Waiting all successful.");
-      }
-    }
-    return Ray.get(objectRayActorMap.keySet()
-              .stream()
-              .map(RayObject::getId)
-              .collect(Collectors.toList()));
   }
 }

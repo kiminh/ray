@@ -14,16 +14,18 @@ public interface IJobWorker {
 
   /**
    * Start job worker working progress.
+   * @return Start result.
    */
-  void start();
+  Boolean start();
 
   /**
-   * Destroy worker.
-   */
-  Boolean destroy();
-
-  /**
-   * Shutdown worker in purpose.
+   * Shutdown worker in purpose (Will failover by ray).
    */
   void shutdown();
+
+  /**
+   * Destroy worker (Won't failover by ray).
+   * @return Destroy result.
+   */
+  Boolean destroy();
 }

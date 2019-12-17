@@ -17,10 +17,9 @@ public interface ResourceManager {
 
   List<Container> getRegisteredContainers();
 
-  RayActor allocateActor(final Container container, final LanguageType language,
-      final Configuration configuration, final ExecutionVertex exeVertex);
+  Map<String, Double> allocateActor(final ExecutionVertex exeVertex);
 
-  boolean deallocateActor(final RayActor actor);
+  void deallocateActor(final ExecutionVertex exeVertex);
 
   SlotAssignStrategy getSlotAssignStrategy();
 

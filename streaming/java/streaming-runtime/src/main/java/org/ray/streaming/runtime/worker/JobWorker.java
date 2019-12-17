@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Preconditions;
+import org.ray.api.Ray;
 import org.ray.api.annotation.RayRemote;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,7 @@ import org.ray.streaming.runtime.core.processor.Processor;
 import org.ray.streaming.runtime.core.processor.SourceProcessor;
 import org.ray.streaming.runtime.core.processor.TwoInputProcessor;
 import org.ray.streaming.runtime.util.KryoUtils;
+import org.ray.streaming.runtime.util.TestHelper;
 import org.ray.streaming.runtime.worker.task.ControlMessage;
 import org.ray.streaming.runtime.worker.task.SourceStreamTask;
 import org.ray.streaming.runtime.worker.task.StreamTask;
@@ -82,7 +84,7 @@ public class JobWorker implements IJobWorker {
   }
 
   @Override
-  public void start() {
+  public Boolean start() {
     if (task != null) {
       task.close();
       task = null;
@@ -93,21 +95,52 @@ public class JobWorker implements IJobWorker {
   }
 
   // ----------------------------------------------------------------------
-  // Job Worker Destroy
+  // Job Worker Shutdown and Destroy
   // ----------------------------------------------------------------------
 
   @Override
-  public Boolean destroy() {
+  public void shutdown() {
+    LOG.info("Worker {} shutdown.", workerContext.workerId);
+
     try {
       if (task != null) {
-        // make sure the runner is closed
-        task.close();
+        task.closeWithoutExit();
         task = null;
       }
     } catch (Exception e) {
       LOG.error("Close runner has exception.", e);
     }
 
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        LOG.info("Worker {} shutdown now.", workerContext.workerId);
+      }
+    });
+    System.exit(0);
+  }
+
+  @Override
+  public Boolean destroy() {
+    LOG.info("Worker {} shutdown without reconstruction.", workerContext.workerId);
+
+    try {
+      if (task != null) {
+        task.closeWithoutExit();
+        task = null;
+      }
+    } catch (Exception e) {
+      LOG.error("Close runner has exception.", e);
+    }
+
+    // Single process UT pattern does not exit, just stop the task thread
+    if (TestHelper.isUTPattern()) {
+      return true;
+    }
+
+    LOG.info("Ray.exitActor.");
+    // Exit this actor process.
+    Ray.exitActor();
     return true;
   }
 
@@ -169,19 +202,6 @@ public class JobWorker implements IJobWorker {
   public boolean hasControlMessage() {
     return this.hasMessage;
   }
-
-  @Override
-  public void shutdown() {
-    Runtime.getRuntime().addShutdownHook(new Thread() {
-      @Override
-      public void run() {
-        LOG.info("Worker shutdown now.");
-      }
-    });
-    System.exit(0);
-  }
-
-
 
   public void setContext(JobWorkerContext context) {
     this.workerContext = context;

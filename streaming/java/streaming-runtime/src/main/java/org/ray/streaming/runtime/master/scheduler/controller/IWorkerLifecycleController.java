@@ -21,13 +21,6 @@ public interface IWorkerLifecycleController {
 
   /**
    * Stop a worker.
-   * @param rayActor: the target actor
-   * @return true if worker destruction succeeded
-   */
-  boolean destroyWorker(RayActor rayActor);
-
-  /**
-   * Stop a worker.
    * @param executionVertex: the specified execution vertex
    * @return true if worker destruction succeeded
    */
