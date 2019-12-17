@@ -1,26 +1,20 @@
 package org.ray.streaming.runtime.master;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
-import org.ray.api.Ray;
 import org.ray.api.RayActor;
-import org.ray.api.RayObject;
 import org.ray.api.annotation.RayRemote;
 import org.ray.api.id.ActorId;
-import org.ray.api.id.ObjectId;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
 import org.ray.streaming.runtime.config.StreamingMasterConfig;
 import org.ray.streaming.runtime.config.global.StateBackendConfig;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraphBuilder;
 import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
 import org.ray.streaming.runtime.core.state.StateBackend;
 import org.ray.streaming.runtime.core.state.StateBackendFactory;
@@ -90,7 +84,7 @@ public class JobMaster implements IJobMaster {
     // recover from last checkpoint
     if (isRecover) {
       LOG.info("Recover graph manager, resource manager and scheduler.");
-      graphManager = new GraphManagerImpl(this);
+      graphManager = new GraphManagerImpl(this, runtimeContext.getGraphs().getJobGraph());
       resourceManager = new ResourceManagerImpl(this);
       scheduler = new JobScheduler(this);
     }
@@ -115,17 +109,12 @@ public class JobMaster implements IJobMaster {
     JobGraph jobGraph = KryoUtils.readFromByteArray(jobGraphByteArray);
     LOG.info("Job vertices num is: {}.", jobGraph.getVertices().size());
     this.jobMasterActor = jobMasterActor;
-    ExecutionGraph executionGraph = ExecutionGraphBuilder.buildGraph(jobGraph);
-
-    // set init graphs into runtime context
-    runtimeContext.setGraphs(jobGraph, executionGraph);
-
     // init manager
-    graphManager = new GraphManagerImpl(this);
+    graphManager = new GraphManagerImpl(this, jobGraph);
     resourceManager = new ResourceManagerImpl(this);
 
     scheduler = new JobScheduler(this);
-    scheduler.scheduleJob(executionGraph);
+    scheduler.scheduleJob(graphManager.getExecutionGraph());
     return true;
   }
 

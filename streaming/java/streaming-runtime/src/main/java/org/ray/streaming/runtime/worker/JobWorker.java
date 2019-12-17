@@ -5,7 +5,12 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Preconditions;
+import org.ray.api.Ray;
 import org.ray.api.annotation.RayRemote;
+import org.ray.runtime.RayMultiWorkerNativeRuntime;
+import org.ray.runtime.functionmanager.JavaFunctionDescriptor;
+import org.ray.streaming.runtime.config.worker.TransferConfig;
+import org.ray.streaming.runtime.core.transfer.TransferHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +57,8 @@ public class JobWorker implements IJobWorker {
    */
   private volatile boolean hasMessage = false;
 
+  private TransferHandler transferHandler;
+
   private Object lock = new Object();
 
   public JobWorker() {
@@ -78,17 +85,46 @@ public class JobWorker implements IJobWorker {
     this.workerConfig = new StreamingWorkerConfig(workerContext.conf);
     this.executionVertex = executionVertex;
 
+    //init transfer
+    String channelType = workerConfig.transferConfig.chennelType();
+    if (channelType.equalsIgnoreCase(TransferConfig.NATIVE_CHANNEL)) {
+      transferHandler = new TransferHandler(
+          getNativeCoreWorker(),
+          new JavaFunctionDescriptor(JobWorker.class.getName(), "onWriterMessage", "([B)V"),
+          new JavaFunctionDescriptor(JobWorker.class.getName(), "onWriterMessageSync", "([B)[B"),
+          new JavaFunctionDescriptor(JobWorker.class.getName(), "onReaderMessage", "([B)V"),
+          new JavaFunctionDescriptor(JobWorker.class.getName(), "onReaderMessageSync", "([B)[B"));
+    }
+
+    task
+
+
     return true;
+  }
+
+  private long getNativeCoreWorker() {
+    long pointer = 0;
+    if(Ray.internal() instanceof RayMultiWorkerNativeRuntime) {
+      pointer = ((RayMultiWorkerNativeRuntime) Ray.internal()).getCurrentRuntime().getNativeCoreWorkerPointer();
+    }
+    return pointer;
   }
 
   @Override
   public void start() {
-    if (task != null) {
-      task.close();
-      task = null;
+    try {
+      if (task != null) {
+        task.close();
+        task = null;
+      }
+      task = createStreamTask();
+      new Thread(Ray.wrapRunnable())
+    } catch (Exception e) {
+
     }
 
-    task = createStreamTask();
+
+
 
   }
 
@@ -244,7 +280,7 @@ public class JobWorker implements IJobWorker {
     return workerTags;
   }
 
-  public StreamingWorkerConfig getConf() {
-    return this.conf;
+  public StreamingWorkerConfig getWorkerConfig() {
+    return this.workerConfig;
   }
 }
