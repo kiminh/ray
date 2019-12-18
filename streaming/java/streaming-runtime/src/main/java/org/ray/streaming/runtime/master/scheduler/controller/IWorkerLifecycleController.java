@@ -1,6 +1,6 @@
 package org.ray.streaming.runtime.master.scheduler.controller;
 
-import java.util.List;
+import java.util.Map;
 
 import org.ray.api.RayActor;
 
@@ -15,9 +15,10 @@ public interface IWorkerLifecycleController {
   /**
    * Create a worker.
    * @param executionVertex: the specified execution vertex
+   * @param resources: resources allocate by resource manager
    * @return true if worker creation succeeded
    */
-  boolean createWorker(ExecutionVertex executionVertex);
+  boolean createWorker(ExecutionVertex executionVertex, Map<String, Double> resources);
 
   /**
    * Stop a worker.
@@ -25,20 +26,6 @@ public interface IWorkerLifecycleController {
    * @return true if worker destruction succeeded
    */
   boolean destroyWorker(ExecutionVertex executionVertex);
-
-  /**
-   * Create workers.
-   * @param executionVertices: the specified execution vertices
-   * @return true if workers creation succeeded
-   */
-  boolean createWorkers(List<ExecutionVertex> executionVertices);
-
-  /**
-   * Destroy workers.
-   * @param executionVertices: the specified execution vertices
-   * @return true if workers destruction succeeded
-   */
-  boolean destroyWorkers(List<ExecutionVertex> executionVertices);
 
   /**
    * Init a worker.

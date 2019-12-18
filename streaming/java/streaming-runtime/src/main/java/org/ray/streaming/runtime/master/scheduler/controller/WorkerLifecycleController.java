@@ -1,9 +1,6 @@
 package org.ray.streaming.runtime.master.scheduler.controller;
 
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 import org.ray.api.Ray;
 import org.ray.api.RayActor;
@@ -13,7 +10,6 @@ import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.graph.jobgraph.LanguageType;
-import org.ray.streaming.runtime.master.resourcemanager.ResourceManager;
 import org.ray.streaming.runtime.rpc.call.RemoteCallWorker;
 import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
@@ -23,17 +19,14 @@ public class WorkerLifecycleController implements IWorkerLifecycleController {
 
   private static final Logger LOG = LoggerFactory.getLogger(WorkerLifecycleController.class);
 
-  private final ResourceManager resourceManager;
-
-  public WorkerLifecycleController(ResourceManager resourceManager) {
-    this.resourceManager = resourceManager;
+  public WorkerLifecycleController() {
   }
 
   @Override
-  public boolean createWorker(ExecutionVertex executionVertex) {
-    LOG.info("Start to create JobWorker actor for vertex: {}.", executionVertex.getId());
-    
-    Map<String, Double> resources = resourceManager.allocateActor(executionVertex);
+  public boolean createWorker(ExecutionVertex executionVertex, Map<String, Double> resources) {
+    LOG.info("Start to create JobWorker actor for vertex: {} with resource: {}.",
+        executionVertex.getId(), resources);
+
     LanguageType language = executionVertex.getExeJobVertex().getLanguageType();
 
     ActorCreationOptions options = new ActorCreationOptions.Builder()
@@ -70,9 +63,6 @@ public class WorkerLifecycleController implements IWorkerLifecycleController {
       return false;
     }
 
-    LOG.info("Start to destroy JobWorker actor for vertex: {}.", executionVertex.getActorId());
-    resourceManager.deallocateActor(executionVertex);
-
     RayObject<Boolean> destroyResult = RemoteCallWorker.destroyWorker(executionVertex.getActor());
     Ray.get(destroyResult.getId());
 
@@ -82,38 +72,6 @@ public class WorkerLifecycleController implements IWorkerLifecycleController {
     }
     executionVertex.getSlot().getActorCount().decrementAndGet();
     LOG.info("Destroy JobWorker succeeded, actor: {}.", executionVertex.getActorId());
-    return true;
-  }
-
-  @Override
-  public boolean createWorkers(List<ExecutionVertex> executionVertices) {
-    return asyncExecute(executionVertices, true);
-  }
-
-  @Override
-  public boolean destroyWorkers(List<ExecutionVertex> executionVertices) {
-    return asyncExecute(executionVertices, false);
-  }
-
-  private boolean asyncExecute(
-      List<ExecutionVertex> executionVertices,
-      boolean isToCreate) {
-
-//    final Object asyncContext = Ray.getAsyncContext();
-
-    List<CompletableFuture<Boolean>> futureResults = executionVertices.stream().map(vertex ->
-        CompletableFuture.supplyAsync(() -> {
-//          Ray.setAsyncContext(asyncContext);
-          return isToCreate ? createWorker(vertex) : destroyWorker(vertex);
-        })).collect(Collectors.toList());
-
-    List<Boolean> createSucceeded = futureResults.stream().map(CompletableFuture::join)
-        .collect(Collectors.toList());
-
-    if (createSucceeded.stream().anyMatch(x -> !x)) {
-      LOG.error("Not all futures return true, check ResourceManager'log the detail.");
-      return false;
-    }
     return true;
   }
 
