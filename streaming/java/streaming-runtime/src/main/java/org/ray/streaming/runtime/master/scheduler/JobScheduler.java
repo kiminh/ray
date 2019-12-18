@@ -6,22 +6,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import com.alibaba.fastjson.JSON;
 import com.google.common.base.Preconditions;
-import org.ray.api.Ray;
 import org.ray.api.RayActor;
-import org.ray.api.RayObject;
 import org.ray.api.id.ActorId;
-import org.ray.api.id.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
-import org.ray.streaming.runtime.config.types.OperatorType;
 import org.ray.streaming.runtime.config.internal.WorkerConfig;
+import org.ray.streaming.runtime.config.types.OperatorType;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
@@ -32,7 +28,6 @@ import org.ray.streaming.runtime.master.graphmanager.GraphManager;
 import org.ray.streaming.runtime.master.resourcemanager.ResourceManager;
 import org.ray.streaming.runtime.master.scheduler.controller.WorkerLifecycleController;
 import org.ray.streaming.runtime.master.scheduler.strategy.SlotAssignStrategy;
-import org.ray.streaming.runtime.rpc.call.RemoteCallWorker;
 import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.worker.JobWorkerContext;
 
@@ -63,7 +58,7 @@ public class JobScheduler implements IJobScheduler {
     this.jobMaster = jobMaster;
     this.graphManager = jobMaster.getGraphManager();
     this.resourceManager = jobMaster.getResourceManager();
-    this.workerController = new WorkerLifecycleController(resourceManager);
+    this.workerController = jobMaster.getWorkerController();
     this.strategy = resourceManager.getSlotAssignStrategy();
     this.jobConf = jobMaster.getRuntimeContext().getConf();
 
@@ -123,7 +118,14 @@ public class JobScheduler implements IJobScheduler {
     });
 
     // Create JobWorker actors
-    workerController.createWorkers(executionGraph.getAllNewbornVertices());
+    executionGraph.getAllNewbornVertices().stream()
+        .forEach(vertex -> {
+          // allocate by resource manager
+          Map<String, Double> resources = resourceManager.allocateActor(vertex);
+
+          // create actor by controller
+          workerController.createWorker(vertex, resources);
+        });
   }
 
   /**

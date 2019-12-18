@@ -89,7 +89,7 @@ public class JobMaster implements IJobMaster {
       scheduler = new JobScheduler(this);
     }
 
-    workerController = new WorkerLifecycleController(resourceManager);
+    workerController = new WorkerLifecycleController();
 
     ExecutionGraph executionGraph = graphManager.getExecutionGraph();
     Preconditions.checkArgument(executionGraph != null, "no execution graph");
@@ -102,8 +102,6 @@ public class JobMaster implements IJobMaster {
     LOG.info("Finish register job master context.");
     return true;
   }
-
-
 
   public boolean submitJob(RayActor jobMasterActor, byte[] jobGraphByteArray) {
     JobGraph jobGraph = KryoUtils.readFromByteArray(jobGraphByteArray);
@@ -156,7 +154,13 @@ public class JobMaster implements IJobMaster {
   @Override
   public Boolean destroyAllWorkers() {
     graphManager.getExecutionGraph().getAllExecutionVertices()
-        .forEach(vertex -> workerController.destroyWorker(vertex));
+        .forEach(vertex -> {
+          // deallocate by resource manager
+          resourceManager.deallocateActor(vertex);
+
+          // destroy by worker controller
+          workerController.destroyWorker(vertex);
+        });
     return true;
   }
 
@@ -174,6 +178,10 @@ public class JobMaster implements IJobMaster {
 
   public GraphManager getGraphManager() {
     return graphManager;
+  }
+
+  public WorkerLifecycleController getWorkerController() {
+    return workerController;
   }
 
   public StateBackend<String, byte[], StateBackendConfig> getStateBackend() {
