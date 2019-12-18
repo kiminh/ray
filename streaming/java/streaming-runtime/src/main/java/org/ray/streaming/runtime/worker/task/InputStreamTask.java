@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.worker.tasks;
+package org.ray.streaming.runtime.worker.task;
 
 import org.ray.runtime.util.Serializer;
 import org.ray.streaming.runtime.core.processor.Processor;

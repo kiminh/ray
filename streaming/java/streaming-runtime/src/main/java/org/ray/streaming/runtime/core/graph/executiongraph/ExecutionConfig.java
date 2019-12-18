@@ -3,7 +3,7 @@ package org.ray.streaming.runtime.core.graph.executiongraph;
 import java.io.Serializable;
 
 import org.ray.streaming.runtime.config.Configuration;
-import org.ray.streaming.runtime.config.internal.WorkerConfig;
+import org.ray.streaming.runtime.config.worker.WorkerConfig;
 
 public class ExecutionConfig implements Serializable {
 

@@ -26,12 +26,11 @@ public class ExecutionVertex implements Serializable {
   private final int globalIndex;
   private int subTaskIndex;
   private String taskNameWithSubtask;
-  private final ExecutionJobVertex exeJobVertex;
+  private final ExecutionJobVertex executionJobVertex;
 
   // Those fields are mutable.
-  private ExecutionVertexState state = ExecutionVertexState.TO_ADD;
   private ExecutionConfig executionConfig;
-  private List<IntermediateResultPartition> resultPartitions;
+  private List<IntermediateResultPartition> outputPartitions;
   private List<ExecutionEdge> inputEdges;
 
   private Map<ActorId, String> inputQueues = new HashMap<>();
@@ -47,11 +46,12 @@ public class ExecutionVertex implements Serializable {
 
   public ExecutionVertex(String taskName, int globalIndex, int subTaskIndex,
       ExecutionJobVertex exeJobVertex) {
+    this.executionJobVertex = exeJobVertex;
     this.subTaskIndex = subTaskIndex;
-    this.taskNameWithSubtask = taskName + "-" + subTaskIndex;
-    this.exeJobVertex = exeJobVertex;
     this.globalIndex = globalIndex;
+    this.taskNameWithSubtask = taskName + "-" + subTaskIndex;
   }
+
 
   public void setSlotIfNotExist(Slot slot) {
     if (null == this.slot) {
@@ -59,23 +59,12 @@ public class ExecutionVertex implements Serializable {
     }
   }
 
-  public void setState(ExecutionVertexState state) {
-    this.state = state;
-  }
-
-  public void reAssignSubTaskIndex(int subTaskIndex) {
-    this.subTaskIndex = subTaskIndex;
-    String[] taskNameList =  this.taskNameWithSubtask.split("-");
-    taskNameList[taskNameList.length - 1] = String.valueOf(subTaskIndex);
-    this.taskNameWithSubtask = String.join("-", taskNameList);
-  }
-
   public void setActor(RayActor actor) {
     this.workerActor = actor;
   }
 
-  public void setResultPartitions(List<IntermediateResultPartition> resultPartitions) {
-    this.resultPartitions = resultPartitions;
+  public void setOutputPartitions(List<IntermediateResultPartition> resultPartitions) {
+    this.outputPartitions = resultPartitions;
   }
 
   public void setInputEdges(List<ExecutionEdge> inputEdges) {
@@ -102,17 +91,14 @@ public class ExecutionVertex implements Serializable {
     return taskNameWithSubtask;
   }
 
-  public ExecutionJobVertex getExeJobVertex() {
-    return exeJobVertex;
+  public ExecutionJobVertex getExecutionJobVertex() {
+    return executionJobVertex;
   }
 
   public Slot getSlot() {
     return slot;
   }
 
-  public ExecutionVertexState getState() {
-    return state;
-  }
 
   public RayActor getActor() {
     return workerActor;
@@ -122,8 +108,8 @@ public class ExecutionVertex implements Serializable {
     return executionConfig;
   }
 
-  public List<IntermediateResultPartition> getResultPartitions() {
-    return resultPartitions;
+  public List<IntermediateResultPartition> getOutputPartitions() {
+    return outputPartitions;
   }
 
   public List<ExecutionEdge> getInputEdges() {
@@ -177,7 +163,7 @@ public class ExecutionVertex implements Serializable {
     executionConfig.setWorkerId(this.id.toString());
 
     // append job config
-    updateJobConfig(exeJobVertex.getJobConf());
+    updateJobConfig(executionJobVertex.getJobConf());
 
     return this;
   }
@@ -190,12 +176,9 @@ public class ExecutionVertex implements Serializable {
     }
   }
 
-  public boolean isToDelete() {
-    return ExecutionVertexState.TO_DEL.equals(state);
-  }
 
   public String getStreamName() {
-    return this.getExeJobVertex().getJobVertex().getId().toString();
+    return this.getExecutionJobVertex().getJobVertex().getId().toString();
   }
 
   public ActorId getActorId() {
@@ -209,7 +192,7 @@ public class ExecutionVertex implements Serializable {
   }
 
   public List<ExecutionVertex> getOutputExecutionVertices() {
-    return resultPartitions.stream()
+    return outputPartitions.stream()
         .map(resultPartitions -> resultPartitions.getConsumers())
         .flatMap(Collection::stream)
         .map(outputEdge -> outputEdge.getTarget())
@@ -221,7 +204,7 @@ public class ExecutionVertex implements Serializable {
   }
 
   public boolean isSinkVertex() {
-    return resultPartitions.isEmpty();
+    return outputPartitions.isEmpty();
   }
 
   // ----------------------------------------------------------------------
@@ -233,7 +216,7 @@ public class ExecutionVertex implements Serializable {
    * indexed op name is like `1-SourceOperator`
    */
   public String getOpNameWithIndex() {
-    OpInfo opInfo = getExeJobVertex().getJobVertex().getOpInfo();
+    OpInfo opInfo = getExecutionJobVertex().getJobVertex().getOpInfo();
     return String.format("%s-%s", opInfo.opIndex, opInfo.opName.split("\n")[0]).trim();
   }
 

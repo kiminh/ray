@@ -36,7 +36,7 @@ public class JobMasterRuntimeContext implements Serializable {
     return graphs;
   }
 
-  protected void setGraphs(JobGraph jobGraph, ExecutionGraph executionGraph) {
+  public void setGraphs(JobGraph jobGraph, ExecutionGraph executionGraph) {
     this.graphs = new Graphs(jobGraph, executionGraph);
   }
 

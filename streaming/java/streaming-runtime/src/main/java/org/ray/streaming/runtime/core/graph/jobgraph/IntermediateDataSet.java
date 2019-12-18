@@ -1,6 +1,5 @@
 package org.ray.streaming.runtime.core.graph.jobgraph;
 
-import com.antfin.arc.arch.partition.IPartitioner;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
