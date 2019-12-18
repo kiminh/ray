@@ -13,6 +13,4 @@ public interface RuntimeContext {
 
   Long getBatchId();
 
-  Long getMaxBatch();
-
 }

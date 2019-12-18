@@ -7,8 +7,7 @@ public enum OperatorType {
    */
   SOURCE(1),
   TRANSFORM(2),
-  SINK(3),
-  SOURCE_AND_SINK(4);
+  SINK(3);
 
   private int value;
 
