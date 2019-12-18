@@ -97,7 +97,6 @@ public class JobWorker implements IJobWorker {
           new JavaFunctionDescriptor(JobWorker.class.getName(), "onReaderMessageSync", "([B)[B"));
     }
 
-    task
 
 
     return true;
@@ -113,7 +112,7 @@ public class JobWorker implements IJobWorker {
 
   @Override
   public Boolean start() {
-    
+
   }
 
   // ----------------------------------------------------------------------
