@@ -2,8 +2,9 @@ package org.ray.streaming.runtime.core.graph;
 
 import java.io.Serializable;
 
+import org.ray.streaming.jobgraph.JobGraph;
+
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
-import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
 
 public class Graphs implements Serializable {
 

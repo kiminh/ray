@@ -1,6 +1,5 @@
 package org.ray.streaming.runtime.master.graphmanager;
 
-import com.google.common.collect.Maps;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,23 +11,21 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+import com.google.common.collect.Maps;
 import org.ray.api.RayActor;
 import org.ray.api.id.ActorId;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
-import org.ray.streaming.runtime.core.graph.executiongraph.JobInformation;
-import org.ray.streaming.runtime.core.graph.jobgraph.JobEdge;
-import org.ray.streaming.runtime.core.graph.jobgraph.JobVertexID;
-import org.ray.streaming.runtime.core.transfer.ChannelID;
+import org.ray.streaming.jobgraph.JobEdge;
+import org.ray.streaming.jobgraph.JobGraph;
+import org.ray.streaming.jobgraph.JobVertex;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.core.graph.GraphBuilder;
 import org.ray.streaming.runtime.core.graph.Graphs;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionEdge;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobEdge;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
-import org.ray.streaming.runtime.core.graph.executiongraph.IntermediateResultPartition;
-import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
-import org.ray.streaming.runtime.core.graph.jobgraph.JobVertex;
+import org.ray.streaming.runtime.core.transfer.ChannelID;
 import org.ray.streaming.runtime.master.JobMaster;
 import org.ray.streaming.runtime.master.JobMasterRuntimeContext;
 import org.ray.streaming.runtime.util.LoggerFactory;
@@ -46,66 +43,61 @@ public class GraphManagerImpl implements GraphManager {
   public GraphManagerImpl(JobMaster jobMaster, JobGraph jobGraph) {
     this.runtimeContext = jobMaster.getRuntimeContext();
     runtimeContext.setGraphs(jobGraph, buildExecutionGraph(jobGraph));
-
   }
 
   /**
    * Logical execution plan transforms physical execution plan.
-   * @param jobGraph logical execution plan
-   * @return physical execution plan
+   * @param jobGraph
+   * @return
    */
-  private ExecutionGraph buildExecutionGraph(JobGraph jobGraph) {
+  @Override
+  public ExecutionGraph buildExecutionGraph(JobGraph jobGraph) {
     LOG.info("Begin build execution graph with job graph {}.", jobGraph);
 
     ExecutionGraph executionGraph = new ExecutionGraph();
-    Collection<JobVertex> jobVertices = jobGraph.getVertices();
+    Collection<JobVertex> jobVertices = jobGraph.getJobVertexList();
 
-    Map<JobVertexID, ExecutionJobVertex> exeJobVertexMap = new LinkedHashMap<>();
+    Map<Integer, ExecutionJobVertex> exeJobVertexMap = new LinkedHashMap<>();
     for (JobVertex jobVertex : jobVertices) {
-      exeJobVertexMap.put(jobVertex.getId(),
-          new ExecutionJobVertex(jobVertex, executionGraph, jobGraph.getJobConfig()));
+      int jobVertexId = jobVertex.getVertexId();
+      exeJobVertexMap.put(jobVertexId,
+          new ExecutionJobVertex(jobVertexId, jobVertex.getParallelism(), jobGraph.getJobConfig()));
     }
 
-    for (JobVertex jobVertex : jobVertices) {
-      attachExecutionJobVertex(jobVertex, exeJobVertexMap);
-    }
+    // attach execution job vertex
+    attachExecutionJobVertex(jobGraph.getJobEdgeList(), exeJobVertexMap);
 
-    for (ExecutionJobVertex exeJobVertex : exeJobVertexMap.values()) {
-      exeJobVertex.attachExecutionVertex();
-    }
-
+    // set execution job vertex into execution graph
     executionGraph.setExecutionJobVertexMap(exeJobVertexMap);
-
-    List<ExecutionJobVertex> verticesInCreationOrder = new ArrayList<>(
+    List<ExecutionJobVertex> executionJobVertexList = new ArrayList(
         executionGraph.getExecutionJobVertexMap().values());
-    executionGraph.setVerticesInCreationOrder(verticesInCreationOrder);
-    int maxParallelism = jobVertices.stream().map(JobVertex::getParallelism)
+    executionGraph.setExecutionJobVertexList(executionJobVertexList);
+
+    // set max parallelism
+    int maxParallelism = jobVertices.stream()
+        .map(JobVertex::getParallelism)
         .max(Integer::compareTo).get();
     executionGraph.setMaxParallelism(maxParallelism);
 
-    // set job information
-    JobInformation jobInformation = new JobInformation(
-        jobGraph.getJobName(),
-        jobGraph.getJobConfig());
-    executionGraph.setJobInformation(jobInformation);
+    // set job config
+    executionGraph.setJobConfig(jobGraph.getJobConfig());
 
     LOG.info("Build execution graph success.");
     return executionGraph;
   }
 
-  private static void attachExecutionJobVertex(JobVertex jobVertex,
-      Map<JobVertexID, ExecutionJobVertex> exeJobVertexMap) {
-    ExecutionJobVertex exeJobVertex = exeJobVertexMap.get(jobVertex.getId());
+  private void attachExecutionJobVertex(List<JobEdge> jobEdgeList,
+      Map<Integer, ExecutionJobVertex> exeJobVertexMap) {
+    jobEdgeList.stream().forEach(jobEdge -> {
+      ExecutionJobVertex producer = exeJobVertexMap.get(jobEdge.getSrcVertexId());
+      ExecutionJobVertex consumer = exeJobVertexMap.get(jobEdge.getTargetVertexId());
 
-    // get input edges
-    List<JobEdge> inputs = jobVertex.getInputs();
+      ExecutionJobEdge executionJobEdge =
+          new ExecutionJobEdge(producer, consumer, jobEdge.getPartition());
 
-    // attach execution job vertex
-    for (JobEdge input : inputs) {
-      JobVertex producer = input.getSource().getProducer();
-      ExecutionJobVertex producerEjv = exeJobVertexMap.get(producer.getId());
-      exeJobVertex.connectNewIntermediateResultAsInput(input, producerEjv);
-    }
+      producer.getOutputEdges().add(executionJobEdge);
+      consumer.getInputEdges().add(executionJobEdge);
+    });
   }
 
   @Override
@@ -185,8 +177,8 @@ public class GraphManagerImpl implements GraphManager {
       actorIdExecutionVertexMap.put(curVertex.getActorId(), curVertex);
 
       // input
-      List<ExecutionEdge> inputEdges = curVertex.getInputEdges();
-      inputEdges.stream().filter(ExecutionEdge::isAlive).forEach(inputEdge -> {
+      List<ExecutionJobEdge> inputEdges = curVertex.getInputEdges();
+      inputEdges.stream().filter(ExecutionJobEdge::isAlive).forEach(inputEdge -> {
         ExecutionVertex inputVertex = inputEdge.getSource().getProducer();
         String queueName = curVertex.getInputQueues().get(inputVertex.getActorId());
         setQueueActorRelation(queueActorsMap, queueName, inputVertex.getActor());
@@ -202,7 +194,7 @@ public class GraphManagerImpl implements GraphManager {
       // output
       List<IntermediateResultPartition> partitions = curVertex.getOutputPartitions();
       partitions.stream().map(IntermediateResultPartition::getConsumers).flatMap(Collection::stream)
-          .filter(ExecutionEdge::isAlive).forEach(outputEdge -> {
+          .filter(ExecutionJobEdge::isAlive).forEach(outputEdge -> {
         ExecutionVertex outputVertex = outputEdge.getTarget();
         String queueName = curVertex.getOutputQueues().get(outputVertex.getActorId());
         setQueueActorRelation(queueActorsMap, queueName, outputVertex.getActor());

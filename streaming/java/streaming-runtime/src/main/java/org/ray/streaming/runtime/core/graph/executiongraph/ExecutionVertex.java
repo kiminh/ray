@@ -1,16 +1,27 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
-import org.ray.api.RayActor;
-import org.ray.streaming.runtime.worker.JobWorker;
+import java.io.Serializable;
+import java.util.List;
 
 /**
  *
  */
-public class ExecutionVertex {
+public class ExecutionVertex implements Serializable {
 
-  private int vertexId;
-  private int vertexIndex;
-  private RayActor<JobWorker> worker;
+  private final int vertexId;
+  private final int vertexIndex;
+
+  private List<ExecutionEdge> inputEdges;
+  private List<ExecutionEdge> outputEdges;
+
+  public ExecutionVertex(int jobVertexId, int index) {
+    this.vertexId = generateExecutionVertexId(jobVertexId, index);
+    this.vertexIndex = index;
+  }
+
+  private int generateExecutionVertexId(int jobVertexId, int index) {
+    return jobVertexId * 100000 + index;
+  }
 
   public int getVertexId() {
     return vertexId;
@@ -18,18 +29,5 @@ public class ExecutionVertex {
 
   public int getVertexIndex() {
     return vertexIndex;
-  }
-
-  public RayActor<JobWorker> getWorker() {
-    return worker;
-  }
-
-  @Override
-  public String toString() {
-    return "ExecutionVertex{" +
-        "vertexId=" + vertexId +
-        ", vertexIndex=" + vertexIndex +
-        ", worker=" + worker +
-        '}';
   }
 }

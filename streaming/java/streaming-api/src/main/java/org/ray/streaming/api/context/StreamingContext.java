@@ -11,8 +11,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.base.Preconditions;
 import org.ray.streaming.api.stream.StreamSink;
-import org.ray.streaming.plan.Plan;
-import org.ray.streaming.plan.PlanBuilder;
+import org.ray.streaming.jobgraph.JobGraph;
+import org.ray.streaming.jobgraph.JobGraphBuilder;
 import org.ray.streaming.schedule.IJobSchedule;
 
 /**
@@ -29,32 +29,36 @@ public class StreamingContext implements Serializable {
   /**
    * The logic plan.
    */
-  private Plan plan;
+  private JobGraph jobGraph;
 
-  private StreamingContext() {
+  private StreamingContext(Map<String, Object> jobConfig) {
     this.idGenerator = new AtomicInteger(0);
     this.streamSinks = new ArrayList<>();
-    this.jobConfig = new HashMap();
+    this.jobConfig = jobConfig;
   }
 
   public static StreamingContext buildContext() {
-    return new StreamingContext();
+    return new StreamingContext(new HashMap<>());
+  }
+
+  public static StreamingContext buildContext(Map<String, Object> jobConfig) {
+    return new StreamingContext(jobConfig);
   }
 
   /**
    * Construct job DAG, and execute the job.
    */
   public void execute() {
-    PlanBuilder planBuilder = new PlanBuilder(this.streamSinks);
-    this.plan = planBuilder.buildPlan();
-    plan.printPlan();
+    JobGraphBuilder jobGraphBuilder = new JobGraphBuilder(this.streamSinks, jobConfig);
+    this.jobGraph = jobGraphBuilder.build();
+    jobGraph.printPlan();
 
     ServiceLoader<IJobSchedule> serviceLoader = ServiceLoader.load(IJobSchedule.class);
     Iterator<IJobSchedule> iterator = serviceLoader.iterator();
     Preconditions.checkArgument(iterator.hasNext());
     // IJobSchedule jobSchedule = new JobScheduleImpl(jobConfig);
     IJobSchedule jobSchedule = iterator.next();
-    jobSchedule.schedule(plan, jobConfig);
+    jobSchedule.schedule(jobGraph, jobConfig);
   }
 
   public int generateId() {
@@ -67,5 +71,9 @@ public class StreamingContext implements Serializable {
 
   public void withConfig(Map<String, Object> jobConfig) {
     this.jobConfig = jobConfig;
+  }
+
+  public Map<String, Object> getJobConfig() {
+    return jobConfig;
   }
 }

@@ -1,17 +1,20 @@
 package org.ray.streaming.runtime.master.graphmanager;
 
 import java.io.Serializable;
-import java.util.Map;
-import java.util.Set;
-import org.ray.api.RayActor;
+
+import org.ray.streaming.jobgraph.JobGraph;
 
 import org.ray.streaming.runtime.core.graph.Graphs;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
-import org.ray.streaming.runtime.core.graph.executiongraph.OperatorNode;
-import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
 
 public interface GraphManager extends Serializable {
+
+  /**
+   * Build execution graph from job graph.
+   * @param jobGraph
+   * @return
+   */
+  ExecutionGraph buildExecutionGraph(JobGraph jobGraph);
 
   /**
    * Get graphs

@@ -3,11 +3,11 @@ package org.ray.streaming.runtime.master;
 import java.io.Serializable;
 
 import com.google.common.base.MoreObjects;
+import org.ray.streaming.jobgraph.JobGraph;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
 import org.ray.streaming.runtime.core.graph.Graphs;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
-import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
 import org.ray.streaming.runtime.core.resource.Resources;
 
 public class JobMasterRuntimeContext implements Serializable {

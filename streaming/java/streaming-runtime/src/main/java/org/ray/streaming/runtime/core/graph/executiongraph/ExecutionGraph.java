@@ -15,38 +15,48 @@ import org.ray.streaming.runtime.worker.JobWorker;
  */
 public class ExecutionGraph implements Serializable {
 
-  private List<ExecutionJobVertex> executionJobVertex;
-  private List<RayActor<JobWorker>> sourceWorkers = new ArrayList<>();
-  private List<RayActor<JobWorker>> sinkWorkers = new ArrayList<>();
+  private List<ExecutionJobVertex> executionJobVertexList;
+  private Map<Integer, ExecutionJobVertex> executionJobVertexMap;
+  private Map<String, Object> jobConfig;
+  private int maxParallelism;
   private long buildTime;
 
-  public ExecutionGraph(List<ExecutionJobVertex> executionJobVertex) {
-    this.executionJobVertex = executionJobVertex;
-    for (ExecutionJobVertex jobVertex : executionJobVertex) {
-      if (jobVertex.getJobVertexType() == JobVertexType.SOURCE) {
-        List<RayActor<JobWorker>> actors = jobVertex.getExecutionVertex().stream()
-            .map(ExecutionVertex::getWorker).collect(Collectors.toList());
-        sourceWorkers.addAll(actors);
-      }
-      if (jobVertex.getJobVertexType() == JobVertexType.SINK) {
-        List<RayActor<JobWorker>> actors = jobVertex.getExecutionVertex().stream()
-            .map(ExecutionVertex::getWorker).collect(Collectors.toList());
-        sinkWorkers.addAll(actors);
-      }
-    }
+  public ExecutionGraph() {
     this.buildTime = System.currentTimeMillis();
   }
 
-  public List<RayActor<JobWorker>> getSourceWorkers() {
-    return sourceWorkers;
+  public List<ExecutionJobVertex> getExecutionJobVertexList() {
+    return executionJobVertexList;
   }
 
-  public List<RayActor<JobWorker>> getSinkWorkers() {
-    return sinkWorkers;
+  public void setExecutionJobVertexList(
+      List<ExecutionJobVertex> executionJobVertexList) {
+    this.executionJobVertexList = executionJobVertexList;
   }
 
-  public List<ExecutionJobVertex> getExecutionJobVertex() {
-    return executionJobVertex;
+  public Map<Integer, ExecutionJobVertex> getExecutionJobVertexMap() {
+    return executionJobVertexMap;
+  }
+
+  public void setExecutionJobVertexMap(
+      Map<Integer, ExecutionJobVertex> executionJobVertexMap) {
+    this.executionJobVertexMap = executionJobVertexMap;
+  }
+
+  public Map<String, Object> getJobConfig() {
+    return jobConfig;
+  }
+
+  public void setJobConfig(Map<String, Object> jobConfig) {
+    this.jobConfig = jobConfig;
+  }
+
+  public int getMaxParallelism() {
+    return maxParallelism;
+  }
+
+  public void setMaxParallelism(int maxParallelism) {
+    this.maxParallelism = maxParallelism;
   }
 
   public long getBuildTime() {
@@ -54,7 +64,7 @@ public class ExecutionGraph implements Serializable {
   }
 
   public ExecutionVertex getExecutionJobVertexByJobVertexId(int vertexId) {
-    for (ExecutionJobVertex jobVertex : executionJobVertex) {
+    for (ExecutionJobVertex jobVertex : executionJobVertexList) {
       for (ExecutionVertex executionVertex : jobVertex.getExecutionVertex()) {
         if (executionVertex.getVertexId() == vertexId) {
           return executionVertex;
@@ -65,7 +75,7 @@ public class ExecutionGraph implements Serializable {
   }
 
   public Map<Integer, RayActor<JobWorker>> getTaskId2WorkerByJobVertexId(int jobVertexId) {
-    for (ExecutionJobVertex jobVertex : executionJobVertex) {
+    for (ExecutionJobVertex jobVertex : executionJobVertexList) {
       if (jobVertex.getJobVertexId() == jobVertexId) {
         Map<Integer, RayActor<JobWorker>> vertexId2Worker = new HashMap<>();
         for (ExecutionVertex executionVertex : jobVertex.getExecutionVertex()) {
