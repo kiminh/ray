@@ -1,43 +1,40 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
-import java.io.Serializable;
+import org.ray.streaming.api.partition.Partition;
 
-import com.google.common.base.MoreObjects;
+/**
+ *
+ */
+public class ExecutionEdge {
 
-public class ExecutionEdge implements Serializable {
-  private final IntermediateResultPartition source;
-  private final ExecutionVertex target;
-  private final int inputIndex;
+  private int srcVertexId;
+  private int targetVertexId;
+  private Partition partition;
 
-  public ExecutionEdge(IntermediateResultPartition source,
-      ExecutionVertex target, int inputIndex) {
-    this.source = source;
-    this.target = target;
-    this.inputIndex = inputIndex;
+  public ExecutionEdge(int srcVertexId, int targetVertexId, Partition partition) {
+    this.srcVertexId = srcVertexId;
+    this.targetVertexId = targetVertexId;
+    this.partition = partition;
   }
 
-  public IntermediateResultPartition getSource() {
-    return source;
+  public int getSrcVertexId() {
+    return srcVertexId;
   }
 
-  public ExecutionVertex getTarget() {
-    return target;
+  public int getTargetVertexId() {
+    return targetVertexId;
   }
 
-  public int getInputIndex() {
-    return inputIndex;
-  }
-
-  public boolean isAlive() {
-    return !getSource().getProducer().isToDelete() && !getTarget().isToDelete();
+  public Partition getPartition() {
+    return partition;
   }
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .add("source", source)
-        .add("target", target)
-        .add("inputIndex", inputIndex)
-        .toString();
+    return "ExecutionEdge{" +
+        "srcVertexId=" + srcVertexId +
+        ", targetVertexId=" + targetVertexId +
+        ", partition=" + partition +
+        '}';
   }
 }
