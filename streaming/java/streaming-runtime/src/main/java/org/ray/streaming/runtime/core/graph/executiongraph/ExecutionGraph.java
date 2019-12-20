@@ -1,17 +1,11 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.ray.api.RayActor;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex.JobVertexType;
-import org.ray.streaming.runtime.worker.JobWorker;
 
 /**
+ * Physical plan.
  */
 public class ExecutionGraph implements Serializable {
 
@@ -64,8 +58,8 @@ public class ExecutionGraph implements Serializable {
   }
 
   public ExecutionVertex getExecutionJobVertexByJobVertexId(int vertexId) {
-    for (ExecutionJobVertex jobVertex : executionJobVertexList) {
-      for (ExecutionVertex executionVertex : jobVertex.getExecutionVertex()) {
+    for (ExecutionJobVertex executionJobVertex : executionJobVertexList) {
+      for (ExecutionVertex executionVertex : executionJobVertex.getExecutionVertexList()) {
         if (executionVertex.getVertexId() == vertexId) {
           return executionVertex;
         }
@@ -73,18 +67,4 @@ public class ExecutionGraph implements Serializable {
     }
     throw new RuntimeException("Vertex " + vertexId + " does not exist!");
   }
-
-  public Map<Integer, RayActor<JobWorker>> getTaskId2WorkerByJobVertexId(int jobVertexId) {
-    for (ExecutionJobVertex jobVertex : executionJobVertexList) {
-      if (jobVertex.getJobVertexId() == jobVertexId) {
-        Map<Integer, RayActor<JobWorker>> vertexId2Worker = new HashMap<>();
-        for (ExecutionVertex executionVertex : jobVertex.getExecutionVertex()) {
-          vertexId2Worker.put(executionVertex.getVertexId(), executionVertex.getWorker());
-        }
-        return vertexId2Worker;
-      }
-    }
-    throw new RuntimeException("ExecutionJobVertex " + jobVertexId + " does not exist!");
-  }
-
 }

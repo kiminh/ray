@@ -79,6 +79,14 @@ public class ExecutionJobVertex {
     this.inputEdges = inputEdges;
   }
 
+  public void setStreamProcessor(StreamProcessor streamProcessor) {
+    this.streamProcessor = streamProcessor;
+  }
+
+  public StreamProcessor getStreamProcessor() {
+    return streamProcessor;
+  }
+
   public void setJobVertexType(
       VertexType vertexType) {
     switch (vertexType) {
