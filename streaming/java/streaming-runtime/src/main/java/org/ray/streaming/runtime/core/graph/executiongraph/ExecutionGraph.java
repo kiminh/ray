@@ -53,7 +53,18 @@ public class ExecutionGraph implements Serializable {
     return buildTime;
   }
 
-  public ExecutionVertex getExecutionJobVertexByJobVertexId(int vertexId) {
+  public ExecutionJobVertex getExecutionJobVertexByVertexId(int vertexId) {
+    for (ExecutionJobVertex executionJobVertex : executionJobVertex) {
+      for (ExecutionVertex executionVertex : executionJobVertex.getExecutionVertex()) {
+        if (executionVertex.getVertexId() == vertexId) {
+          return executionJobVertex;
+        }
+      }
+    }
+    throw new RuntimeException("Vertex " + vertexId + " does not exits!");
+  }
+
+  public ExecutionVertex getExecutionVertexByVertexId(int vertexId) {
     for (ExecutionJobVertex jobVertex : executionJobVertex) {
       for (ExecutionVertex executionVertex : jobVertex.getExecutionVertex()) {
         if (executionVertex.getVertexId() == vertexId) {

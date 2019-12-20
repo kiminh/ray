@@ -1,45 +1,37 @@
 package org.ray.streaming.runtime.worker.task;
 
-import org.ray.runtime.util.Serializer;
 import org.ray.streaming.runtime.core.processor.Processor;
 import org.ray.streaming.runtime.core.transfer.Message;
+import org.ray.streaming.runtime.core.transfer.QueueMessage;
+import org.ray.streaming.runtime.util.Serializer;
 import org.ray.streaming.runtime.worker.JobWorker;
 
+/**
+ *
+ */
 public abstract class InputStreamTask extends StreamTask {
-  private volatile boolean running = true;
 
-  public InputStreamTask(int taskId, Processor processor, JobWorker streamWorker) {
-    super(taskId, processor, streamWorker);
-  }
+  private long readTimeOutMillis;
 
-  @Override
-  protected void init() {
+
+  public InputStreamTask(int taskId, Processor processor, JobWorker jobWorker) {
+    super(taskId, processor, jobWorker);
+    readTimeOutMillis = jobWorker.getWorkerConfig().transferConfig.readMessageTimeOutMillis();
   }
 
   @Override
   public void run() {
     while (running) {
-      Message item = reader.pull(1000);
-      if (item != null) {
-        byte[] bytes = new byte[item.body().remaining()];
-        item.body().get(bytes);
+      Message message = reader.read(readTimeOutMillis);
+      if (message != null) {
+        byte[] bytes = new byte[message.body().remaining()];
         Object obj = Serializer.decode(bytes);
-        processor.process(obj);
+        if (obj instanceof QueueMessage) {
+          processor.process(obj);
+        } else {
+          throw new IllegalArgumentException("Unsupported queue item type:" + obj);
+        }
       }
     }
-  }
-
-  @Override
-  protected void cancelTask() throws Exception {
-    running = false;
-  }
-
-  @Override
-  public String toString() {
-    final StringBuilder sb = new StringBuilder("InputStreamTask{");
-    sb.append("taskId=").append(taskId);
-    sb.append(", processor=").append(processor);
-    sb.append('}');
-    return sb.toString();
   }
 }

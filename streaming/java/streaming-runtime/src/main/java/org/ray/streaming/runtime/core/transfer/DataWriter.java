@@ -9,12 +9,11 @@ import java.util.Set;
 import com.google.common.base.Preconditions;
 import org.ray.api.id.ActorId;
 import org.ray.runtime.RayNativeRuntime;
+import org.ray.streaming.runtime.util.JniUtils;
+import org.ray.streaming.runtime.util.Platform;
 import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.ray.streaming.runtime.util.JniUtils;
-import org.ray.streaming.runtime.util.Platform;
 
 /**
  * Data Writer is a wrapper of streaming c++ DataWriter, which sends data
@@ -46,8 +45,8 @@ public class DataWriter {
    * @param conf           configuration
    */
   public DataWriter(List<String> outputChannels,
-      List<ActorId> toActors,
-      Map<String, String> conf) {
+                    List<ActorId> toActors,
+                    Map<String, String> conf) {
     Preconditions.checkArgument(!outputChannels.isEmpty());
     Preconditions.checkArgument(outputChannels.size() == toActors.size());
     byte[][] outputChannelsBytes = outputChannels.stream()
@@ -87,7 +86,7 @@ public class DataWriter {
     ensureBuffer(size);
     buffer.clear();
     buffer.put(item);
-    writeMessageNative(nativeWriterPtr, id.getNativeIDPtr(), bufferAddress, size);
+    writeMessageNative(nativeWriterPtr, id.getNativeIdPtr(), bufferAddress, size);
   }
 
   /**
@@ -103,7 +102,7 @@ public class DataWriter {
     for (ChannelID id : ids) {
       buffer.clear();
       buffer.put(item.duplicate());
-      writeMessageNative(nativeWriterPtr, id.getNativeIDPtr(), bufferAddress, size);
+      writeMessageNative(nativeWriterPtr, id.getNativeIdPtr(), bufferAddress, size);
     }
   }
 
@@ -143,11 +142,11 @@ public class DataWriter {
       byte[] confBytes,
       boolean isMock);
 
-  private native long writeMessageNative(long nativeQueueProducerPtr, long nativeIDPtr, long address, int size);
+  private native long writeMessageNative(
+      long nativeQueueProducerPtr, long nativeIdPtr, long address, int size);
 
   private native void stopWriterNative(long nativeQueueProducerPtr);
 
   private native void closeWriterNative(long nativeQueueProducerPtr);
 
 }
-

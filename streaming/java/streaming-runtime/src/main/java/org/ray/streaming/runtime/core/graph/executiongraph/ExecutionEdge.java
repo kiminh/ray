@@ -1,5 +1,6 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
+import com.google.common.base.MoreObjects;
 import org.ray.streaming.api.partition.Partition;
 
 /**
@@ -7,22 +8,22 @@ import org.ray.streaming.api.partition.Partition;
  */
 public class ExecutionEdge {
 
-  private int srcVertexId;
-  private int targetVertexId;
+  private int srcJobVertexId;
+  private int targetJobVertexId;
   private Partition partition;
 
-  public ExecutionEdge(int srcVertexId, int targetVertexId, Partition partition) {
-    this.srcVertexId = srcVertexId;
-    this.targetVertexId = targetVertexId;
+  public ExecutionEdge(int srcJobVertexId, int targetJobVertexId, Partition partition) {
+    this.srcJobVertexId = srcJobVertexId;
+    this.targetJobVertexId = targetJobVertexId;
     this.partition = partition;
   }
 
-  public int getSrcVertexId() {
-    return srcVertexId;
+  public int getSrcJobVertexId() {
+    return srcJobVertexId;
   }
 
-  public int getTargetVertexId() {
-    return targetVertexId;
+  public int getTargetJobVertexId() {
+    return targetJobVertexId;
   }
 
   public Partition getPartition() {
@@ -31,10 +32,10 @@ public class ExecutionEdge {
 
   @Override
   public String toString() {
-    return "ExecutionEdge{" +
-        "srcVertexId=" + srcVertexId +
-        ", targetVertexId=" + targetVertexId +
-        ", partition=" + partition +
-        '}';
+    return MoreObjects.toStringHelper(this)
+        .add("srcJobVertexId", srcJobVertexId)
+        .add("targetJobVertexId", targetJobVertexId)
+        .add("partition", partition)
+        .toString();
   }
 }

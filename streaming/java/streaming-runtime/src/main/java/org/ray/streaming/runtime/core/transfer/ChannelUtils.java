@@ -2,11 +2,10 @@ package org.ray.streaming.runtime.core.transfer;
 
 import java.util.Map;
 
+import org.ray.streaming.runtime.generated.Streaming;
 import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.ray.streaming.runtime.generated.Streaming;
 
 public class ChannelUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(ChannelUtils.class);

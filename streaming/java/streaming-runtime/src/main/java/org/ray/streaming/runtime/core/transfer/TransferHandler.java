@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import org.ray.runtime.RayNativeRuntime;
 import org.ray.runtime.functionmanager.FunctionDescriptor;
 import org.ray.runtime.functionmanager.JavaFunctionDescriptor;
-
 import org.ray.streaming.runtime.util.JniUtils;
 
 /**
@@ -55,13 +54,13 @@ public class TransferHandler {
 
   private native long createWriterClientNative(
       long coreWorkerNative,
-      FunctionDescriptor async_func,
-      FunctionDescriptor sync_func);
+      FunctionDescriptor asyncFunc,
+      FunctionDescriptor syncFunc);
 
   private native long createReaderClientNative(
       long coreWorkerNative,
-      FunctionDescriptor async_func,
-      FunctionDescriptor sync_func);
+      FunctionDescriptor asyncFunc,
+      FunctionDescriptor syncFunc);
 
   private native void handleWriterMessageNative(long handler, byte[] buffer);
 
