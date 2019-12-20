@@ -17,6 +17,20 @@ public interface GraphManager extends Serializable {
   ExecutionGraph buildExecutionGraph(JobGraph jobGraph);
 
   /**
+   * Set up execution job vertex.
+   * @param jobGraph logical plan
+   * @return
+   */
+  ExecutionGraph setupExecutionJobVertex(JobGraph jobGraph);
+
+  /**
+   * Setup execution vertex.
+   * @param executionGraph physical plan
+   * @return
+   */
+  ExecutionGraph setupExecutionVertex(ExecutionGraph executionGraph);
+
+  /**
    * Get graphs
    *
    * @return all graphs
@@ -36,9 +50,4 @@ public interface GraphManager extends Serializable {
    * @return current execution graph
    */
   ExecutionGraph getExecutionGraph();
-
-  /**
-   * Create input and output info and setup relation for every vertex.
-   */
-  void setupExecutionVertex();
 }

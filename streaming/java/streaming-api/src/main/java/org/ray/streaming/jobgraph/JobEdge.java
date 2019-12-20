@@ -2,10 +2,12 @@ package org.ray.streaming.jobgraph;
 
 import java.io.Serializable;
 
+import com.google.common.base.MoreObjects;
+
 import org.ray.streaming.api.partition.Partition;
 
 /**
- * PlanEdge is connection and partition rules of upstream and downstream execution nodes.
+ * JobEdge is connection and partition rules of upstream and downstream execution nodes.
  */
 public class JobEdge implements Serializable {
 
@@ -45,7 +47,10 @@ public class JobEdge implements Serializable {
 
   @Override
   public String toString() {
-    return "Edge(" + "from:" + srcVertexId + "-" + targetVertexId + "-" + this.partition.getClass()
-        + ")";
+    return MoreObjects.toStringHelper(this)
+        .add("srcVertexId", srcVertexId)
+        .add("targetVertexId", targetVertexId)
+        .add("partition", partition)
+        .toString();
   }
 }
