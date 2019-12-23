@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 
 import org.ray.api.RayActor;
 import org.ray.api.id.ActorId;
-import org.ray.streaming.jobgraph.VertexType;
 
 /**
  * Physical plan.

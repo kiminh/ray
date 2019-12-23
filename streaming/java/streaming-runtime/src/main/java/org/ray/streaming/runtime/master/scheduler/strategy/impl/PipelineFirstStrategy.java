@@ -14,8 +14,6 @@ import org.ray.streaming.runtime.core.exception.ScheduleException;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertexState;
-import org.ray.streaming.runtime.core.graph.jobgraph.JobVertexID;
 import org.ray.streaming.runtime.core.resource.Container;
 import org.ray.streaming.runtime.core.resource.ResourceKey;
 import org.ray.streaming.runtime.core.resource.Resources;

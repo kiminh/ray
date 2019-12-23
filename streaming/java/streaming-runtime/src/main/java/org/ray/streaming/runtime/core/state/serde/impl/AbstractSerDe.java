@@ -1,7 +1,8 @@
 package org.ray.streaming.runtime.core.state.serde.impl;
 
-import com.google.common.base.Preconditions;
 import java.io.Serializable;
+
+import com.google.common.base.Preconditions;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 

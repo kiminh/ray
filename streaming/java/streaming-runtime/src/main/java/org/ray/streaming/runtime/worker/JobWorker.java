@@ -7,25 +7,23 @@ import org.ray.api.Ray;
 import org.ray.api.annotation.RayRemote;
 import org.ray.runtime.RayMultiWorkerNativeRuntime;
 import org.ray.runtime.functionmanager.JavaFunctionDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.ray.streaming.runtime.config.StreamingWorkerConfig;
 import org.ray.streaming.runtime.config.worker.TransferConfig;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionEdge;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.processor.OneInputProcessor;
 import org.ray.streaming.runtime.core.processor.SourceProcessor;
 import org.ray.streaming.runtime.core.processor.StreamProcessor;
 import org.ray.streaming.runtime.core.processor.TwoInputProcessor;
 import org.ray.streaming.runtime.core.transfer.TransferHandler;
+import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.worker.task.OneInputStreamTask;
 import org.ray.streaming.runtime.worker.task.SourceStreamTask;
-import org.ray.streaming.runtime.worker.task.TwoInputStreamTask;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.ray.streaming.runtime.config.StreamingWorkerConfig;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
-import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.worker.task.StreamTask;
+import org.ray.streaming.runtime.worker.task.TwoInputStreamTask;
 
 /**
  * The streaming worker implementation class, it is ray actor.

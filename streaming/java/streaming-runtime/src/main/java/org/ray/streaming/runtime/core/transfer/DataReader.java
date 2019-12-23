@@ -10,11 +10,12 @@ import java.util.Queue;
 import com.google.common.base.Preconditions;
 import org.ray.api.id.ActorId;
 import org.ray.runtime.RayNativeRuntime;
-import org.ray.streaming.runtime.util.JniUtils;
-import org.ray.streaming.runtime.util.Platform;
 import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.ray.streaming.runtime.util.JniUtils;
+import org.ray.streaming.runtime.util.Platform;
 
 /**
  * Data Reader is wrapper of streaming c++ DataReader, which read data

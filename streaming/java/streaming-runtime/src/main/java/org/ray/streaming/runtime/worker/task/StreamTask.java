@@ -8,11 +8,13 @@ import java.util.Map;
 import org.ray.api.Ray;
 import org.ray.api.RayActor;
 import org.ray.api.id.ActorId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.ray.streaming.api.collector.Collector;
 import org.ray.streaming.api.context.RuntimeContext;
 import org.ray.streaming.runtime.config.worker.WorkerConfig;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionEdge;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.processor.Processor;
@@ -22,8 +24,6 @@ import org.ray.streaming.runtime.core.transfer.DataWriter;
 import org.ray.streaming.runtime.worker.JobWorker;
 import org.ray.streaming.runtime.worker.context.StreamCollector;
 import org.ray.streaming.runtime.worker.context.StreamingRuntimeContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Task execution abstract class.

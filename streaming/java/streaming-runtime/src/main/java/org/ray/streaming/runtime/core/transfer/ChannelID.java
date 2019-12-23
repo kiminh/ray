@@ -11,8 +11,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
 import org.ray.runtime.RayNativeRuntime;
-import org.ray.streaming.runtime.util.JniUtils;
 import sun.nio.ch.DirectBuffer;
+
+import org.ray.streaming.runtime.util.JniUtils;
 
 /**
  * ChannelID is used to identify a transfer channel between a upstream worker

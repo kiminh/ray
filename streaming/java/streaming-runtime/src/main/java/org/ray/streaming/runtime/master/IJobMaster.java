@@ -1,7 +1,5 @@
 package org.ray.streaming.runtime.master;
 
-import org.ray.api.RayActor;
-
 public interface IJobMaster {
 
   /**
