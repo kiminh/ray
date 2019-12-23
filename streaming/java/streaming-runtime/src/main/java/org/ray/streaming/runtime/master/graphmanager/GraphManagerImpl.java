@@ -66,10 +66,11 @@ public class GraphManagerImpl implements GraphManager {
 
     // create vertex
     Map<Integer, ExecutionJobVertex> exeJobVertexMap = new LinkedHashMap<>();
+    long buildTime = executionGraph.getBuildTime();
     for (JobVertex jobVertex : jobGraph.getJobVertexList()) {
       int jobVertexId = jobVertex.getVertexId();
       exeJobVertexMap.put(jobVertexId,
-          new ExecutionJobVertex(jobVertexId, jobVertex.getParallelism(), jobGraph.getJobConfig()));
+          new ExecutionJobVertex(jobVertex, jobGraph.getJobConfig(), buildTime));
     }
 
     // attach vertex

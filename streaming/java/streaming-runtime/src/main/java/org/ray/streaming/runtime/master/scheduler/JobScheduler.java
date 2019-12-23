@@ -114,11 +114,11 @@ public class JobScheduler implements IJobScheduler {
     // set worker config
     executionGraph.getAllExecutionVertices().stream().forEach(executionVertex -> {
       Map<String, String> conf = setWorkerConfig(jobConf.workerConfigTemplate, executionVertex);
-      LOG.info("Worker {} conf is {}.", executionVertex.getActorName(), conf);
+      LOG.info("Worker {} conf is {}.", executionVertex.getVertexIndex(), conf);
     });
 
     // Create JobWorker actors
-    executionGraph.getAllNewbornVertices().stream()
+    executionGraph.getAllExecutionVertices().stream()
         .forEach(vertex -> {
           // allocate by resource manager
           Map<String, Double> resources = resourceManager.allocateActor(vertex);
@@ -159,7 +159,7 @@ public class JobScheduler implements IJobScheduler {
     long waitStartTime = System.currentTimeMillis();
     executionGraph.getAllExecutionVertices().forEach(vertex -> {
       JobWorkerContext ctx = buildJobWorkerContext(vertex, configTemplate, masterActor);
-      boolean initResult = workerController.initWorker(vertex.getActor(), ctx);
+      boolean initResult = workerController.initWorker(vertex.getWorkerActor(), ctx);
 
       if (initResult) {
         LOG.error("Init workers occur error.");

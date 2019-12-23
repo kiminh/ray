@@ -37,8 +37,6 @@ public class JobWorker implements IJobWorker {
 
   private StreamingWorkerConfig workerConfig;
   private JobWorkerContext workerContext;
-  private ExecutionGraph executionGraph;
-  private ExecutionJobVertex executionJobVertex;
   private ExecutionVertex executionVertex;
 
   private TransferHandler transferHandler;
@@ -62,11 +60,8 @@ public class JobWorker implements IJobWorker {
   public Boolean init(JobWorkerContext workerContext) {
     LOG.info("Init worker context {}. workerId: {}.", workerContext, workerContext.getWorkerId());
     this.workerContext = workerContext;
-    this.workerConfig = new StreamingWorkerConfig(workerContext.getConf());
-    this.executionGraph = workerContext.getExecutionGraph();
-    this.executionJobVertex = executionGraph.getExecutionJobVertexByVertexId(workerContext.getTaskId());
-    this.executionVertex = executionGraph.getExecutionVertexByVertexId(workerContext.getTaskId());
-
+    this.executionVertex = KryoUtils.readFromByteArray(workerContext.getExecutionVertexBytes());
+    this.workerConfig = new StreamingWorkerConfig(executionVertex.getJobConfig());
 
     //init transfer
     String channelType = workerConfig.transferConfig.chennelType();
@@ -95,17 +90,17 @@ public class JobWorker implements IJobWorker {
 
   private StreamTask createStreamTask() {
     StreamTask task;
-    StreamProcessor streamProcessor = executionJobVertex.getStreamProcessor();
+    StreamProcessor streamProcessor = executionVertex.getStreamProcessor();
     if (streamProcessor instanceof SourceProcessor) {
-      task = new SourceStreamTask(workerContext.getTaskId(), streamProcessor, this);
+      task = new SourceStreamTask(executionVertex.getVertexId(), streamProcessor, this);
     } else if (streamProcessor instanceof OneInputProcessor) {
-      task = new OneInputStreamTask(workerContext.getTaskId(), streamProcessor, this);
+      task = new OneInputStreamTask(executionVertex.getVertexId(), streamProcessor, this);
     } else if (streamProcessor instanceof TwoInputProcessor) {
-      List<ExecutionEdge> inputEdges = this.executionJobVertex.getInputEdges();
+      List<ExecutionEdge> inputEdges = this.executionVertex.getInputEdges();
       //TODO
       String leftStream = null;
       String rightStream = null;
-      task = new TwoInputStreamTask(workerContext.getTaskId(), streamProcessor, this, leftStream, rightStream);
+      task = new TwoInputStreamTask(executionVertex.getVertexId(), streamProcessor, this, leftStream, rightStream);
     } else {
       throw new RuntimeException("Unsupported processor type:" + streamProcessor);
     }
@@ -138,14 +133,6 @@ public class JobWorker implements IJobWorker {
       return false;
     }
     return true;
-  }
-
-  public ExecutionGraph getExecutionGraph() {
-    return executionGraph;
-  }
-
-  public ExecutionJobVertex getExecutionJobVertex() {
-    return executionJobVertex;
   }
 
   public ExecutionVertex getExecutionVertex() {

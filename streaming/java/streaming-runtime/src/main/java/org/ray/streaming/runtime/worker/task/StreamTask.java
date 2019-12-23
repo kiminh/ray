@@ -59,17 +59,18 @@ public abstract class StreamTask implements Runnable {
     queueConf.putAll(jobWorker.getWorkerConfig().workerConfig2Map());
     queueConf.put(WorkerConfig.taskId, Ray.getRuntimeContext().getCurrentJobId().toString());
 
-    ExecutionGraph executionGraph = jobWorker.getExecutionGraph();
-    ExecutionJobVertex executionJobVertex = jobWorker.getExecutionJobVertex();
     ExecutionVertex executionVertex = jobWorker.getExecutionVertex();
+    ExecutionJobVertex executionJobVertex = executionVertex.getExecutionJobVertex();
 
-    List<ExecutionEdge> outputEdges = executionJobVertex.getOutputEdges();
+    // consumer
+    List<ExecutionEdge> outputEdges = executionVertex.getOutputEdges();
     for (ExecutionEdge edge : outputEdges) {
       Map<String, ActorId> outputActor = new HashMap<>();
-      Map<Integer, RayActor<JobWorker>> vertexId2Work =
-          executionGraph.getTaskId2WorkerByJobVertexId(edge.getTargetJobVertexId());
-      vertexId2Work.forEach((targetVertexId, targetActor) -> {
-        String queueName = ChannelID.genIdStr(taskId, targetVertexId, executionGraph.getBuildTime());
+      Map<Integer, RayActor<JobWorker>> vertexId2Worker =
+          executionJobVertex.getExecutionVertexWorkers();
+
+      vertexId2Worker.forEach((targetVertexId, targetActor) -> {
+        String queueName = ChannelID.genIdStr(taskId, targetVertexId, executionVertex.getBuildTime());
         outputActor.put(queueName, targetActor.getId());
       });
 
@@ -85,14 +86,15 @@ public abstract class StreamTask implements Runnable {
       }
     }
 
-    // consumer
-    List<ExecutionEdge> inputEdges = executionJobVertex.getInputEdges();
+    // producer
+    List<ExecutionEdge> inputEdges = executionVertex.getInputEdges();
     Map<String, ActorId> inputActorIds = new HashMap<>();
     for (ExecutionEdge edge : inputEdges) {
-      Map<Integer, RayActor<JobWorker>> taskId2Worker = executionGraph
-          .getTaskId2WorkerByJobVertexId(edge.getSrcJobVertexId());
+      Map<Integer, RayActor<JobWorker>> taskId2Worker =
+          executionJobVertex.getExecutionVertexWorkers();
+
       taskId2Worker.forEach((srcTaskId, srcActor) -> {
-        String queueName = ChannelID.genIdStr(srcTaskId, taskId, executionGraph.getBuildTime());
+        String queueName = ChannelID.genIdStr(srcTaskId, taskId, executionVertex.getBuildTime());
         inputActorIds.put(queueName, srcActor.getId());
       });
     }
@@ -109,7 +111,7 @@ public abstract class StreamTask implements Runnable {
 
 
     RuntimeContext runtimeContext = new StreamingRuntimeContext(executionVertex,
-        jobWorker.getWorkerConfig().configMap, executionJobVertex.getParallelism());
+        jobWorker.getWorkerConfig().configMap, executionVertex.getParallelism());
     processor.open(collectors, runtimeContext);
   }
 

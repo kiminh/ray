@@ -1,8 +1,10 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Physical plan.
@@ -11,7 +13,7 @@ public class ExecutionGraph implements Serializable {
 
   private List<ExecutionJobVertex> executionJobVertexList;
   private Map<Integer, ExecutionJobVertex> executionJobVertexMap;
-  private Map<String, Object> jobConfig;
+  private Map<String, String> jobConfig;
   private int maxParallelism;
   private long buildTime;
 
@@ -37,11 +39,11 @@ public class ExecutionGraph implements Serializable {
     this.executionJobVertexMap = executionJobVertexMap;
   }
 
-  public Map<String, Object> getJobConfig() {
+  public Map<String, String> getJobConfig() {
     return jobConfig;
   }
 
-  public void setJobConfig(Map<String, Object> jobConfig) {
+  public void setJobConfig(Map<String, String> jobConfig) {
     this.jobConfig = jobConfig;
   }
 
@@ -55,6 +57,13 @@ public class ExecutionGraph implements Serializable {
 
   public long getBuildTime() {
     return buildTime;
+  }
+
+  public List<ExecutionVertex> getAllExecutionVertices() {
+    return executionJobVertexList.stream()
+        .map(ExecutionJobVertex::getExecutionVertexList)
+        .flatMap(Collection::stream)
+        .collect(Collectors.toList());
   }
 
   public ExecutionVertex getExecutionJobVertexByJobVertexId(int vertexId) {

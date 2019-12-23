@@ -1,6 +1,5 @@
 package org.ray.streaming.jobgraph;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -19,8 +18,8 @@ public class JobGraphBuilder {
   private AtomicInteger edgeIdGenerator;
   private List<StreamSink> streamSinkList;
 
-  public JobGraphBuilder(List<StreamSink> streamSinkList, Map<String, Object> jobConfig) {
-    this.jobGraph = new JobGraph(new HashMap<>());
+  public JobGraphBuilder(List<StreamSink> streamSinkList, Map<String, String> jobConfig) {
+    this.jobGraph = new JobGraph(jobConfig);
     this.streamSinkList = streamSinkList;
     this.edgeIdGenerator = new AtomicInteger(0);
   }

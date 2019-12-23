@@ -1,21 +1,28 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.ray.streaming.jobgraph.VertexType;
+import com.google.common.base.Preconditions;
+import org.ray.api.RayActor;
+import org.ray.streaming.jobgraph.JobVertex;
+import org.ray.streaming.jobgraph.LanguageType;
+
 import org.ray.streaming.runtime.core.processor.StreamProcessor;
+import org.ray.streaming.runtime.worker.JobWorker;
 
 /**
- *
+ * Physical job vertex which including parallelism execution vertex.
  */
 public class ExecutionJobVertex {
 
-  private int jobVertexId;
+  private final int jobVertexId;
+  private final JobVertex jobVertex;
   private int parallelism;
-  private ExecutionJobVertexType executionJobVertexType;
-  private Map<String, Object> jobConfig;
+  private Map<String, String> jobConfig;
+  private long buildTime;
   private List<ExecutionVertex> executionVertexList;
 
   private List<ExecutionJobEdge> inputEdges = new ArrayList<>();
@@ -23,33 +30,53 @@ public class ExecutionJobVertex {
 
   private StreamProcessor streamProcessor;
 
-  public enum ExecutionJobVertexType {
-    SOURCE,
-    PROCESS,
-    SINK
-  }
-
-  public ExecutionJobVertex(int jobVertexId, int parallelism, Map<String, Object> jobConfig) {
-    this.jobVertexId = jobVertexId;
-    this.parallelism = parallelism;
+  public ExecutionJobVertex(JobVertex jobVertex, Map<String, String> jobConfig, long buildTime) {
+    this.jobVertexId = jobVertex.getVertexId();
+    this.jobVertex = jobVertex;
+    this.parallelism = jobVertex.getParallelism();
     this.jobConfig = jobConfig;
+    this.buildTime = buildTime;
     this.executionVertexList = createExecutionVertics();
   }
 
   private List<ExecutionVertex> createExecutionVertics() {
     List<ExecutionVertex> executionVertices = new ArrayList<>();
     for (int index = 1; index <= parallelism; index++) {
-      executionVertices.add(new ExecutionVertex(jobVertexId, index));
+      executionVertices.add(new ExecutionVertex(jobVertexId, index, this));
     }
     return executionVertices;
+  }
+
+  public Map<Integer, RayActor<JobWorker>> getExecutionVertexWorkers () {
+    Map<Integer, RayActor<JobWorker>> executionVertexWorkersMap = new HashMap<>();
+
+    Preconditions.checkArgument(
+        executionVertexList != null && !executionVertexList.isEmpty(),
+        "Empty execution vertex.");
+    executionVertexList.stream().forEach(vertex -> {
+      Preconditions.checkArgument(
+          vertex.getWorkerActor() != null,
+          "Empty execution vertex worker actor.");
+      executionVertexWorkersMap.put(vertex.getVertexId(), vertex.getWorkerActor());
+    });
+
+    return executionVertexWorkersMap;
   }
 
   public int getJobVertexId() {
     return jobVertexId;
   }
 
+  public JobVertex getJobVertex() {
+    return jobVertex;
+  }
+
   public int getParallelism() {
     return parallelism;
+  }
+
+  public Map<String, String> getJobConfig() {
+    return jobConfig;
   }
 
   public List<ExecutionVertex> getExecutionVertexList() {
@@ -87,26 +114,11 @@ public class ExecutionJobVertex {
     return streamProcessor;
   }
 
-  public void setJobVertexType(
-      VertexType vertexType) {
-    switch (vertexType) {
-      case SOURCE:
-        this.executionJobVertexType = ExecutionJobVertexType.SOURCE;
-        break;
-      case PROCESS:
-        this.executionJobVertexType = ExecutionJobVertexType.PROCESS;
-        break;
-      case SINK:
-        this.executionJobVertexType = ExecutionJobVertexType.SINK;
-        break;
-        default:
-          throw new IllegalStateException();
-    }
+  public LanguageType getLanguageType() {
+    return jobVertex.getLanguageType();
   }
 
-  public ExecutionJobVertexType getExecutionJobVertexType() {
-    return executionJobVertexType;
+  public long getBuildTime() {
+    return buildTime;
   }
-
-
 }

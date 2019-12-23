@@ -25,13 +25,13 @@ public class StreamingContext implements Serializable {
    * The sinks of this streaming job.
    */
   private List<StreamSink> streamSinks;
-  private Map<String, Object> jobConfig;
+  private Map<String, String> jobConfig;
   /**
    * The logic plan.
    */
   private JobGraph jobGraph;
 
-  private StreamingContext(Map<String, Object> jobConfig) {
+  private StreamingContext(Map<String, String> jobConfig) {
     this.idGenerator = new AtomicInteger(0);
     this.streamSinks = new ArrayList<>();
     this.jobConfig = jobConfig;
@@ -41,7 +41,7 @@ public class StreamingContext implements Serializable {
     return new StreamingContext(new HashMap<>());
   }
 
-  public static StreamingContext buildContext(Map<String, Object> jobConfig) {
+  public static StreamingContext buildContext(Map<String, String> jobConfig) {
     return new StreamingContext(jobConfig);
   }
 
@@ -69,11 +69,11 @@ public class StreamingContext implements Serializable {
     streamSinks.add(streamSink);
   }
 
-  public void withConfig(Map<String, Object> jobConfig) {
+  public void withConfig(Map<String, String> jobConfig) {
     this.jobConfig = jobConfig;
   }
 
-  public Map<String, Object> getJobConfig() {
+  public Map<String, String> getJobConfig() {
     return jobConfig;
   }
 }

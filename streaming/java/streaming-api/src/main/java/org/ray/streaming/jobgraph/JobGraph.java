@@ -15,11 +15,11 @@ public class JobGraph implements Serializable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobGraph.class);
 
-  private Map<String, Object> jobConfig;
+  private Map<String, String> jobConfig;
   private List<JobVertex> jobVertexList;
   private List<JobEdge> jobEdgeList;
 
-  public JobGraph(Map<String, Object> jobConfig) {
+  public JobGraph(Map<String, String> jobConfig) {
     this.jobConfig = jobConfig;
     this.jobVertexList = new ArrayList<>();
     this.jobEdgeList = new ArrayList<>();
@@ -58,7 +58,7 @@ public class JobGraph implements Serializable {
     }
   }
 
-  public Map<String, Object> getJobConfig() {
+  public Map<String, String> getJobConfig() {
     return jobConfig;
   }
 }

@@ -1,6 +1,5 @@
 package org.ray.streaming.schedule;
 
-
 import java.util.Map;
 
 import org.ray.streaming.jobgraph.JobGraph;
@@ -15,5 +14,5 @@ public interface IJobSchedule {
    *
    * @param jobGraph The logical plan.
    */
-  void schedule(JobGraph jobGraph, Map<String, Object> conf);
+  void schedule(JobGraph jobGraph, Map<String, String> conf);
 }

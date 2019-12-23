@@ -6,10 +6,10 @@ import org.ray.api.Ray;
 import org.ray.api.RayActor;
 import org.ray.api.RayObject;
 import org.ray.api.options.ActorCreationOptions;
+import org.ray.streaming.jobgraph.LanguageType;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
-import org.ray.streaming.runtime.core.graph.jobgraph.LanguageType;
 import org.ray.streaming.runtime.rpc.call.RemoteCallWorker;
 import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
@@ -25,9 +25,9 @@ public class WorkerLifecycleController implements IWorkerLifecycleController {
   @Override
   public boolean createWorker(ExecutionVertex executionVertex, Map<String, Double> resources) {
     LOG.info("Start to create JobWorker actor for vertex: {} with resource: {}.",
-        executionVertex.getId(), resources);
+        executionVertex.getVertexId(), resources);
 
-    LanguageType language = executionVertex.getExeJobVertex().getLanguageType();
+    LanguageType language = executionVertex.getLanguageType();
 
     ActorCreationOptions options = new ActorCreationOptions.Builder()
         .setResources(resources)
@@ -39,7 +39,7 @@ public class WorkerLifecycleController implements IWorkerLifecycleController {
       actor = RemoteCallWorker
           .createWorker(
               KryoUtils.writeToByteArray(
-                  executionVertex.getExecutionConfig().getConfiguration().toStringMap()), options);
+                  executionVertex.getJobConfig()), options);
     } else {
       // TODO
     }
@@ -49,29 +49,29 @@ public class WorkerLifecycleController implements IWorkerLifecycleController {
       return false;
     }
 
-    executionVertex.setActor(actor);
+    executionVertex.setWorkerActor(actor);
     executionVertex.getSlot().getActorCount().incrementAndGet();
     LOG.info("Create JobWorker actor succeeded, actor: {}, vertex: {}.",
-        executionVertex.getActorId(), executionVertex.getId());
+        executionVertex.getWorkerActorId(), executionVertex.getVertexId());
     return true;
   }
 
   @Override
   public boolean destroyWorker(ExecutionVertex executionVertex) {
-    if (null == executionVertex.getActor()) {
+    if (null == executionVertex.getWorkerActor()) {
       LOG.error("Execution vertex does not have an actor!");
       return false;
     }
 
-    RayObject<Boolean> destroyResult = RemoteCallWorker.destroyWorker(executionVertex.getActor());
+    RayObject<Boolean> destroyResult = RemoteCallWorker.destroyWorker(executionVertex.getWorkerActor());
     Ray.get(destroyResult.getId());
 
     if (!destroyResult.get()) {
-      LOG.error("Failed to destroy JobWorker actor; {}.", executionVertex.getActorId());
+      LOG.error("Failed to destroy JobWorker actor; {}.", executionVertex.getWorkerActorId());
       return false;
     }
     executionVertex.getSlot().getActorCount().decrementAndGet();
-    LOG.info("Destroy JobWorker succeeded, actor: {}.", executionVertex.getActorId());
+    LOG.info("Destroy JobWorker succeeded, actor: {}.", executionVertex.getWorkerActorId());
     return true;
   }
 
