@@ -9,6 +9,7 @@ import com.google.common.base.Preconditions;
 import org.ray.api.RayActor;
 import org.ray.streaming.jobgraph.JobVertex;
 import org.ray.streaming.jobgraph.LanguageType;
+import org.ray.streaming.jobgraph.VertexType;
 
 import org.ray.streaming.runtime.core.processor.StreamProcessor;
 import org.ray.streaming.runtime.worker.JobWorker;
@@ -18,7 +19,9 @@ import org.ray.streaming.runtime.worker.JobWorker;
  */
 public class ExecutionJobVertex {
 
+  private final String jobName;
   private final int jobVertexId;
+  private final String jobVertexName;
   private final JobVertex jobVertex;
   private int parallelism;
   private Map<String, String> jobConfig;
@@ -30,8 +33,11 @@ public class ExecutionJobVertex {
 
   private StreamProcessor streamProcessor;
 
-  public ExecutionJobVertex(JobVertex jobVertex, Map<String, String> jobConfig, long buildTime) {
+  public ExecutionJobVertex(String jobName, JobVertex jobVertex, Map<String, String> jobConfig,
+      long buildTime) {
+    this.jobName = jobName;
     this.jobVertexId = jobVertex.getVertexId();
+    this.jobVertexName = jobVertex.getVertexName();
     this.jobVertex = jobVertex;
     this.parallelism = jobVertex.getParallelism();
     this.jobConfig = jobConfig;
@@ -63,8 +69,16 @@ public class ExecutionJobVertex {
     return executionVertexWorkersMap;
   }
 
+  public String getJobName() {
+    return jobName;
+  }
+
   public int getJobVertexId() {
     return jobVertexId;
+  }
+
+  public String getJobVertexName() {
+    return jobVertexName;
   }
 
   public JobVertex getJobVertex() {
@@ -118,7 +132,23 @@ public class ExecutionJobVertex {
     return jobVertex.getLanguageType();
   }
 
+  public VertexType getVertexType() {
+    return jobVertex.getVertexType();
+  }
+
   public long getBuildTime() {
     return buildTime;
+  }
+
+  public boolean isSourceVertex() {
+    return getVertexType() == VertexType.SOURCE;
+  }
+
+  public boolean isProcessVertex() {
+    return getVertexType() == VertexType.PROCESS;
+  }
+
+  public boolean isSinkVertex() {
+    return getVertexType() == VertexType.SINK;
   }
 }

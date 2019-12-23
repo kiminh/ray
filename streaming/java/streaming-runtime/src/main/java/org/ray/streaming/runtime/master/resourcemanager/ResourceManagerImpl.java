@@ -72,31 +72,26 @@ public class ResourceManagerImpl implements ResourceManager {
   }
 
   @Override
-  public Map<String, Double> allocateActor(final ExecutionVertex executionVertex) {
+  public Map<String, Double> allocateResource(final ExecutionVertex executionVertex) {
     Container container = executionVertex.getSlot().getContainer();
-    LOG.info("Start to allocate actor in container: {}.", container);
+    LOG.info("Start to allocate resource for actor with container: {}.", container);
 
-    // allocate actor
-    Map<String, Double> userCustomResources = executionVertex.getExeJobVertex().getJobVertex()
-        .getResources();
-    LOG.info("User custom resource for vertex {} is: {}.", executionVertex.getTaskNameWithSubtask(),
-        userCustomResources);
-    Map<String, Double> resources = new HashMap<>(userCustomResources);
-    String resourceKey = container.getName();
-    resources.put(resourceKey, 1.0);
+    // allocate resource to actor
+    Map<String, Double> resources = new HashMap<>();
+    resources.put(container.getName(), 1.0);
 
-    LOG.info("Allocate actor [vertexId={}] succeeded in container {}.",
-        executionVertex.getId(), container);
+    LOG.info("Allocate resource to actor [vertexId={}] succeeded with container {}.",
+        executionVertex.getVertexId(), container);
     return resources;
   }
 
   @Override
-  public void deallocateActor(final ExecutionVertex executionVertex) {
-    LOG.info("Start deallocate actor {}.", executionVertex.getActorId());
+  public void deallocateResource(final ExecutionVertex executionVertex) {
+    LOG.info("Start deallocate resource for actor {}.", executionVertex.getWorkerActorId());
 
     // TODO: decrease container allocated actor num
 
-    LOG.info("Deallocate actor {} success.", executionVertex.getActorId());
+    LOG.info("Deallocate resource for actor {} success.", executionVertex.getWorkerActorId());
   }
 
   @Override

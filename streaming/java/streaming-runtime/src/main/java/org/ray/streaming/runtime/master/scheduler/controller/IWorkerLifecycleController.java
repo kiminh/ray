@@ -21,13 +21,6 @@ public interface IWorkerLifecycleController {
   boolean createWorker(ExecutionVertex executionVertex, Map<String, Double> resources);
 
   /**
-   * Stop a worker.
-   * @param executionVertex: the specified execution vertex
-   * @return true if worker destruction succeeded
-   */
-  boolean destroyWorker(ExecutionVertex executionVertex);
-
-  /**
    * Init a worker.
    * @param rayActor: target worker's actor
    * @param jobWorkerContext: the worker context
@@ -41,4 +34,11 @@ public interface IWorkerLifecycleController {
    * @return
    */
   boolean startWorker(RayActor rayActor);
+
+  /**
+   * Stop a worker.
+   * @param executionVertex: the specified execution vertex
+   * @return true if worker destruction succeeded
+   */
+  boolean destroyWorker(ExecutionVertex executionVertex);
 }

@@ -62,15 +62,15 @@ public class GraphManagerImpl implements GraphManager {
 
   @Override
   public ExecutionGraph setupExecutionJobVertex(JobGraph jobGraph) {
-    ExecutionGraph executionGraph = new ExecutionGraph();
+    ExecutionGraph executionGraph = new ExecutionGraph(jobGraph.getJobName());
 
     // create vertex
     Map<Integer, ExecutionJobVertex> exeJobVertexMap = new LinkedHashMap<>();
     long buildTime = executionGraph.getBuildTime();
     for (JobVertex jobVertex : jobGraph.getJobVertexList()) {
       int jobVertexId = jobVertex.getVertexId();
-      exeJobVertexMap.put(jobVertexId,
-          new ExecutionJobVertex(jobVertex, jobGraph.getJobConfig(), buildTime));
+      exeJobVertexMap.put(jobVertexId, new ExecutionJobVertex(jobGraph.getJobName(), jobVertex,
+          jobGraph.getJobConfig(), buildTime));
     }
 
     // attach vertex

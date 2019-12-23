@@ -1,6 +1,5 @@
 package org.ray.streaming.runtime.master.scheduler;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -16,10 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
-import org.ray.streaming.runtime.config.internal.WorkerConfig;
-import org.ray.streaming.runtime.config.types.OperatorType;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
-import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.resource.Container;
 import org.ray.streaming.runtime.core.resource.Slot;
@@ -76,7 +72,7 @@ public class JobScheduler implements IJobScheduler {
 
   @Override
   public boolean scheduleJob(ExecutionGraph executionGraph) {
-    LOG.info("Start to schedule job: {}.", executionGraph.getJobInformation().getJobName());
+    LOG.info("Start to schedule job: {}.", executionGraph.getJobName());
 
     // get max parallelism
     int maxParallelism = executionGraph.getMaxParallelism();
@@ -121,7 +117,7 @@ public class JobScheduler implements IJobScheduler {
     executionGraph.getAllExecutionVertices().stream()
         .forEach(vertex -> {
           // allocate by resource manager
-          Map<String, Double> resources = resourceManager.allocateActor(vertex);
+          Map<String, Double> resources = resourceManager.allocateResource(vertex);
 
           // create actor by controller
           workerController.createWorker(vertex, resources);
@@ -158,7 +154,7 @@ public class JobScheduler implements IJobScheduler {
     // register worker context
     long waitStartTime = System.currentTimeMillis();
     executionGraph.getAllExecutionVertices().forEach(vertex -> {
-      JobWorkerContext ctx = buildJobWorkerContext(vertex, configTemplate, masterActor);
+      JobWorkerContext ctx = buildJobWorkerContext(vertex, masterActor);
       boolean initResult = workerController.initWorker(vertex.getWorkerActor(), ctx);
 
       if (initResult) {
@@ -173,79 +169,16 @@ public class JobScheduler implements IJobScheduler {
 
   private JobWorkerContext buildJobWorkerContext(
       ExecutionVertex executionVertex,
-      StreamingWorkerConfig configTemplate,
       RayActor<JobMaster> masterActor) {
 
     // create worker context
     JobWorkerContext ctx = new JobWorkerContext(
-        configTemplate.commonConfig.jobName(),
-        executionVertex.getOpNameWithIndex(),
-        executionVertex.getActorName(),
+        executionVertex.getWorkerActorId(),
         masterActor,
-        executionVertex.getActorId(),
-        executionVertex.getExecutionConfig().getConfiguration().toStringMap(),
-        executionVertex.getInputQueues(),
-        executionVertex.getOutputQueues(),
-        executionVertex.getInputActors(),
-        executionVertex.getOutputActors(),
         KryoUtils.writeToByteArray(executionVertex)
     );
 
-    // update sub dag
-    updateRoleInChangedSubDagIfNeeded(ctx, executionVertex);
-
     return ctx;
-  }
-
-  private void updateRoleInChangedSubDagIfNeeded(JobWorkerContext ctx,
-      ExecutionVertex executionVertex) {
-    ExecutionJobVertex executionJobVertex = executionVertex.getExeJobVertex();
-
-    if (!executionJobVertex.isChangedOrAffected()) {
-      LOG.info("ExecutionJobVertex is not changed or affected: {}.", executionJobVertex);
-      return;
-    }
-
-    LOG.info("ExecutionJobVertex is changed or affected: {}.", executionJobVertex);
-    switch (executionJobVertex.getExecutionJobVertexState()) {
-      case AFFECTED_UP_STREAM:
-      case AFFECTED_NEIGHBOUR_PARENT:
-        executionVertex.setRoleInChangedSubDag(OperatorType.SOURCE);
-        ctx.markAsChanged();
-        break;
-      case AFFECTED_DOWN_STREAM:
-        executionVertex.setRoleInChangedSubDag(OperatorType.SINK);
-        ctx.markAsChanged();
-        break;
-      case AFFECTED_NEIGHBOUR:
-        executionVertex.setRoleInChangedSubDag(OperatorType.TRANSFORM);
-        ctx.markAsChanged();
-        break;
-      case CHANGED:
-        handleChangedNode(ctx, executionVertex);
-        break;
-      case NORMAL:
-      default:
-        break;
-    }
-    ctx.roleInChangedSubDag = executionVertex.getRoleInChangedSubDag();
-  }
-
-  private void handleChangedNode(JobWorkerContext ctx, ExecutionVertex executionVertex) {
-    ctx.markAsChanged();
-
-    ExecutionJobVertex executionJobVertex = executionVertex.getExeJobVertex();
-    if (executionVertex.getExeJobVertex().isSourceVertex()) {
-      executionVertex.setRoleInChangedSubDag(OperatorType.SOURCE);
-    } else if (executionJobVertex.isSinkVertex()) {
-      executionVertex.setRoleInChangedSubDag(OperatorType.SINK);
-    } else if (executionJobVertex.isSourceAndSinkVertex()) {
-      executionVertex.setRoleInChangedSubDag(OperatorType.SOURCE_AND_SINK);
-    } else {
-      executionVertex.setRoleInChangedSubDag(OperatorType.TRANSFORM);
-    }
-
-    ctx.roleInChangedSubDag = executionVertex.getRoleInChangedSubDag();
   }
 
   private Map<String, String> setWorkerConfig(StreamingWorkerConfig workerConfigTemplate,
@@ -255,66 +188,8 @@ public class JobScheduler implements IJobScheduler {
     // pass worker config template (common part)
     workerConfMap.putAll(workerConfigTemplate.configMap);
 
-    // set operator type of queue
-    if (executionVertex.isSourceVertex()) {
-      workerConfMap.put(WorkerConfig.OPERATOR_TYPE_INTERNAL, OperatorType.SOURCE.name());
-    } else if (executionVertex.isSinkVertex()) {
-      workerConfMap.put(WorkerConfig.OPERATOR_TYPE_INTERNAL, OperatorType.SINK.name());
-    } else {
-      workerConfMap.put(WorkerConfig.OPERATOR_TYPE_INTERNAL, OperatorType.TRANSFORM.name());
-    }
-
-    // worker id
-    workerConfMap.put(WorkerConfig.WORKER_ID_INTERNAL,
-        executionVertex.getExecutionConfig().getWorkerId());
-
-    // worker name
-    workerConfMap.put(WorkerConfig.WORKER_NAME_INTERNAL, executionVertex.getActorName());
-
-    // op name
-    workerConfMap.put(WorkerConfig.OPERATOR_NAME_INTERNAL, executionVertex.getOpNameWithIndex());
-
-    // job name
-    workerConfMap.put(WorkerConfig.JOB_NAME_INTERNAL, workerConfigTemplate.commonConfig.jobName());
-
-    // set conf map into vertex
-    executionVertex.updateJobConfig(workerConfMap);
+    // TODO: extra config
 
     return workerConfMap;
   }
-
-  /**
-   * Get scheduled task details
-   */
-  public List<Map<String, String>> getSchedulerTaskInfo(ExecutionGraph executionGraph) {
-    List<Map<String, String>> tasks = new ArrayList<>();
-
-    List<ExecutionJobVertex> executionJobVertices = executionGraph.getVerticesInCreationOrder();
-    int taskId = 1;
-
-    for (ExecutionJobVertex jobVertex : executionJobVertices) {
-      List<ExecutionVertex> executionVertices = jobVertex.getExeVertices();
-
-      for (ExecutionVertex vertex : executionVertices) {
-        Map<String, String> taskInfo = new HashMap<>();
-
-        String originNodeId = jobVertex.getJobVertex().getName();
-        if (originNodeId.contains(TASK_NODE_ID_SPILIT)) {
-          taskInfo.put(TASK_NODE_ID, TASK_NODE_ID_PREFIX + originNodeId
-              .substring(0, originNodeId.indexOf(TASK_NODE_ID_SPILIT)));
-        } else {
-          taskInfo.put(TASK_NODE_ID, TASK_NODE_ID_PREFIX + originNodeId);
-        }
-        taskInfo.put(TASK_INDEX, String.valueOf(vertex.getSubTaskIndex()));
-        taskInfo.put(TASK_ID, String.valueOf(taskId++));
-        taskInfo.put(TASK_ACTOR_ID, String.valueOf(vertex.getActor().getId()));
-
-        tasks.add(taskInfo);
-      }
-    }
-
-    LOG.info("scheduled task detail: {}", tasks);
-    return tasks;
-  }
-
 }

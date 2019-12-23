@@ -17,9 +17,9 @@ public interface ResourceManager {
 
   List<Container> getRegisteredContainers();
 
-  Map<String, Double> allocateActor(final ExecutionVertex exeVertex);
+  Map<String, Double> allocateResource(final ExecutionVertex exeVertex);
 
-  void deallocateActor(final ExecutionVertex exeVertex);
+  void deallocateResource(final ExecutionVertex exeVertex);
 
   SlotAssignStrategy getSlotAssignStrategy();
 

@@ -9,13 +9,13 @@ import com.google.common.base.Preconditions;
 import org.ray.api.RayActor;
 import org.ray.api.annotation.RayRemote;
 import org.ray.api.id.ActorId;
+import org.ray.streaming.jobgraph.JobGraph;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
 import org.ray.streaming.runtime.config.StreamingMasterConfig;
 import org.ray.streaming.runtime.config.global.StateBackendConfig;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
-import org.ray.streaming.runtime.core.graph.jobgraph.JobGraph;
 import org.ray.streaming.runtime.core.state.StateBackend;
 import org.ray.streaming.runtime.core.state.StateBackendFactory;
 import org.ray.streaming.runtime.master.graphmanager.GraphManager;
@@ -105,12 +105,15 @@ public class JobMaster implements IJobMaster {
 
   public boolean submitJob(RayActor jobMasterActor, byte[] jobGraphByteArray) {
     JobGraph jobGraph = KryoUtils.readFromByteArray(jobGraphByteArray);
-    LOG.info("Job vertices num is: {}.", jobGraph.getVertices().size());
+    LOG.info("Job vertices num is: {}.", jobGraph.getJobVertexList().size());
+
     this.jobMasterActor = jobMasterActor;
+
     // init manager
     graphManager = new GraphManagerImpl(this, jobGraph);
     resourceManager = new ResourceManagerImpl(this);
 
+    // init scheduler
     scheduler = new JobScheduler(this);
     scheduler.scheduleJob(graphManager.getExecutionGraph());
     return true;
@@ -156,7 +159,7 @@ public class JobMaster implements IJobMaster {
     graphManager.getExecutionGraph().getAllExecutionVertices()
         .forEach(vertex -> {
           // deallocate by resource manager
-          resourceManager.deallocateActor(vertex);
+          resourceManager.deallocateResource(vertex);
 
           // destroy by worker controller
           workerController.destroyWorker(vertex);
@@ -190,9 +193,5 @@ public class JobMaster implements IJobMaster {
 
   public StreamingMasterConfig getConf() {
     return conf;
-  }
-
-  private String getActorName(ActorId id) {
-    return graphManager.getExecutionGraph().getActorName(id);
   }
 }

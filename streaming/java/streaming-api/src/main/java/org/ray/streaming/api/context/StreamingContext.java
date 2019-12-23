@@ -25,7 +25,9 @@ public class StreamingContext implements Serializable {
    * The sinks of this streaming job.
    */
   private List<StreamSink> streamSinks;
+  private String jobName;
   private Map<String, String> jobConfig;
+
   /**
    * The logic plan.
    */
@@ -49,7 +51,7 @@ public class StreamingContext implements Serializable {
    * Construct job DAG, and execute the job.
    */
   public void execute() {
-    JobGraphBuilder jobGraphBuilder = new JobGraphBuilder(this.streamSinks, jobConfig);
+    JobGraphBuilder jobGraphBuilder = new JobGraphBuilder(streamSinks, jobName, jobConfig);
     this.jobGraph = jobGraphBuilder.build();
     jobGraph.printPlan();
 

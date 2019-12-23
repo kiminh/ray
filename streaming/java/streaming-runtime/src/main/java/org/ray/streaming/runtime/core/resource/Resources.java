@@ -52,14 +52,6 @@ public class Resources {
    */
   public List<UniqueId> recentlyIdleContainerIds = new ArrayList<>();
 
-  /**
-   * Container allocation state
-   */
-  public ContainerAllocationState containerAllocationState = new ContainerAllocationState();
-
-  public Resources() {
-  }
-
   public List<Container> getContainers() {
     return containerMap.values().stream().collect(Collectors.toList());
   }
@@ -110,7 +102,6 @@ public class Resources {
         .add("currentContainerAllocatedNum", currentContainerAllocatedNum)
         .add("hotBackupNodes", hotBackupNodes)
         .add("recentlyIdleContainers", recentlyIdleContainerIds)
-        .add("containerAllocationState", containerAllocationState)
         .toString();
   }
 }

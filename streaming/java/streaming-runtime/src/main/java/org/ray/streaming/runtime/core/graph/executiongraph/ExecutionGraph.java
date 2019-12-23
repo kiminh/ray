@@ -2,23 +2,35 @@ package org.ray.streaming.runtime.core.graph.executiongraph;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.ray.api.RayActor;
+import org.ray.api.id.ActorId;
+import org.ray.streaming.jobgraph.VertexType;
 
 /**
  * Physical plan.
  */
 public class ExecutionGraph implements Serializable {
 
+  private final String jobName;
   private List<ExecutionJobVertex> executionJobVertexList;
   private Map<Integer, ExecutionJobVertex> executionJobVertexMap;
   private Map<String, String> jobConfig;
   private int maxParallelism;
   private long buildTime;
 
-  public ExecutionGraph() {
+  public ExecutionGraph(String jobName) {
+    this.jobName = jobName;
     this.buildTime = System.currentTimeMillis();
+  }
+
+  public String getJobName() {
+    return jobName;
   }
 
   public List<ExecutionJobVertex> getExecutionJobVertexList() {
@@ -75,5 +87,62 @@ public class ExecutionGraph implements Serializable {
       }
     }
     throw new RuntimeException("Vertex " + vertexId + " does not exist!");
+  }
+
+  public Map<ActorId, RayActor> getSourceActorsMap() {
+    final Map<ActorId, RayActor> actorsMap = new HashMap<>();
+    getSourceActors().forEach(actor -> actorsMap.put(actor.getId(), actor));
+    return Collections.unmodifiableMap(actorsMap);
+  }
+
+  public Map<ActorId, RayActor> getSinkActorsMap() {
+    final Map<ActorId, RayActor> actorsMap = new HashMap<>();
+    getSinkActors().forEach(actor -> actorsMap.put(actor.getId(), actor));
+    return Collections.unmodifiableMap(actorsMap);
+  }
+
+  public List<RayActor> getSourceActors() {
+    List<ExecutionJobVertex> executionJobVertices = executionJobVertexList.stream()
+        .filter(executionJobVertex -> executionJobVertex.isSourceVertex())
+        .collect(Collectors.toList());
+
+    return getActorsFromJobVertices(executionJobVertices);
+  }
+
+  public List<RayActor> getNonSourceActors() {
+    List<ExecutionJobVertex> executionJobVertices = executionJobVertexList.stream()
+        .filter(executionJobVertex -> executionJobVertex.isProcessVertex()
+            || executionJobVertex.isSinkVertex())
+        .collect(Collectors.toList());
+
+    return getActorsFromJobVertices(executionJobVertices);
+  }
+
+  public List<RayActor> getSinkActors() {
+    List<ExecutionJobVertex> executionJobVertices = executionJobVertexList.stream()
+      .filter(executionJobVertex -> executionJobVertex.isSinkVertex())
+      .collect(Collectors.toList());
+
+    return getActorsFromJobVertices(executionJobVertices);
+  }
+
+  public List<RayActor> getProcessActors() {
+    List<ExecutionJobVertex> executionJobVertices = executionJobVertexList.stream()
+        .filter(executionJobVertex -> executionJobVertex.isProcessVertex())
+        .collect(Collectors.toList());
+
+    return getActorsFromJobVertices(executionJobVertices);
+  }
+
+  public List<RayActor> getAllActors() {
+    return getActorsFromJobVertices(executionJobVertexList);
+  }
+
+  public List<RayActor> getActorsFromJobVertices(List<ExecutionJobVertex> executionJobVertices) {
+    return executionJobVertices.stream()
+        .map(ExecutionJobVertex::getExecutionVertexList)
+        .flatMap(Collection::stream)
+        .map(ExecutionVertex::getWorkerActor)
+        .collect(Collectors.toList());
   }
 }

@@ -20,6 +20,7 @@ public class ExecutionVertex implements Serializable {
 
   private final int vertexId;
   private final int vertexIndex;
+  private final String vertexName;
   private final ExecutionJobVertex executionJobVertex;
 
   private RayActor<JobWorker> workerActor;
@@ -30,6 +31,7 @@ public class ExecutionVertex implements Serializable {
   public ExecutionVertex(int jobVertexId, int index, ExecutionJobVertex executionJobVertex) {
     this.vertexId = generateExecutionVertexId(jobVertexId, index);
     this.vertexIndex = index;
+    this.vertexName = executionJobVertex.getJobVertexName() + "-" + vertexIndex;
     this.executionJobVertex = executionJobVertex;
   }
 
@@ -88,7 +90,7 @@ public class ExecutionVertex implements Serializable {
   }
 
   public VertexType getVertextType() {
-    return executionJobVertex.getJobVertex().getVertexType();
+    return executionJobVertex.getVertexType();
   }
 
   public Map<String, String> getJobConfig() {
@@ -109,5 +111,21 @@ public class ExecutionVertex implements Serializable {
 
   public StreamProcessor getStreamProcessor() {
     return executionJobVertex.getStreamProcessor();
+  }
+
+  public boolean isSourceVertex() {
+    return executionJobVertex.isSourceVertex();
+  }
+
+  public boolean isProcessVertex() {
+    return executionJobVertex.isProcessVertex();
+  }
+
+  public boolean isSinkVertex() {
+    return executionJobVertex.isSinkVertex();
+  }
+
+  public String getVertexName() {
+    return vertexName;
   }
 }
