@@ -10,12 +10,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.config.types.SlotAssignStrategyType;
-import org.ray.streaming.runtime.core.exception.ScheduleException;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertexState;
 import org.ray.streaming.runtime.core.resource.Container;
-import org.ray.streaming.runtime.core.resource.ResourceKey;
 import org.ray.streaming.runtime.core.resource.Resources;
 import org.ray.streaming.runtime.core.resource.Slot;
 import org.ray.streaming.runtime.master.scheduler.strategy.SlotAssignStrategy;
@@ -24,12 +23,7 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
 
   public static final Logger LOG = LoggerFactory.getLogger(PipelineFirstStrategy.class);
 
-  /**
-   * Resources: includes SlotAssignStrategy states
-   */
   protected Resources resources;
-
-  private static final String NO_RESOURCE_MSG = "No enough resource left, required resource: %s, available resource: %s.";
 
   @Override
   public int getSlotNumPerContainer(List<Container> containers, int maxParallelism) {
@@ -55,29 +49,20 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
    * </pre>
    */
   @Override
-  public Map<Container, List<Slot>> allocateSlot(List<Container> containers,
+  public void allocateSlot(List<Container> containers,
       int slotNumPerContainer) {
+    int maxSlotSize = containers.size() * slotNumPerContainer;
+    LOG.info("Allocate slot, maxSlotSize: {}.", maxSlotSize);
 
-    Map<Container, List<Slot>> containerSlotsMap = resources.containerSlotsMap;
-    int slotIdx = containerSlotsMap.size() * slotNumPerContainer;
-    int maxSlotSize = (containers.size() + containerSlotsMap.size()) * slotNumPerContainer;
-    LOG.info("Allocate slot, slotIndex: {}. maxSlotSize: {}.", slotIdx, maxSlotSize);
-
-    for (int slotId = slotIdx; slotId < maxSlotSize; ++slotId) {
+    for (int slotId = 0; slotId < maxSlotSize; ++slotId) {
       Container targetContainer = containers.get(slotId % containers.size());
       Slot slot = new Slot(slotId, targetContainer);
-      if (containerSlotsMap.containsKey(targetContainer)) {
-        containerSlotsMap.get(targetContainer).add(slot);
-      } else {
-        List<Slot> currentContainerSlots = new ArrayList<>();
-        currentContainerSlots.add(slot);
-        containerSlotsMap.put(targetContainer, currentContainerSlots);
-      }
+      targetContainer.getSlots().add(slot);
     }
 
     // update new added containers' allocating map
     containers.forEach(c -> {
-      List<Slot> slots = containerSlotsMap.get(c);
+      List<Slot> slots = c.getSlots();
       Map<Integer, List<String>> slotActorMap = new HashMap<>();
       for (Slot s : slots) {
         slotActorMap.put(s.getId(), new ArrayList<>());
@@ -85,51 +70,40 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
       resources.allocatingMap.put(c.getAddress(), slotActorMap);
     });
 
-    LOG.info("Resources: {}.", resources);
-
-    return containerSlotsMap;
+    LOG.info("Allocate slot result: {}.", resources.allocatingMap);
   }
 
   @Override
-  public Map<String, Map<Integer, List<String>>> assignSlot(ExecutionGraph executionGraph,
-      final Map<Container, List<Slot>> containerSlotsMap,
-      final Map<Container, Map<String, Double>> containerResource) {
-    resources.containerAvailableResource = new HashMap<>(containerResource);
-    LOG.info("Container available resources: {}.", resources.containerAvailableResource);
-    Map<JobVertexID, ExecutionJobVertex> vertices = executionGraph.getExeJobVertices();
-    Map<JobVertexID, Integer> vertexRemainingNum = new HashMap<>();
+  public Map<String, Map<Integer, List<String>>> assignSlot(ExecutionGraph executionGraph) {
+    LOG.info("Container available resources: {}.", resources.getAllAvailableResource());
+    Map<Integer, ExecutionJobVertex> vertices = executionGraph.getExecutionJobVertexMap();
+    Map<Integer, Integer> vertexRemainingNum = new HashMap<>();
     vertices.forEach((k, v) -> {
-      int size = v.getExeVertices().size();
+      int size = v.getExecutionVertexList().size();
       vertexRemainingNum.put(k, size);
     });
     int totalExecutionVerticesNum = vertexRemainingNum.values().stream()
         .mapToInt(Integer::intValue)
         .sum();
+    int containerNum = resources.containerMap.size();
     resources.capacityPerContainer = (int) Math
-        .ceil(totalExecutionVerticesNum * 1.0 / containerSlotsMap.size());
+        .ceil(totalExecutionVerticesNum * 1.0 / containerNum);
     LOG.info("Total execution vertices num: {}, container num: {}, capacity per container: {}.",
-        totalExecutionVerticesNum, containerSlotsMap.size(), resources.capacityPerContainer);
+        totalExecutionVerticesNum, containerNum, resources.capacityPerContainer);
 
     int maxParallelism = executionGraph.getMaxParallelism();
 
     for (int i = 0; i < maxParallelism; i++) {
-      for (ExecutionJobVertex jobVertex : vertices.values()) {
-        List<ExecutionVertex> exeVertices = jobVertex.getExeVertices();
+      for (ExecutionJobVertex executionJobVertex : vertices.values()) {
+        List<ExecutionVertex> exeVertices = executionJobVertex.getExecutionVertexList();
         // current job vertex assign finished
         if (exeVertices.size() <= i) {
           continue;
         }
+
         ExecutionVertex executionVertex = exeVertices.get(i);
-        Map<String, Double> requiredResource = executionVertex.getExeJobVertex().getJobVertex()
-            .getResources();
-        if (requiredResource.containsKey(ResourceKey.CPU)) {
-          LOG.info("Required resource contain {} value : {}, no limitation by default.",
-              ResourceKey.CPU, requiredResource.get(ResourceKey.CPU));
-          requiredResource.remove(ResourceKey.CPU);
-        }
-        checkResource(requiredResource);
         Container targetContainer = resources.getContainers().get(resources.currentContainerIndex);
-        List<Slot> targetSlots = containerSlotsMap.get(targetContainer);
+        List<Slot> targetSlots = targetContainer.getSlots();
         allocate(executionVertex, targetContainer, targetSlots.get(i % targetSlots.size()));
       }
     }
@@ -144,10 +118,9 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
       checkedNum++;
       resources.currentContainerIndex =
           (resources.currentContainerIndex + 1) % resources.getContainers().size();
-      if (checkedNum >= resources.getContainers().size()) {
-        throw new ScheduleException(
-            String.format(NO_RESOURCE_MSG, requiredResource, resources.containerAvailableResource));
-      }
+      Preconditions.checkArgument(checkedNum < resources.getContainers().size(),
+          "No enough resource left, required resource: {}, available resource: {}.",
+          requiredResource, resources.getAllAvailableResource());
       resources.currentContainerAllocatedNum = 0;
     }
   }
@@ -170,8 +143,7 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
       }
     }
 
-    Map<String, Double> availableResource = resources.containerAvailableResource
-        .get(currentContainer);
+    Map<String, Double> availableResource = currentContainer.getAvailableResource();
     for (Map.Entry<String, Double> entry : requiredResource.entrySet()) {
       if (availableResource.containsKey(entry.getKey())) {
         if (availableResource.get(entry.getKey()) < entry.getValue()) {
@@ -190,8 +162,8 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
 
   private void decreaseResource(Map<String, Double> allocatedResource) {
     Container currentContainer = resources.getContainers().get(resources.currentContainerIndex);
-    Map<String, Double> availableResource = resources.containerAvailableResource
-        .get(currentContainer);
+    Map<String, Double> availableResource = currentContainer.getAvailableResource();
+
     allocatedResource.forEach((k, v) -> {
       Preconditions.checkArgument(availableResource.get(k) >= v,
           String.format("Available resource %s not >= decreased resource %s",
@@ -209,11 +181,11 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
     vertex.setSlotIfNotExist(slot);
 
     // decrease available resource
-    decreaseResource(vertex.getExeJobVertex().getJobVertex().getResources());
+    decreaseResource(vertex.getResources());
 
     // update allocating map
     resources.allocatingMap.get(container.getAddress()).get(slot.getId())
-        .add(vertex.getTaskNameWithSubtask());
+        .add(vertex.getVertexName());
 
     // current container reaches capacity limitation, go to the next one.
     resources.currentContainerAllocatedNum++;
@@ -228,25 +200,17 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
   public Map<String, Map<Integer, List<String>>> rebalance(ExecutionJobVertex executionJobVertex,
       Map<Container, List<Slot>> containerSlotsMap,
       Map<Container, Map<String, Double>> containerResource) {
-    LOG.info("Start to rebalance.");
-    resources.containerAvailableResource = new HashMap<>(containerResource);
-
-    LOG.info("currentContainerIndex={}, currentContainerAllocatedNum={}",
+    LOG.info("Start to rebalance. currentContainerIndex={}, currentContainerAllocatedNum={}.",
         resources.currentContainerIndex, resources.currentContainerAllocatedNum);
-    LOG.info("Container available resources: {}.", resources.containerAvailableResource);
-    Map<String, Double> requiredResource = executionJobVertex.getJobVertex().getResources();
-    for (ExecutionVertex executionVertex : executionJobVertex.getExeVertices()) {
+
+    Map<String, Double> requiredResource = executionJobVertex.getResources();
+    for (ExecutionVertex executionVertex : executionJobVertex.getExecutionVertexList()) {
       if (executionVertex.getState() == ExecutionVertexState.TO_ADD) {
-        if (requiredResource.containsKey(ResourceKey.CPU)) {
-          LOG.info("Required resource contain {} value : {}, no limitation by default.",
-              ResourceKey.CPU, requiredResource.get(ResourceKey.CPU));
-          requiredResource.remove(ResourceKey.CPU);
-        }
         checkResource(requiredResource);
         Container targetContainer = resources.getContainers().get(resources.currentContainerIndex);
         List<Slot> targetSlots = containerSlotsMap.get(targetContainer);
         allocate(executionVertex, targetContainer,
-            targetSlots.get(executionVertex.getSubTaskIndex() % targetSlots.size()));
+            targetSlots.get(executionVertex.getVertexIndex() % targetSlots.size()));
       } else if (executionVertex.getState() == ExecutionVertexState.TO_DEL) {
         reclaimResource(executionVertex);
       } else {
@@ -260,7 +224,7 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
   private void reclaimResource(ExecutionVertex executionVertex) {
     Container container = executionVertex.getSlot().getContainer();
     Map<Integer, List<String>> slotActors = resources.allocatingMap.get(container.getAddress());
-    String opName = executionVertex.getTaskNameWithSubtask();
+    String opName = executionVertex.getVertexName();
     for (Map.Entry<Integer, List<String>> entry : slotActors.entrySet()) {
       if (entry.getValue().contains(opName)) {
         entry.getValue().remove(opName);

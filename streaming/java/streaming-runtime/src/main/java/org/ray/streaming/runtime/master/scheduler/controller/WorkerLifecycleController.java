@@ -13,7 +13,7 @@ import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.rpc.call.RemoteCallWorker;
 import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
-import org.ray.streaming.runtime.worker.JobWorkerContext;
+import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 
 public class WorkerLifecycleController implements IWorkerLifecycleController {
 

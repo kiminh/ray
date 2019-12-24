@@ -22,7 +22,7 @@ import org.ray.streaming.runtime.core.transfer.ChannelID;
 import org.ray.streaming.runtime.core.transfer.DataReader;
 import org.ray.streaming.runtime.core.transfer.DataWriter;
 import org.ray.streaming.runtime.worker.JobWorker;
-import org.ray.streaming.runtime.worker.context.StreamCollector;
+import org.ray.streaming.runtime.core.transfer.collector.StreamCollector;
 import org.ray.streaming.runtime.worker.context.StreamingRuntimeContext;
 
 /**

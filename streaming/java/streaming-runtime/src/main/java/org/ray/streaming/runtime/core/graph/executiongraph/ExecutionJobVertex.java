@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Preconditions;
+import org.aeonbits.owner.ConfigCache;
 import org.ray.api.RayActor;
 import org.ray.streaming.jobgraph.JobVertex;
 import org.ray.streaming.jobgraph.LanguageType;
 import org.ray.streaming.jobgraph.VertexType;
 
+import org.ray.streaming.runtime.config.master.ResourceConfig;
 import org.ray.streaming.runtime.core.processor.StreamProcessor;
 import org.ray.streaming.runtime.worker.JobWorker;
 
@@ -25,6 +27,7 @@ public class ExecutionJobVertex {
   private final JobVertex jobVertex;
   private int parallelism;
   private Map<String, String> jobConfig;
+  private Map<String, Double> resources;
   private long buildTime;
   private List<ExecutionVertex> executionVertexList;
 
@@ -41,8 +44,21 @@ public class ExecutionJobVertex {
     this.jobVertex = jobVertex;
     this.parallelism = jobVertex.getParallelism();
     this.jobConfig = jobConfig;
+    this.resources = generateResources();
     this.buildTime = buildTime;
     this.executionVertexList = createExecutionVertics();
+  }
+
+  private Map<String, Double> generateResources() {
+    Map<String, Double> resourceMap = new HashMap<>();
+    ResourceConfig resourceConfig = ConfigCache.getOrCreate(ResourceConfig.class, jobConfig);
+    if (resourceConfig.isTaskCpuResourceLimit()) {
+      resources.put(ResourceConfig.RESOURCE_KEY_CPU, resourceConfig.taskCpuResource());
+    }
+    if (resourceConfig.isTaskMemResourceLimit()) {
+      resources.put(ResourceConfig.RESOURCE_KEY_MEM, resourceConfig.taskMemResource());
+    }
+    return resourceMap;
   }
 
   private List<ExecutionVertex> createExecutionVertics() {
@@ -91,6 +107,10 @@ public class ExecutionJobVertex {
 
   public Map<String, String> getJobConfig() {
     return jobConfig;
+  }
+
+  public Map<String, Double> getResources() {
+    return resources;
   }
 
   public List<ExecutionVertex> getExecutionVertexList() {

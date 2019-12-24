@@ -23,6 +23,7 @@ public class ExecutionVertex implements Serializable {
   private final String vertexName;
   private final ExecutionJobVertex executionJobVertex;
 
+  private ExecutionVertexState state = ExecutionVertexState.TO_ADD;
   private RayActor<JobWorker> workerActor;
   private Slot slot;
   private List<ExecutionEdge> inputEdges;
@@ -51,6 +52,30 @@ public class ExecutionVertex implements Serializable {
     return executionJobVertex;
   }
 
+  public ExecutionVertexState getState() {
+    return state;
+  }
+
+  public void setState(ExecutionVertexState state) {
+    this.state = state;
+  }
+
+  public boolean is2Add() {
+    return state == ExecutionVertexState.TO_ADD;
+  }
+
+  public boolean isRunning() {
+    return state == ExecutionVertexState.RUNNING;
+  }
+
+  public boolean is2Update() {
+    return state == ExecutionVertexState.TO_UPDATE;
+  }
+
+  public boolean is2Delete() {
+    return state == ExecutionVertexState.TO_DEL;
+  }
+
   public RayActor<JobWorker> getWorkerActor() {
     return workerActor;
   }
@@ -69,6 +94,12 @@ public class ExecutionVertex implements Serializable {
 
   public void setSlot(Slot slot) {
     this.slot = slot;
+  }
+
+  public void setSlotIfNotExist(Slot slot) {
+    if (null == this.slot) {
+      this.slot = slot;
+    }
   }
 
   public List<ExecutionEdge> getInputEdges() {
@@ -95,6 +126,10 @@ public class ExecutionVertex implements Serializable {
 
   public Map<String, String> getJobConfig() {
     return executionJobVertex.getJobConfig();
+  }
+
+  public Map<String, Double> getResources() {
+    return executionJobVertex.getResources();
   }
 
   public LanguageType getLanguageType() {

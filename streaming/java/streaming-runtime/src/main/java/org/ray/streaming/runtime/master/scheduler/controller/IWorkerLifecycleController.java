@@ -5,7 +5,7 @@ import java.util.Map;
 import org.ray.api.RayActor;
 
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
-import org.ray.streaming.runtime.worker.JobWorkerContext;
+import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 
 /**
  * WorkerLifecycleController is responsible for JobWorker Actor's creation and destruction

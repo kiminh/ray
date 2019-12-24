@@ -77,6 +77,14 @@ public class ExecutionGraph implements Serializable {
         .collect(Collectors.toList());
   }
 
+  public List<ExecutionVertex> getAllAddedExecutionVertices() {
+    return executionJobVertexList.stream()
+        .map(ExecutionJobVertex::getExecutionVertexList)
+        .flatMap(Collection::stream)
+        .filter(vertex -> vertex.is2Add())
+        .collect(Collectors.toList());
+  }
+
   public ExecutionVertex getExecutionJobVertexByJobVertexId(int vertexId) {
     for (ExecutionJobVertex executionJobVertex : executionJobVertexList) {
       for (ExecutionVertex executionVertex : executionJobVertex.getExecutionVertexList()) {

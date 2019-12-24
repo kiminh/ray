@@ -22,22 +22,16 @@ public interface SlotAssignStrategy {
    * Allocate slot to container
    * @param containers
    * @param slotNumPerContainer
-   * @return
    */
-  Map<Container, List<Slot>> allocateSlot(final List<Container> containers,
-      final int slotNumPerContainer);
+  void allocateSlot(final List<Container> containers, final int slotNumPerContainer);
 
   /**
    * Assign slot to execution vertex
    *
    * @param executionGraph execution graph
-   * @param containerSlotsMap container -> slots map
-   * @param containerResource container resources
    * @return HashMap, key: container address, value: HashMap (key: slotId, value: opName)
    */
-  Map<String, Map<Integer, List<String>>> assignSlot(ExecutionGraph executionGraph,
-      final Map<Container, List<Slot>> containerSlotsMap,
-      final Map<Container, Map<String, Double>> containerResource);
+  Map<String, Map<Integer, List<String>>> assignSlot(ExecutionGraph executionGraph);
 
   /**
    * Rebalance allocating map

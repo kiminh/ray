@@ -20,6 +20,7 @@ import org.ray.streaming.runtime.core.processor.StreamProcessor;
 import org.ray.streaming.runtime.core.processor.TwoInputProcessor;
 import org.ray.streaming.runtime.core.transfer.TransferHandler;
 import org.ray.streaming.runtime.util.KryoUtils;
+import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 import org.ray.streaming.runtime.worker.task.OneInputStreamTask;
 import org.ray.streaming.runtime.worker.task.SourceStreamTask;
 import org.ray.streaming.runtime.worker.task.StreamTask;

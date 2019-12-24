@@ -1,5 +1,7 @@
 package org.ray.streaming.runtime.worker;
 
+import org.ray.streaming.runtime.worker.context.JobWorkerContext;
+
 /**
  * The stream worker interface.
  */

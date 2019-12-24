@@ -1,6 +1,10 @@
 package org.ray.streaming.runtime.core.resource;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import com.google.common.base.MoreObjects;
 import org.ray.api.id.UniqueId;
@@ -8,20 +12,12 @@ import org.ray.api.id.UniqueId;
 public class Container implements Serializable {
 
   private ContainerID id;
-
+  private UniqueId nodeId;
   private String address;
-
   private String hostname;
 
-  /**
-   * One resource can owner some containers, one container only belong to one resource.
-   */
-  private Resource resource;
-
-  /**
-   * one raylet has one unique node id
-   */
-  private UniqueId nodeId;
+  private Map<String, Double> availableResource = new HashMap<>();
+  private List<Slot> slots = new ArrayList<>();
 
   public Container() {
   }
@@ -37,10 +33,6 @@ public class Container implements Serializable {
     this.id = id;
   }
 
-  public void setResource(Resource resource) {
-    this.resource = resource;
-  }
-
   public ContainerID getId() {
     return id;
   }
@@ -53,31 +45,39 @@ public class Container implements Serializable {
     return address;
   }
 
-  public Resource getResource() {
-    return resource;
-  }
-
   public UniqueId getNodeId() {
     return nodeId;
-  }
-
-  public void setNodeId(UniqueId nodeId) {
-    this.nodeId = nodeId;
   }
 
   public String getHostname() {
     return hostname;
   }
 
+  public Map<String, Double> getAvailableResource() {
+    return availableResource;
+  }
+
+  public void setAvailableResource(Map<String, Double> availableResource) {
+    this.availableResource = availableResource;
+  }
+
+  public List<Slot> getSlots() {
+    return slots;
+  }
+
+  public void setSlots(List<Slot> slots) {
+    this.slots = slots;
+  }
+
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-            .add("id", id)
-            .add("address", address)
-            .add("hostname", hostname)
-            .add("resource", resource)
-            .add("nodeId", nodeId)
-            .toString();
-
+        .add("id", id)
+        .add("nodeId", nodeId)
+        .add("address", address)
+        .add("hostname", hostname)
+        .add("availableResource", availableResource)
+        .add("slots", slots)
+        .toString();
   }
 }

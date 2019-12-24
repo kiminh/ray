@@ -26,20 +26,20 @@ public class Resources {
   public List<Container> unhandledDeletedContainers = new LinkedList<>();
 
   /**
-   * SlotAssignStrategy states
+   * Allocate info
+   * Key - container address
+   * Value - Slot info:
+   *         Key - slot id
+   *         Value - vertex name
    */
-  public Map<Container, Map<String, Double>> containerAvailableResource = new HashMap<>(16);
   public Map<String, Map<Integer, List<String>>> allocatingMap = new HashMap<>(16);
-  public Map<Container, List<Slot>> containerSlotsMap = new HashMap<>(16);
+
   public int slotNumPerContainer = 0;
   public int currentContainerIndex = 0;
   public int currentContainerAllocatedNum = 0;
-
   public int capacityPerContainer = 0;
-  public int rescalingCapacityPerContainer = 0;
 
   public Resources(ResourceConfig resourceConfig) {
-    this.rescalingCapacityPerContainer = resourceConfig.customContainerCapacity();
   }
 
   /**
@@ -56,6 +56,27 @@ public class Resources {
     return containerMap.values().stream().collect(Collectors.toList());
   }
 
+  public Map<UniqueId, Map<String, Double>> getAllAvailableResource() {
+    Map<UniqueId, Map<String, Double>> availableResourceMap = new HashMap<>();
+    containerMap.values().stream()
+        .forEach(container -> availableResourceMap
+            .put(container.getNodeId(), container.getAvailableResource()));
+
+    return availableResourceMap;
+  }
+
+  public int getCurrentSlotNum() {
+    return containerMap.values().stream()
+        .mapToInt(container -> container.getSlots().size()).sum();
+  }
+
+  public Map<UniqueId, List<Slot>> getContainerSlotsMap() {
+    Map<UniqueId, List<Slot>> containerSlotsMap = new HashMap<>();
+    containerMap.values().stream()
+        .forEach(container -> containerSlotsMap.put(container.getNodeId(), container.getSlots()));
+    return containerSlotsMap;
+  }
+
   public Map<String, Integer> getAllocatedActorCounter() {
     Map<String, Integer> allocatedActorCounter = new HashMap<>();
     allocatingMap.entrySet().forEach(entry -> {
@@ -65,39 +86,14 @@ public class Resources {
     return allocatedActorCounter;
   }
 
-  public void clearRecentlyIdleContainers() {
-    for (UniqueId nodeId : recentlyIdleContainerIds) {
-      if (containerMap.containsKey(nodeId)) {
-        Container container = containerMap.get(nodeId);
-        if (null == container) {
-          continue;
-        }
-        if (containerAvailableResource.containsKey(container)) {
-          containerAvailableResource.remove(container);
-        }
-        if (containerSlotsMap.containsKey(container)) {
-          containerSlotsMap.remove(container);
-        }
-        if (allocatingMap.containsKey(container.getAddress())) {
-          allocatingMap.remove(container.getAddress());
-        }
-        containerMap.remove(nodeId);
-      }
-    }
-    this.recentlyIdleContainerIds.clear();
-  }
-
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("containerMap", containerMap)
         .add("unhandledDeletedContainers", unhandledDeletedContainers)
-        .add("containerAvailableResource", containerAvailableResource)
         .add("allocatingMap", allocatingMap)
-        .add("containerSlotsMap", containerSlotsMap)
         .add("slotNumPerContainer", slotNumPerContainer)
         .add("capacityPerContainer", capacityPerContainer)
-        .add("rescalingCapacityPerContainer", rescalingCapacityPerContainer)
         .add("currentContainerIndex", currentContainerIndex)
         .add("currentContainerAllocatedNum", currentContainerAllocatedNum)
         .add("hotBackupNodes", hotBackupNodes)

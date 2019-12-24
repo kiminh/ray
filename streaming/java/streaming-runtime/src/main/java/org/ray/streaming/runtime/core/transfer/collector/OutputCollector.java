@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.core.collector;
+package org.ray.streaming.runtime.core.transfer.collector;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;

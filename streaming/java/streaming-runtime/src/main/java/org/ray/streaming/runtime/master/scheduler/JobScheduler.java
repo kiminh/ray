@@ -17,6 +17,7 @@ import org.ray.streaming.runtime.config.StreamingConfig;
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertexState;
 import org.ray.streaming.runtime.core.resource.Container;
 import org.ray.streaming.runtime.core.resource.Slot;
 import org.ray.streaming.runtime.master.JobMaster;
@@ -25,7 +26,7 @@ import org.ray.streaming.runtime.master.resourcemanager.ResourceManager;
 import org.ray.streaming.runtime.master.scheduler.controller.WorkerLifecycleController;
 import org.ray.streaming.runtime.master.scheduler.strategy.SlotAssignStrategy;
 import org.ray.streaming.runtime.util.KryoUtils;
-import org.ray.streaming.runtime.worker.JobWorkerContext;
+import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 
 public class JobScheduler implements IJobScheduler {
 
@@ -82,19 +83,16 @@ public class JobScheduler implements IJobScheduler {
     Preconditions.checkState(containers != null && !containers.isEmpty(),
         "containers is invalid: %s", containers);
 
-    // allocate slot and update RM context
+    // allocate slot
     int slotNumPerContainer = strategy.getSlotNumPerContainer(containers, maxParallelism);
     resourceManager.getResources().slotNumPerContainer = slotNumPerContainer;
     LOG.info("Slot num per container: {}.", slotNumPerContainer);
 
-    Map<Container, List<Slot>> containerSlotsMap = strategy.allocateSlot(containers,
-        slotNumPerContainer);
-    resourceManager.getResources().containerSlotsMap = containerSlotsMap;
-    LOG.info("Container slot map is: {}.", containerSlotsMap);
+    strategy.allocateSlot(containers, slotNumPerContainer);
+    LOG.info("Container slot map is: {}.", resourceManager.getResources().getContainerSlotsMap());
 
     // assign slot
-    Map<String, Map<Integer, List<String>>> allocatingMap = strategy.assignSlot(executionGraph,
-        resourceManager.getResources().containerSlotsMap, resourceManager.getContainerResources());
+    Map<String, Map<Integer, List<String>>> allocatingMap = strategy.assignSlot(executionGraph);
     LOG.info("Allocating map is: {}.", JSON.toJSONString(allocatingMap));
 
     // start all new added workers
@@ -108,19 +106,22 @@ public class JobScheduler implements IJobScheduler {
 
   private void createWorkers(ExecutionGraph executionGraph) {
     // set worker config
-    executionGraph.getAllExecutionVertices().stream().forEach(executionVertex -> {
+    executionGraph.getAllAddedExecutionVertices().stream().forEach(executionVertex -> {
       Map<String, String> conf = setWorkerConfig(jobConf.workerConfigTemplate, executionVertex);
       LOG.info("Worker {} conf is {}.", executionVertex.getVertexIndex(), conf);
     });
 
     // Create JobWorker actors
-    executionGraph.getAllExecutionVertices().stream()
+    executionGraph.getAllAddedExecutionVertices().stream()
         .forEach(vertex -> {
           // allocate by resource manager
           Map<String, Double> resources = resourceManager.allocateResource(vertex);
 
           // create actor by controller
           workerController.createWorker(vertex, resources);
+
+          // update state
+          vertex.setState(ExecutionVertexState.RUNNING);
         });
   }
 

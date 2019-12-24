@@ -103,6 +103,7 @@ public class ResourceManagerImpl implements ResourceManager {
     LOG.info("Register container {}.", nodeInfo);
 
     Container container = new Container(nodeInfo.nodeAddress, nodeInfo.nodeId, nodeInfo.nodeHostname);
+    container.setAvailableResource(nodeInfo.resources);
 
     // handle deleted containers
     if (!resources.unhandledDeletedContainers.isEmpty()) {
@@ -116,11 +117,7 @@ public class ResourceManagerImpl implements ResourceManager {
     Ray.setResource(container.getNodeId(), container.getName(), CAPACITY);
     Ray.setResource(container.getNodeId(), CONTAINER_ENGAGED_KEY, 1);
 
-    // update container
-    List<Container> occupiedContainers = new ArrayList<>();
-    occupiedContainers.add(container);
-    Resource resource = new Resource(occupiedContainers);
-    container.setResource(resource);
+    // update container map
     resources.containerMap.put(container.getNodeId(), container);
   }
 
@@ -133,6 +130,9 @@ public class ResourceManagerImpl implements ResourceManager {
       // delete resource with capacity=0
       Ray.setResource(container.getNodeId(), container.getName(), 0);
       Ray.setResource(container.getNodeId(), CONTAINER_ENGAGED_KEY, 0);
+
+      // remove from container map
+      resources.containerMap.remove(container.getNodeId());
     }
   }
 
@@ -144,20 +144,6 @@ public class ResourceManagerImpl implements ResourceManager {
     List<UniqueId> delNodes = resources.containerMap.keySet().stream()
         .filter(nodeId -> !latestNodeInfos.containsKey(nodeId)).collect(Collectors.toList());
 
-    if (!delNodes.isEmpty() && resources.hotBackupNodes.size() > 0) {
-      // if delNodes container parts of hotBackupNodes, remove it
-      delNodes.removeIf(delNode -> resources.hotBackupNodes.remove(delNode));
-
-      // if container fo, parts of hotBackupNodes add to addNodes
-      if (delNodes.size() > addNodes.size()) {
-        int toIndex = Math.min(delNodes.size() - addNodes.size(), resources.hotBackupNodes.size());
-        List<UniqueId> transferNodes = resources.hotBackupNodes.subList(0, toIndex);
-        addNodes.addAll(transferNodes);
-        LOG.info("TransferNodes {} add to addNodes {}.", transferNodes, addNodes);
-        resources.hotBackupNodes.removeAll(transferNodes);
-      }
-    }
-
     // update container info
     if (!addNodes.isEmpty() || !delNodes.isEmpty()) {
       LOG.info("Latest node infos: {}, containers: {}.", latestNodeInfos, resources.containerMap);
@@ -165,7 +151,7 @@ public class ResourceManagerImpl implements ResourceManager {
 
       // get unregister containers
       for (UniqueId nodeId : delNodes) {
-        Container deletedContainer = resources.containerMap.remove(nodeId);
+        Container deletedContainer = resources.containerMap.get(nodeId);
         resources.unhandledDeletedContainers.add(deletedContainer);
         LOG.info("Remove container {} from container list.", deletedContainer);
       }

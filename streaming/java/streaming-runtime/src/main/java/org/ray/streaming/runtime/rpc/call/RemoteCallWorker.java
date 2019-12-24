@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.worker.JobWorker;
-import org.ray.streaming.runtime.worker.JobWorkerContext;
+import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 
 public class RemoteCallWorker extends RemoteCallBase {
 
