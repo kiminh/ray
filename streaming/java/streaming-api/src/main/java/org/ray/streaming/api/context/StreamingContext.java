@@ -21,11 +21,11 @@ import org.ray.streaming.schedule.IJobSchedule;
 public class StreamingContext implements Serializable {
 
   private transient AtomicInteger idGenerator;
+
   /**
    * The sinks of this streaming job.
    */
   private List<StreamSink> streamSinks;
-  private String jobName;
   private Map<String, String> jobConfig;
 
   /**
@@ -33,24 +33,20 @@ public class StreamingContext implements Serializable {
    */
   private JobGraph jobGraph;
 
-  private StreamingContext(Map<String, String> jobConfig) {
+  private StreamingContext() {
     this.idGenerator = new AtomicInteger(0);
     this.streamSinks = new ArrayList<>();
-    this.jobConfig = jobConfig;
+    this.jobConfig = new HashMap<>();
   }
 
   public static StreamingContext buildContext() {
-    return new StreamingContext(new HashMap<>());
-  }
-
-  public static StreamingContext buildContext(Map<String, String> jobConfig) {
-    return new StreamingContext(jobConfig);
+    return new StreamingContext();
   }
 
   /**
    * Construct job DAG, and execute the job.
    */
-  public void execute() {
+  public void execute(String jobName) {
     JobGraphBuilder jobGraphBuilder = new JobGraphBuilder(streamSinks, jobName, jobConfig);
     this.jobGraph = jobGraphBuilder.build();
     jobGraph.printPlan();
@@ -72,7 +68,7 @@ public class StreamingContext implements Serializable {
   }
 
   public void withConfig(Map<String, String> jobConfig) {
-    this.jobConfig = jobConfig;
+    this.jobConfig.putAll(jobConfig);
   }
 
   public Map<String, String> getJobConfig() {
