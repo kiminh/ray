@@ -1531,6 +1531,7 @@ void NodeManager::HandleWorkerLeaseRequest(const rpc::WorkerLeaseRequest &reques
   Task task(task_message);
   bool is_actor_creation_task = task.GetTaskSpecification().IsActorCreationTask();
   ActorID actor_id = ActorID::Nil();
+  std::function<void ()> on_worker_leased;
   if (is_actor_creation_task) {
     actor_id = task.GetTaskSpecification().ActorCreationId();
 
@@ -1542,16 +1543,32 @@ void NodeManager::HandleWorkerLeaseRequest(const rpc::WorkerLeaseRequest &reques
     auto job_id = task.GetTaskSpecification().JobId();
     auto task_id = task.GetTaskSpecification().TaskId();
     RAY_CHECK_OK(gcs_client_->raylet_task_table().Add(job_id, task_id, data, nullptr));
+
+    auto is_detached_actor = task_spec.IsDetachedActor();
+    // Set a callback which will be called on successfully leasing a worker
+    // for an actor creation task, this is to ensure if a worker crashes during
+    // executing an actor creation task, the raylet on that node can mark the
+    // actor as dead, and trigger reconstruction if necessary.
+    on_worker_leased = [actor_id, is_detached_actor] (std::shared_ptr<Worker> worker) {
+      worker.AssignActorId(actor_id);
+
+      if (is_detached_actor) {
+        worker.MarkDetachedActor();
+      }
+    };
   }
 
   if (new_scheduler_enabled_) {
     auto request_resources =
         task.GetTaskSpecification().GetRequiredResources().GetResourceMap();
     auto work = std::make_pair(
-        [this, request_resources, reply, send_reply_callback](
+        [this, request_resources, reply, send_reply_callback, on_worker_leased](
             std::shared_ptr<Worker> worker, ClientID spillback_to, std::string address,
             int port) {
           if (worker != nullptr) {
+            if (on_worker_leased != nullptr) {
+              on_worker_leased(worker);
+            }
             reply->mutable_worker_address()->set_ip_address(
                 initial_config_.node_manager_address);
             reply->mutable_worker_address()->set_port(worker->Port());
@@ -1580,10 +1597,13 @@ void NodeManager::HandleWorkerLeaseRequest(const rpc::WorkerLeaseRequest &reques
   RAY_LOG(DEBUG) << "Worker lease request " << task.GetTaskSpecification().TaskId();
   TaskID task_id = task.GetTaskSpecification().TaskId();
   task.OnDispatchInstead(
-      [this, task_id, reply, send_reply_callback](
+      [this, task_id, reply, send_reply_callback, on_worker_leased](
           const std::shared_ptr<void> granted, const std::string &address, int port,
           const WorkerID &worker_id, const ResourceIdSet &resource_ids) {
         RAY_LOG(DEBUG) << "Worker lease request DISPATCH " << task_id;
+        if (on_worker_leased != nullptr) {
+          on_worker_leased(std::static_pointer_cast<Worker>(granted));
+        }
         reply->mutable_worker_address()->set_ip_address(address);
         reply->mutable_worker_address()->set_port(port);
         reply->mutable_worker_address()->set_worker_id(worker_id.Binary());

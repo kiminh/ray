@@ -71,7 +71,7 @@ void Worker::AssignJobId(const JobID &job_id) { assigned_job_id_ = job_id; }
 const JobID &Worker::GetAssignedJobId() const { return assigned_job_id_; }
 
 void Worker::AssignActorId(const ActorID &actor_id) {
-  RAY_CHECK(actor_id_.IsNil())
+  RAY_CHECK(actor_id_.IsNil() || actor_id_ == actor_id)
       << "A worker that is already an actor cannot be assigned an actor ID again.";
   RAY_CHECK(!actor_id.IsNil());
   actor_id_ = actor_id;
