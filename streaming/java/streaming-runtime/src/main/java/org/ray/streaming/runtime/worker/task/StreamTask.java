@@ -64,39 +64,31 @@ public abstract class StreamTask implements Runnable {
 
     // consumer
     List<ExecutionEdge> outputEdges = executionVertex.getOutputEdges();
+    Map<String, ActorId> outputActor = new HashMap<>();
     for (ExecutionEdge edge : outputEdges) {
-      Map<String, ActorId> outputActor = new HashMap<>();
-      Map<Integer, RayActor<JobWorker>> vertexId2Worker =
-          executionJobVertex.getExecutionVertexWorkers();
-
-      vertexId2Worker.forEach((targetVertexId, targetActor) -> {
-        String queueName = ChannelID.genIdStr(taskId, targetVertexId, executionVertex.getBuildTime());
-        outputActor.put(queueName, targetActor.getId());
+      String queueName = ChannelID.genIdStr(
+          taskId, edge.getConsumer().getVertexId(), executionVertex.getBuildTime());
+      outputActor.put(queueName, edge.getConsumer().getWorkerActorId());
+    }
+    if (!outputActor.isEmpty()) {
+      List<String> channelIDs = new ArrayList<>();
+      List<ActorId> targetActorIds = new ArrayList<>();
+      outputActor.forEach((vertexId, actorId) -> {
+        channelIDs.add(vertexId);
+        targetActorIds.add(actorId);
       });
-
-      if (!outputActor.isEmpty()) {
-        List<String> channelIDs = new ArrayList<>();
-        List<ActorId> targetActorIds = new ArrayList<>();
-        outputActor.forEach((vertexId, actorId) -> {
-          channelIDs.add(vertexId);
-          targetActorIds.add(actorId);
-        });
-        DataWriter writer = new DataWriter(channelIDs, targetActorIds, queueConf);
-        collectors.add(new StreamCollector(channelIDs, writer, edge.getPartition()));
-      }
+      DataWriter writer = new DataWriter(channelIDs, targetActorIds, queueConf);
+      collectors.add(new StreamCollector(channelIDs, writer,
+          executionJobVertex.getOutputEdges().get(0).getPartition()));
     }
 
     // producer
     List<ExecutionEdge> inputEdges = executionVertex.getInputEdges();
     Map<String, ActorId> inputActorIds = new HashMap<>();
     for (ExecutionEdge edge : inputEdges) {
-      Map<Integer, RayActor<JobWorker>> taskId2Worker =
-          executionJobVertex.getExecutionVertexWorkers();
-
-      taskId2Worker.forEach((srcTaskId, srcActor) -> {
-        String queueName = ChannelID.genIdStr(srcTaskId, taskId, executionVertex.getBuildTime());
-        inputActorIds.put(queueName, srcActor.getId());
-      });
+      String queueName = ChannelID.genIdStr(
+          edge.getProducer().getVertexId(), taskId, executionVertex.getBuildTime());
+      inputActorIds.put(queueName, edge.getProducer().getWorkerActorId());
     }
     if (!inputActorIds.isEmpty()) {
       List<String> channelIDs = new ArrayList<>();
@@ -108,7 +100,6 @@ public abstract class StreamTask implements Runnable {
       LOG.info("Register queue consumer, queues {}.", channelIDs);
       reader = new DataReader(channelIDs, fromActorIds, queueConf);
     }
-
 
     RuntimeContext runtimeContext = new StreamingRuntimeContext(executionVertex,
         jobWorker.getWorkerConfig().configMap, executionVertex.getParallelism());
