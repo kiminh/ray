@@ -30,9 +30,8 @@ public class GraphManagerImpl implements GraphManager {
     this.runtimeContext = null;
   }
 
-  public GraphManagerImpl(JobMaster jobMaster, JobGraph jobGraph) {
+  public GraphManagerImpl(JobMaster jobMaster) {
     this.runtimeContext = jobMaster.getRuntimeContext();
-    runtimeContext.setGraphs(jobGraph, buildExecutionGraph(jobGraph));
   }
 
   /**

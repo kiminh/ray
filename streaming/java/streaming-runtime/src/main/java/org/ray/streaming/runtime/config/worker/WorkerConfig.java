@@ -1,6 +1,6 @@
 package org.ray.streaming.runtime.config.worker;
 
-import org.aeonbits.owner.Config;
+import org.ray.streaming.runtime.config.Config;
 
 /**
  *

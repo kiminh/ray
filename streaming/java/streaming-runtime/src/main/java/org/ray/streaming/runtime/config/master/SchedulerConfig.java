@@ -1,6 +1,7 @@
 package org.ray.streaming.runtime.config.master;
 
-import org.aeonbits.owner.Config;
+import org.ray.streaming.runtime.config.Config;
+import org.ray.streaming.runtime.config.converter.MaxParallelismConverter;
 
 /**
  *

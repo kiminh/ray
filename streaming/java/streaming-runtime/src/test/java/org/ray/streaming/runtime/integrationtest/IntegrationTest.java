@@ -61,8 +61,8 @@ public class IntegrationTest {
     streamingContext.withConfig(config);
 
     final int tot = 100;
-    MySourceFunctionWithIndex function = new MySourceFunctionWithIndex("hello", tot, 100);
-    StreamSource<String> source = new StreamSource<String>(streamingContext, function);
+    MySourceFunctionWithIndex function = new MySourceFunctionWithIndex("hello world", tot, 100);
+    StreamSource<String> source = new StreamSource<>(streamingContext, function);
     source
         .flatMap((FlatMapFunction<String, WordAndCount>) (value, collector) -> {
           String[] records = value.split(" ");
@@ -86,7 +86,7 @@ public class IntegrationTest {
     }
 
     Assert.assertEquals(wordCountMap,
-        ImmutableMap.of("hello", tot));
+        ImmutableMap.of("hello", tot, "world", tot));
 
     TimeUnit.SECONDS.sleep(3);
     TestHelper.clearUTPattern();

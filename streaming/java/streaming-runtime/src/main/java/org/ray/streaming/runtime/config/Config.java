@@ -4,6 +4,8 @@ import java.io.Serializable;
 
 import javax.accessibility.Accessible;
 
+import org.ray.streaming.runtime.config.converter.EnvConverter;
+
 /**
  *
  */

@@ -2,8 +2,6 @@ package org.ray.streaming.runtime.master;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 import com.google.common.base.Preconditions;
 import org.ray.api.RayActor;
@@ -44,8 +42,6 @@ public class JobMaster implements IJobMaster {
   private GraphManager graphManager;
   private WorkerLifecycleController workerController;
   private RayActor jobMasterActor;
-  private Executor executor;
-  private int updateOperatorIndex = 0;
 
   // For test
   public static JobMaster jobMaster;
@@ -68,7 +64,6 @@ public class JobMaster implements IJobMaster {
     String moduleName = conf.commonConfig.jobName();
     ModuleNameAppender.setModuleName(moduleName);
 
-    executor = Executors.newFixedThreadPool(1);
     LOG.info("Job master init success");
   }
 
@@ -84,7 +79,7 @@ public class JobMaster implements IJobMaster {
     // recover from last checkpoint
     if (isRecover) {
       LOG.info("Recover graph manager, resource manager and scheduler.");
-      graphManager = new GraphManagerImpl(this, runtimeContext.getGraphs().getJobGraph());
+      graphManager = new GraphManagerImpl(this);
       resourceManager = new ResourceManagerImpl(this);
       scheduler = new JobScheduler(this);
     }
@@ -110,7 +105,7 @@ public class JobMaster implements IJobMaster {
     this.jobMasterActor = jobMasterActor;
 
     // init manager
-    graphManager = new GraphManagerImpl(this, jobGraph);
+    graphManager = new GraphManagerImpl(this);
     resourceManager = new ResourceManagerImpl(this);
 
     // init scheduler

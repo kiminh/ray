@@ -1,6 +1,6 @@
 package org.ray.streaming.runtime.config.global;
 
-import org.aeonbits.owner.Config;
+import org.ray.streaming.runtime.config.Config;
 
 /**
  * Alipay.com Inc Copyright (c) 2004-2019 All Rights Reserved.

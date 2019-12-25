@@ -11,7 +11,7 @@ import org.ray.api.RayActor;
 import org.ray.api.annotation.RayRemote;
 import org.ray.api.id.ActorId;
 import org.ray.streaming.runtime.core.transfer.DataMessage;
-import org.ray.streaming.runtime.transfer.DataReader;
+import org.ray.streaming.runtime.core.transfer.DataReader;
 import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +22,7 @@ public class ReaderWorker extends Worker {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ReaderWorker.class);
 
-  private String name = null;
+  private String name;
   private List<String> inputQueueList = null;
   private List<ActorId> inputActorIds = new ArrayList<>();
   private DataReader dataReader = null;
@@ -88,7 +88,7 @@ public class ReaderWorker extends Worker {
 
     int checkPointId = 1;
     for (int i = 0; i < msgCount * inputQueueList.size(); ++i) {
-      DataMessage dataMessage = dataReader.pull(100);
+      DataMessage dataMessage = dataReader.read(100);
 
       if (dataMessage == null) {
         LOGGER.error("dataMessage is null");

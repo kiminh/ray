@@ -6,9 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.ray.api.Ray;
 import org.ray.api.id.UniqueId;
 import org.ray.api.runtimecontext.NodeInfo;
@@ -41,10 +43,16 @@ public class ResourceManagerImpl implements ResourceManager {
   private StreamingMasterConfig conf;
   private SlotAssignStrategy slotAssignStrategy;
 
-  private final ScheduledExecutorService scheduledExecutorService;
   private final JobMasterRuntimeContext runtimeContext;
   private final JobMaster jobMaster;
   private final Resources resources;
+
+  /**
+   * Thread
+   */
+  private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
+      1, new BasicThreadFactory
+      .Builder().namingPattern("updateResource-schedule-pool-%d").daemon(true).build());
 
   public ResourceManagerImpl(JobMaster jobMaster) {
     this.runtimeContext = jobMaster.getRuntimeContext();
@@ -63,10 +71,14 @@ public class ResourceManagerImpl implements ResourceManager {
 
     updateResources();
 
-    this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
     if (!TestHelper.isUTPattern()) {
-      this.scheduledExecutorService.scheduleAtFixedRate(Ray.wrapRunnable(() -> updateResources()),
-          CHECK_INTERVAL_SEC, CHECK_INTERVAL_SEC, TimeUnit.SECONDS);
+      scheduledExecutorService.scheduleAtFixedRate(Ray.wrapRunnable(() -> {
+            Ray.wrapRunnable(() -> updateResources());
+          }),
+          CHECK_INTERVAL_SEC,
+          CHECK_INTERVAL_SEC,
+          TimeUnit.SECONDS
+      );
     }
     LOG.info("ResourceManagerImpl init success.");
   }

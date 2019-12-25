@@ -1,6 +1,6 @@
 package org.ray.streaming.runtime.config.global;
 
-import org.aeonbits.owner.Config;
+import org.ray.streaming.runtime.config.Config;
 
 import static org.aeonbits.owner.Config.DisableableFeature.PARAMETER_FORMATTING;
 

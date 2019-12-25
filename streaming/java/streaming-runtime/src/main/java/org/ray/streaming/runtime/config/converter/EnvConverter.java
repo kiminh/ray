@@ -1,9 +1,10 @@
-package org.ray.streaming.runtime.config;
+package org.ray.streaming.runtime.config.converter;
 
 import java.lang.reflect.Method;
 
 import org.aeonbits.owner.Converter;
 
+import org.ray.streaming.runtime.config.types.EnvironmentType;
 import org.ray.streaming.runtime.util.EnvUtil;
 
 /**

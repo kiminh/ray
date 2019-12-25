@@ -16,13 +16,8 @@ import org.ray.streaming.runtime.config.global.LogConfig;
 import org.ray.streaming.runtime.config.global.SerializationConfig;
 import org.ray.streaming.runtime.config.global.StateBackendConfig;
 
-/**
- * Alipay.com Inc
- * Copyright (c) 2004-2019 All Rights Reserved.
- *
- * @author yangjianzhang on 2019-12-12.
- */
 public class StreamingGlobalConfig {
+
   private static final Logger LOG = LoggerFactory.getLogger(StreamingGlobalConfig.class);
 
   public CommonConfig commonConfig;
@@ -45,6 +40,7 @@ public class StreamingGlobalConfig {
       configMap.putAll(config2Map(this.commonConfig));
       configMap.putAll(config2Map(this.logConfig));
       configMap.putAll(config2Map(this.serializationConfig));
+      configMap.putAll(config2Map(this.stateBackendConfig));
     } catch (Exception e) {
       LOG.error("Global config to map occur error.", e);
     }

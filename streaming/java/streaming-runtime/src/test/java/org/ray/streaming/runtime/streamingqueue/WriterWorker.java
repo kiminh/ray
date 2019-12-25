@@ -13,11 +13,12 @@ import org.ray.api.RayActor;
 import org.ray.api.annotation.RayRemote;
 import org.ray.api.id.ActorId;
 import org.ray.runtime.actor.NativeRayActor;
-import org.ray.streaming.runtime.core.transfer.ChannelID;
-import org.ray.streaming.runtime.transfer.DataWriter;
 import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.ray.streaming.runtime.core.transfer.ChannelID;
+import org.ray.streaming.runtime.core.transfer.DataWriter;
 
 @RayRemote
 public class WriterWorker extends Worker {
