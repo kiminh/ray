@@ -13,7 +13,7 @@ import com.google.common.base.Preconditions;
 import org.ray.streaming.api.stream.StreamSink;
 import org.ray.streaming.jobgraph.JobGraph;
 import org.ray.streaming.jobgraph.JobGraphBuilder;
-import org.ray.streaming.schedule.IJobSchedule;
+import org.ray.streaming.driver.IJobDriver;
 
 /**
  * Encapsulate the context information of a streaming Job.
@@ -51,12 +51,12 @@ public class StreamingContext implements Serializable {
     this.jobGraph = jobGraphBuilder.build();
     jobGraph.printPlan();
 
-    ServiceLoader<IJobSchedule> serviceLoader = ServiceLoader.load(IJobSchedule.class);
-    Iterator<IJobSchedule> iterator = serviceLoader.iterator();
+    ServiceLoader<IJobDriver> serviceLoader = ServiceLoader.load(IJobDriver.class);
+    Iterator<IJobDriver> iterator = serviceLoader.iterator();
     Preconditions.checkArgument(iterator.hasNext());
-    // IJobSchedule jobSchedule = new JobScheduleImpl(jobConfig);
-    IJobSchedule jobSchedule = iterator.next();
-    jobSchedule.schedule(jobGraph, jobConfig);
+//    IJobDriver jobDriver = new JobDriverImpl(jobConfig);
+    IJobDriver jobDriver = iterator.next();
+    jobDriver.submit(jobGraph, jobConfig);
   }
 
   public int generateId() {

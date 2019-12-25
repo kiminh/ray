@@ -81,6 +81,8 @@ public class IntegrationTest {
 
     streamingContext.execute(jobName);
 
+    TimeUnit.SECONDS.sleep(3);
+
     while (wordCountMap.get("hello") < tot) {
       TimeUnit.MILLISECONDS.sleep(1000);
     }
