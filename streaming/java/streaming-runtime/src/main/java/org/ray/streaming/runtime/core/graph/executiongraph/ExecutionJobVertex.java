@@ -53,10 +53,10 @@ public class ExecutionJobVertex {
     Map<String, Double> resourceMap = new HashMap<>();
     ResourceConfig resourceConfig = ConfigCache.getOrCreate(ResourceConfig.class, jobConfig);
     if (resourceConfig.isTaskCpuResourceLimit()) {
-      resources.put(ResourceConfig.RESOURCE_KEY_CPU, resourceConfig.taskCpuResource());
+      resourceMap.put(ResourceConfig.RESOURCE_KEY_CPU, resourceConfig.taskCpuResource());
     }
     if (resourceConfig.isTaskMemResourceLimit()) {
-      resources.put(ResourceConfig.RESOURCE_KEY_MEM, resourceConfig.taskMemResource());
+      resourceMap.put(ResourceConfig.RESOURCE_KEY_MEM, resourceConfig.taskMemResource());
     }
     return resourceMap;
   }

@@ -26,13 +26,13 @@ public class JobVertex implements Serializable {
       StreamOperator streamOperator) {
     this.vertexId = vertexId;
     this.parallelism = parallelism;
-    this.vertexName = generateVertexName();
     this.vertexType = vertexType;
     this.languageType = languageType;
     this.streamOperator = streamOperator;
+    this.vertexName = generateVertexName(streamOperator);
 }
 
-  private String generateVertexName() {
+  private String generateVertexName(StreamOperator streamOperator) {
     return vertexId + "-" + streamOperator.getName();
   }
 

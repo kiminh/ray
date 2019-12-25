@@ -12,9 +12,9 @@ import org.ray.api.id.ActorId;
 import org.ray.runtime.RayNativeRuntime;
 import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.util.JniUtils;
+import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.util.Platform;
 
 /**
@@ -22,7 +22,7 @@ import org.ray.streaming.runtime.util.Platform;
  * from channels of upstream workers
  */
 public class DataReader {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DataReader.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DataReader.class);
 
   static {
     try {
@@ -70,7 +70,7 @@ public class DataReader {
         ChannelUtils.toNativeConf(conf),
         isMock
     );
-    LOGGER.info("create DataReader succeed");
+    LOG.info("create DataReader succeed");
   }
 
   // params set by getBundleNative: bundle data address + size
@@ -161,10 +161,10 @@ public class DataReader {
     if (nativeReaderPtr == 0) {
       return;
     }
-    LOGGER.info("closing DataReader.");
+    LOG.info("closing DataReader.");
     closeReaderNative(nativeReaderPtr);
     nativeReaderPtr = 0;
-    LOGGER.info("closing DataReader done.");
+    LOG.info("closing DataReader done.");
   }
 
   private static native long createDataReaderNative(

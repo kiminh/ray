@@ -6,16 +6,16 @@ import org.ray.streaming.operator.StreamOperator;
 import org.ray.streaming.operator.TwoInputOperator;
 import org.ray.streaming.operator.impl.SourceOperator;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import org.ray.streaming.runtime.util.LoggerFactory;
 
 public class ProcessBuilder {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ProcessBuilder.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ProcessBuilder.class);
 
   public static StreamProcessor buildProcessor(StreamOperator streamOperator) {
     OperatorType type = streamOperator.getOpType();
-    LOGGER.info("Building StreamProcessor, operator type = {}, operator = {}.", type,
+    LOG.info("Building StreamProcessor, operator type = {}, operator = {}.", type,
         streamOperator.getClass().getSimpleName().toString());
     switch (type) {
       case SOURCE:

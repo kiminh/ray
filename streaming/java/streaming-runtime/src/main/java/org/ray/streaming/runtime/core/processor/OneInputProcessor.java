@@ -3,11 +3,12 @@ package org.ray.streaming.runtime.core.processor;
 import org.ray.streaming.message.Record;
 import org.ray.streaming.operator.OneInputOperator;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import org.ray.streaming.runtime.util.LoggerFactory;
 
 public class OneInputProcessor<T> extends StreamProcessor<Record<T>, OneInputOperator<T>> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(OneInputProcessor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(OneInputProcessor.class);
 
   public OneInputProcessor(OneInputOperator<T> operator) {
     super(operator);

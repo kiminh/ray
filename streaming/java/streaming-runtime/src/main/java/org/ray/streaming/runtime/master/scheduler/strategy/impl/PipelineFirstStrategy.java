@@ -7,7 +7,6 @@ import java.util.Map;
 
 import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.config.types.SlotAssignStrategyType;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
@@ -18,6 +17,7 @@ import org.ray.streaming.runtime.core.resource.Container;
 import org.ray.streaming.runtime.core.resource.Resources;
 import org.ray.streaming.runtime.core.resource.Slot;
 import org.ray.streaming.runtime.master.scheduler.strategy.SlotAssignStrategy;
+import org.ray.streaming.runtime.util.LoggerFactory;
 
 public class PipelineFirstStrategy implements SlotAssignStrategy {
 

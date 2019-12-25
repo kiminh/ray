@@ -46,7 +46,6 @@ import de.javakaffee.kryoserializers.jodatime.JodaLocalDateSerializer;
 import de.javakaffee.kryoserializers.jodatime.JodaLocalDateTimeSerializer;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
 
@@ -54,6 +53,7 @@ import org.ray.streaming.runtime.config.StreamingConfig;
  *
  */
 public class KryoUtils {
+
   private static final Logger LOG = LoggerFactory.getLogger(KryoUtils.class);
 
   private static final int BUFFER_SIZE = 4096 * 5;

@@ -11,7 +11,6 @@ import com.google.common.base.Preconditions;
 import org.ray.api.RayActor;
 import org.ray.api.id.ActorId;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
@@ -19,13 +18,13 @@ import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertexState;
 import org.ray.streaming.runtime.core.resource.Container;
-import org.ray.streaming.runtime.core.resource.Slot;
 import org.ray.streaming.runtime.master.JobMaster;
 import org.ray.streaming.runtime.master.graphmanager.GraphManager;
 import org.ray.streaming.runtime.master.resourcemanager.ResourceManager;
 import org.ray.streaming.runtime.master.scheduler.controller.WorkerLifecycleController;
 import org.ray.streaming.runtime.master.scheduler.strategy.SlotAssignStrategy;
 import org.ray.streaming.runtime.util.KryoUtils;
+import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 
 public class JobScheduler implements IJobScheduler {

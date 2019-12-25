@@ -6,10 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.ray.api.Ray;
-import org.ray.api.RayActor;
 import org.ray.api.id.ActorId;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.api.collector.Collector;
 import org.ray.streaming.api.context.RuntimeContext;
@@ -21,8 +19,9 @@ import org.ray.streaming.runtime.core.processor.Processor;
 import org.ray.streaming.runtime.core.transfer.ChannelID;
 import org.ray.streaming.runtime.core.transfer.DataReader;
 import org.ray.streaming.runtime.core.transfer.DataWriter;
-import org.ray.streaming.runtime.worker.JobWorker;
 import org.ray.streaming.runtime.core.transfer.collector.StreamCollector;
+import org.ray.streaming.runtime.util.LoggerFactory;
+import org.ray.streaming.runtime.worker.JobWorker;
 import org.ray.streaming.runtime.worker.context.StreamingRuntimeContext;
 
 /**

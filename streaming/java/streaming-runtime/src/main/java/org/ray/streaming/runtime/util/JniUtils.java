@@ -6,16 +6,16 @@ import com.google.common.base.Strings;
 import org.ray.runtime.RayNativeRuntime;
 import org.ray.runtime.util.FileUtil;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class JniUtils {
-  private static final Logger LOGGER = LoggerFactory.getLogger(JniUtils.class);
+
+  private static final Logger LOG = LoggerFactory.getLogger(JniUtils.class);
 
   public static void loadLibrary(String libraryName) {
     try {
       System.loadLibrary(libraryName);
     } catch (UnsatisfiedLinkError error) {
-      LOGGER.debug("Loading native library {}.", libraryName);
+      LOG.debug("Loading native library {}.", libraryName);
       // Load native library.
       String fileName = System.mapLibraryName(libraryName);
       String libPath = null;
@@ -23,7 +23,7 @@ public class JniUtils {
         libPath = libFile.getFile().getAbsolutePath();
         System.load(libPath);
       }
-      LOGGER.debug("Native library loaded.");
+      LOG.debug("Native library loaded.");
       resetLibraryPath(libPath);
     }
   }
@@ -53,7 +53,7 @@ public class JniUtils {
       sysPathsField.setAccessible(true);
       sysPathsField.set(null, null);
     } catch (NoSuchFieldException | IllegalAccessException e) {
-      LOGGER.error("Failed to set library path.", e);
+      LOG.error("Failed to set library path.", e);
     }
   }
 }

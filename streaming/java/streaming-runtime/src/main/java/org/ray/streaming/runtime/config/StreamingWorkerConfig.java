@@ -5,10 +5,10 @@ import java.util.Map;
 
 import org.aeonbits.owner.ConfigFactory;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.config.worker.TransferConfig;
 import org.ray.streaming.runtime.config.worker.WorkerConfig;
+import org.ray.streaming.runtime.util.LoggerFactory;
 
 /**
  *

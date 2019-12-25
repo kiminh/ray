@@ -6,10 +6,10 @@ import java.util.Map;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.config.global.StateBackendConfig;
 import org.ray.streaming.runtime.core.state.StateBackend;
+import org.ray.streaming.runtime.util.LoggerFactory;
 
 public class MemoryStateBackend implements StateBackend<String, byte[], StateBackendConfig> {
 

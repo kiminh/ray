@@ -11,9 +11,9 @@ import org.ray.api.id.ActorId;
 import org.ray.runtime.RayNativeRuntime;
 import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.util.JniUtils;
+import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.util.Platform;
 
 /**
@@ -21,7 +21,7 @@ import org.ray.streaming.runtime.util.Platform;
  * to downstream workers
  */
 public class DataWriter {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DataWriter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DataWriter.class);
 
   static {
     try {
@@ -73,7 +73,7 @@ public class DataWriter {
         ChannelUtils.toNativeConf(conf),
         isMock
     );
-    LOGGER.info("create DataWriter succeed");
+    LOG.info("create DataWriter succeed");
   }
 
   /**
@@ -129,10 +129,10 @@ public class DataWriter {
     if (nativeWriterPtr == 0) {
       return;
     }
-    LOGGER.info("closing data writer.");
+    LOG.info("closing data writer.");
     closeWriterNative(nativeWriterPtr);
     nativeWriterPtr = 0;
-    LOGGER.info("closing data writer done.");
+    LOG.info("closing data writer done.");
   }
 
   private static native long createWriterNative(

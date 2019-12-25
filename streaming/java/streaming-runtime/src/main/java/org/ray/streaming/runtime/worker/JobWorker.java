@@ -8,7 +8,6 @@ import org.ray.api.annotation.RayRemote;
 import org.ray.runtime.RayMultiWorkerNativeRuntime;
 import org.ray.runtime.functionmanager.JavaFunctionDescriptor;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
 import org.ray.streaming.runtime.config.worker.TransferConfig;
@@ -20,6 +19,7 @@ import org.ray.streaming.runtime.core.processor.StreamProcessor;
 import org.ray.streaming.runtime.core.processor.TwoInputProcessor;
 import org.ray.streaming.runtime.core.transfer.TransferHandler;
 import org.ray.streaming.runtime.util.KryoUtils;
+import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 import org.ray.streaming.runtime.worker.task.OneInputStreamTask;
 import org.ray.streaming.runtime.worker.task.SourceStreamTask;

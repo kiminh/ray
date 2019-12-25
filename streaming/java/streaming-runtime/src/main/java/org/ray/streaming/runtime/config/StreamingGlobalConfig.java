@@ -9,12 +9,12 @@ import org.aeonbits.owner.Config.DefaultValue;
 import org.aeonbits.owner.Config.Key;
 import org.aeonbits.owner.ConfigFactory;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.ray.streaming.runtime.config.global.CommonConfig;
 import org.ray.streaming.runtime.config.global.LogConfig;
 import org.ray.streaming.runtime.config.global.SerializationConfig;
 import org.ray.streaming.runtime.config.global.StateBackendConfig;
+import org.ray.streaming.runtime.util.LoggerFactory;
 
 public class StreamingGlobalConfig {
 
