@@ -23,7 +23,7 @@ std::shared_ptr<gcs::ActorTableData> CreateActorTableData(
 /// that uses Redis as the backend storage.
 class RedisActorInfoAccessor : public ActorInfoAccessor {
  public:
-  explicit RedisActorInfoAccessor(RedisGcsClient *client_impl);
+  explicit RedisActorInfoAccessor(RedisGcsClient *client_impl, bool use_direct_actor_table = false);
 
   virtual ~RedisActorInfoAccessor() {}
 
@@ -45,8 +45,12 @@ class RedisActorInfoAccessor : public ActorInfoAccessor {
                         const StatusCallback &done) override;
 
   Status AsyncUnsubscribe(const ActorID &actor_id, const StatusCallback &done) override;
-
+  
  private:
+
+  ActorTable &GetActorTable();
+  const bool use_direct_actor_table_;
+
   RedisGcsClient *client_impl_{nullptr};
   // Use a random ClientID for actor subscription. Because:
   // If we use ClientID::Nil, GCS will still send all actors' updates to this GCS Client.

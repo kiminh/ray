@@ -7,7 +7,6 @@ namespace ray {
 Status CoreWorkerDirectTaskSubmitter::SubmitTask(TaskSpecification task_spec) {
   RAY_LOG(DEBUG) << "Submit task " << task_spec.TaskId();
 
-
   resolver_.ResolveDependencies(task_spec, [this, task_spec]() {
     RAY_LOG(DEBUG) << "Task dependencies resolved " << task_spec.TaskId();
     absl::MutexLock lock(&mu_);

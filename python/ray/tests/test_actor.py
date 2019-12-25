@@ -810,7 +810,7 @@ def test_exception_raised_when_actor_node_dies(ray_start_cluster_head):
 @pytest.mark.skipif(
     os.environ.get("RAY_USE_NEW_GCS") == "on",
     reason="Hanging with new GCS API.")
-@pytest.mark.skipif(RAY_FORCE_DIRECT, reason="no ft yet")
+# @pytest.mark.skipif(RAY_FORCE_DIRECT, reason="no ft yet")
 def test_actor_init_fails(ray_start_cluster_head):
     cluster = ray_start_cluster_head
     remote_node = cluster.add_node()
@@ -828,6 +828,32 @@ def test_actor_init_fails(ray_start_cluster_head):
     actors = [Counter.remote() for _ in range(15)]
     # Allow some time to forward the actor creation tasks to the other node.
     time.sleep(0.1)
+    # Kill the second node.
+    cluster.remove_node(remote_node)
+
+    # Get all of the results.
+    results = ray.get([actor.inc.remote() for actor in actors])
+    assert results == [1 for actor in actors]
+
+
+def test_actor_creation_failure(ray_start_cluster_head):
+    cluster = ray_start_cluster_head
+    remote_node = cluster.add_node()
+
+    @ray.remote(max_reconstructions=1)
+    class Counter(object):
+        def __init__(self):
+            self.x = 0
+            time.sleep(5)
+
+        def inc(self):
+            self.x += 1
+            return self.x
+
+    # Create many actors. It should take a while to finish initializing them.
+    actors = [Counter.remote() for _ in range(15)]
+    # Allow some time to forward the actor creation tasks to the other node.
+    time.sleep(1)
     # Kill the second node.
     cluster.remove_node(remote_node)
 

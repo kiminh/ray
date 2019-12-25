@@ -67,6 +67,13 @@ class GcsClient : public std::enable_shared_from_this<GcsClient> {
     return *actor_accessor_;
   }
 
+  /// Get the sub-interface for accessing actor information in GCS.
+  /// This function is thread safe.
+  ActorInfoAccessor &DirectActors() {
+    RAY_CHECK(direct_actor_accessor_ != nullptr);
+    return *direct_actor_accessor_;
+  }
+
   /// Get the sub-interface for accessing job information in GCS.
   /// This function is thread safe.
   JobInfoAccessor &Jobs() {
@@ -93,6 +100,7 @@ class GcsClient : public std::enable_shared_from_this<GcsClient> {
   bool is_connected_{false};
 
   std::unique_ptr<ActorInfoAccessor> actor_accessor_;
+  std::unique_ptr<ActorInfoAccessor> direct_actor_accessor_;
   std::unique_ptr<JobInfoAccessor> job_accessor_;
   std::unique_ptr<TaskInfoAccessor> task_accessor_;
 };

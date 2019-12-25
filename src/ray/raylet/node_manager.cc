@@ -8,6 +8,7 @@
 #include "ray/common/id.h"
 #include "ray/common/status.h"
 #include "ray/gcs/pb_util.h"
+#include "ray/gcs/redis_accessor.h"
 #include "ray/raylet/format/node_manager_generated.h"
 #include "ray/stats/stats.h"
 #include "ray/util/sample.h"
@@ -170,6 +171,8 @@ ray::Status NodeManager::RegisterGcs() {
 
   RAY_RETURN_NOT_OK(
       gcs_client_->Actors().AsyncSubscribeAll(actor_notification_callback, nullptr));
+  RAY_RETURN_NOT_OK(
+      gcs_client_->DirectActors().AsyncSubscribeAll(actor_notification_callback, nullptr));
 
   // Register a callback on the client table for new clients.
   auto node_manager_client_added = [this](gcs::RedisGcsClient *client, const UniqueID &id,
@@ -532,10 +535,12 @@ void NodeManager::ClientRemoved(const GcsNodeInfo &node_info) {
   // TODO(swang): This could be very slow if there are many actors.
   for (const auto &actor_entry : actor_registry_) {
     if (actor_entry.second.GetNodeManagerId() == client_id &&
-        actor_entry.second.GetState() == ActorTableData::ALIVE) {
+        (actor_entry.second.GetState() == ActorTableData::ALIVE ||
+        actor_entry.second.GetState() == ActorTableData::PENDING)) {
       RAY_LOG(INFO) << "Actor " << actor_entry.first
                     << " is disconnected, because its node " << client_id
-                    << " is removed from cluster. It may be reconstructed.";
+                    << " is removed from cluster. It may be reconstructed."
+                    << " Current state is " << actor_entry.second.GetState();
       HandleDisconnectedActor(actor_entry.first, /*was_local=*/false,
                               /*intentional_disconnect=*/false);
     }
@@ -789,8 +794,8 @@ void NodeManager::HandleActorStateTransition(const ActorID &actor_id,
     for (auto const &task : removed_tasks) {
       TreatTaskAsFailed(task, ErrorType::ACTOR_DIED);
     }
-  } else {
-    RAY_CHECK(actor_registration.GetState() == ActorTableData::RECONSTRUCTING);
+  } else if (actor_registration.GetState() == ActorTableData::RECONSTRUCTING) {
+    // RAY_CHECK(actor_registration.GetState() == ActorTableData::RECONSTRUCTING);
     RAY_LOG(DEBUG) << "Actor is being reconstructed: " << actor_id;
     // The actor is dead and needs reconstruction. Attempting to reconstruct its
     // creation task.
@@ -1531,30 +1536,50 @@ void NodeManager::HandleWorkerLeaseRequest(const rpc::WorkerLeaseRequest &reques
   Task task(task_message);
   bool is_actor_creation_task = task.GetTaskSpecification().IsActorCreationTask();
   ActorID actor_id = ActorID::Nil();
-  std::function<void ()> on_worker_leased;
+  std::function<void (std::shared_ptr<Worker> worker)> on_worker_leased;
   if (is_actor_creation_task) {
     actor_id = task.GetTaskSpecification().ActorCreationId();
 
-    // Save the actor creation task spec in `raylet_task_table`, which is needed to
+    // Save the actor creation task spec to GCS, which is needed to
     // reconstruct the actor when raylet detect it dies.
-    std::shared_ptr<gcs::TaskTableData> data = std::make_shared<gcs::TaskTableData>();
-    data->mutable_task()->mutable_task_spec()->CopyFrom(
+    std::shared_ptr<rpc::TaskTableData> task_table_data = std::make_shared<rpc::TaskTableData>();
+    task_table_data->mutable_task()->mutable_task_spec()->CopyFrom(
         task.GetTaskSpecification().GetMessage());
-    auto job_id = task.GetTaskSpecification().JobId();
-    auto task_id = task.GetTaskSpecification().TaskId();
-    RAY_CHECK_OK(gcs_client_->raylet_task_table().Add(job_id, task_id, data, nullptr));
+    RAY_CHECK_OK(gcs_client_->Tasks().AsyncAdd(task_table_data, nullptr));
 
-    auto is_detached_actor = task_spec.IsDetachedActor();
+    auto is_detached_actor = task.GetTaskSpecification().IsDetachedActor();
+
     // Set a callback which will be called on successfully leasing a worker
     // for an actor creation task, this is to ensure if a worker crashes during
     // executing an actor creation task, the raylet on that node can mark the
     // actor as dead, and trigger reconstruction if necessary.
-    on_worker_leased = [actor_id, is_detached_actor] (std::shared_ptr<Worker> worker) {
-      worker.AssignActorId(actor_id);
+    on_worker_leased = [this, actor_id, is_detached_actor, task_table_data] (std::shared_ptr<Worker> worker) {
+      worker->AssignActorId(actor_id);
 
       if (is_detached_actor) {
-        worker.MarkDetachedActor();
+        worker->MarkDetachedActor();
       }
+
+      rpc::Address address;
+      address.set_ip_address(
+          gcs_client_->client_table().GetLocalClient().node_manager_address());
+      address.set_port(worker->Port());
+      address.set_raylet_id(
+          gcs_client_->client_table().GetLocalClientId().Binary());
+      address.set_worker_id(worker->WorkerId().Binary());
+      
+      ray::Task task(task_table_data->task());
+      auto new_actor_info = gcs::CreateActorTableData(task.GetTaskSpecification(),
+          address, gcs::ActorTableData::PENDING, task.GetTaskSpecification().MaxActorReconstructions());
+
+
+      auto update_callback = [actor_id](Status status) {
+        if (!status.ok()) {
+          // Only one node at a time should succeed at creating or updating the actor.
+          RAY_LOG(FATAL) << "Failed to update state to PENDING for actor " << actor_id;
+        }
+      };
+      RAY_CHECK_OK(gcs_client_->DirectActors().AsyncRegister(new_actor_info, update_callback));    
     };
   }
 
@@ -2384,7 +2409,8 @@ std::shared_ptr<ActorTableData> NodeManager::CreateActorTableDataFromCreationTas
   // actor notifications were delayed, then this node may not have an entry for
   // the actor in actor_regisry_. Then, the fields for the number of
   // reconstructions will be wrong.
-  if (actor_entry == actor_registry_.end()) {
+  if (actor_entry == actor_registry_.end() ||
+      actor_entry->second.GetState() == ActorTableData::PENDING) {
     actor_info_ptr.reset(new ActorTableData());
     // Set all of the static fields for the actor. These fields will not
     // change even if the actor fails or is reconstructed.

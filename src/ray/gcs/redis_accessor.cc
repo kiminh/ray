@@ -33,8 +33,9 @@ std::shared_ptr<gcs::ActorTableData> CreateActorTableData(
   return actor_info_ptr;
 }
 
-RedisActorInfoAccessor::RedisActorInfoAccessor(RedisGcsClient *client_impl)
-    : client_impl_(client_impl), actor_sub_executor_(client_impl_->actor_table()) {}
+RedisActorInfoAccessor::RedisActorInfoAccessor(RedisGcsClient *client_impl, bool use_direct_actor_table)
+    : use_direct_actor_table_(use_direct_actor_table),
+      client_impl_(client_impl), actor_sub_executor_(GetActorTable()) {}
 
 Status RedisActorInfoAccessor::AsyncGet(
     const ActorID &actor_id, const OptionalItemCallback<ActorTableData> &callback) {
@@ -48,7 +49,7 @@ Status RedisActorInfoAccessor::AsyncGet(
     callback(Status::OK(), result);
   };
 
-  return client_impl_->actor_table().Lookup(JobID::Nil(), actor_id, on_done);
+  return GetActorTable().Lookup(JobID::Nil(), actor_id, on_done);
 }
 
 Status RedisActorInfoAccessor::AsyncRegister(
@@ -68,7 +69,7 @@ Status RedisActorInfoAccessor::AsyncRegister(
   };
 
   ActorID actor_id = ActorID::FromBinary(data_ptr->actor_id());
-  return client_impl_->actor_table().AppendAt(JobID::Nil(), actor_id, data_ptr,
+  return GetActorTable().AppendAt(JobID::Nil(), actor_id, data_ptr,
                                               on_success, on_failure,
                                               /*log_length*/ 0);
 }
@@ -111,7 +112,7 @@ Status RedisActorInfoAccessor::AsyncUpdate(
     }
   };
 
-  return client_impl_->actor_table().AppendAt(JobID::Nil(), actor_id, data_ptr,
+  return GetActorTable().AppendAt(JobID::Nil(), actor_id, data_ptr,
                                               on_success, on_failure, log_length);
 }
 
@@ -132,6 +133,10 @@ Status RedisActorInfoAccessor::AsyncSubscribe(
 Status RedisActorInfoAccessor::AsyncUnsubscribe(const ActorID &actor_id,
                                                 const StatusCallback &done) {
   return actor_sub_executor_.AsyncUnsubscribe(node_id_, actor_id, done);
+}
+
+ActorTable &RedisActorInfoAccessor::GetActorTable() {
+  return use_direct_actor_table_ ? client_impl_->direct_actor_table() : client_impl_->actor_table();
 }
 
 RedisJobInfoAccessor::RedisJobInfoAccessor(RedisGcsClient *client_impl)

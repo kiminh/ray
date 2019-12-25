@@ -757,7 +757,7 @@ def make_actor(cls, num_cpus, num_gpus, memory, object_store_memory, resources,
         if ray_constants.direct_call_enabled():
             # Allow the actor creation task to be resubmitted automatically
             # by default.
-            max_reconstructions = 3
+            max_reconstructions = 0
         else:
             max_reconstructions = 0
 

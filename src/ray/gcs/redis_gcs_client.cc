@@ -143,6 +143,7 @@ Status RedisGcsClient::Connect(boost::asio::io_service &io_service) {
   resource_table_.reset(new DynamicResourceTable({primary_context_}, this));
 
   actor_accessor_.reset(new RedisActorInfoAccessor(this));
+  direct_actor_accessor_.reset(new RedisActorInfoAccessor(this, /*use_direct_actor_table=*/ true));
   job_accessor_.reset(new RedisJobInfoAccessor(this));
   task_accessor_.reset(new RedisTaskInfoAccessor(this));
 
@@ -196,7 +197,7 @@ raylet::TaskTable &RedisGcsClient::raylet_task_table() { return *raylet_task_tab
 
 ActorTable &RedisGcsClient::actor_table() { return *actor_table_; }
 
-DirectActorTable &RedisGcsClient::direct_actor_table() { return *direct_actor_table_; }
+ActorTable &RedisGcsClient::direct_actor_table() { return *direct_actor_table_; }
 
 TaskReconstructionLog &RedisGcsClient::task_reconstruction_log() {
   return *task_reconstruction_log_;

@@ -81,13 +81,15 @@ message TaskTableData {
 message ActorTableData {
   // State of an actor.
   enum ActorState {
+    // Actor is being created.
+    PENDING = 0;    
     // Actor is alive.
-    ALIVE = 0;
+    ALIVE = 1;
     // Actor is dead, now being reconstructed.
     // After reconstruction finishes, the state will become alive again.
-    RECONSTRUCTING = 1;
+    RECONSTRUCTING = 2;
     // Actor is already dead and won't be reconstructed.
-    DEAD = 2;
+    DEAD = 3;
   }
   // The ID of the actor that was created.
   bytes actor_id = 1;

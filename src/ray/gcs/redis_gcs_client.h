@@ -70,7 +70,7 @@ class RAY_EXPORT RedisGcsClient : public GcsClient {
   /// Used only for direct calls. Tasks submitted through the raylet transport
   /// should use Actors(), which has a requirement on the order in which
   /// entries can be appended to the log.
-  DirectActorTable &direct_actor_table();
+  ActorTable &direct_actor_table();
 
   // We also need something to export generic code to run on workers from the
   // driver (to set the PYTHONPATH)
