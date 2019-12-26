@@ -30,7 +30,7 @@ public interface TransferConfig extends Config {
   String timerIntervalMs();
 
   @DefaultValue(value = "")
-  @Key(value = "string.ring_buffer_capacity")
+  @Key(value = "streaming.ring_buffer_capacity")
   String streamingRingBufferCapacity();
 
 
