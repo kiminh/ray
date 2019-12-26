@@ -8,6 +8,7 @@ import static org.aeonbits.owner.Config.DisableableFeature.PARAMETER_FORMATTING;
  *
  */
 public interface LogConfig extends Config {
+
   String LOG_PATTERN_LAYOUT = "streaming.log.pattern.layout";
   String LOG_PATTERN_CONVERSION = "streaming.log.pattern.conversion";
   String LOG_PATTERN_FILE = "streaming.log.pattern.file";

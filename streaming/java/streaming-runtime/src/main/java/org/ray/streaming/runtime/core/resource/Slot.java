@@ -3,22 +3,24 @@ package org.ray.streaming.runtime.core.resource;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.base.MoreObjects;
+
 public class Slot implements Serializable {
   private int id;
-  private Container container;
+  private ContainerID containerID;
   private AtomicInteger actorCount = new AtomicInteger(0);
 
-  public Slot(int id, Container container) {
+  public Slot(int id, ContainerID containerID) {
     this.id = id;
-    this.container = container;
+    this.containerID = containerID;
   }
 
   public int getId() {
     return id;
   }
 
-  public Container getContainer() {
-    return container;
+  public ContainerID getContainerID() {
+    return containerID;
   }
 
   public AtomicInteger getActorCount() {
@@ -27,6 +29,10 @@ public class Slot implements Serializable {
 
   @Override
   public String toString() {
-    return String.format("{id = %d, Container = %s, actorCount = %d}", id, container, actorCount.get());
+    return MoreObjects.toStringHelper(this)
+        .add("id", id)
+        .add("containerID", containerID)
+        .add("actorCount", actorCount)
+        .toString();
   }
 }

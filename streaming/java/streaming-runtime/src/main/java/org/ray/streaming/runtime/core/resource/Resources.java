@@ -56,6 +56,13 @@ public class Resources {
     return containerMap.values().stream().collect(Collectors.toList());
   }
 
+  public Container getContainerByContainerId(ContainerID containerID) {
+    return containerMap.values().stream().filter(container -> {
+      return container.getId().equals(containerID);
+    }).findFirst().get();
+  }
+
+
   public Map<UniqueId, Map<String, Double>> getAllAvailableResource() {
     Map<UniqueId, Map<String, Double>> availableResourceMap = new HashMap<>();
     containerMap.values().stream()

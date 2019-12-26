@@ -75,7 +75,6 @@ define_java_module(
         "@ray_streaming_maven//:org_apache_hadoop_hadoop_hdfs",
         "@ray_streaming_maven//:org_apache_logging_log4j_log4j_api",
         "@ray_streaming_maven//:org_apache_logging_log4j_log4j_core",
-        "@ray_streaming_maven//:org_apache_logging_log4j_log4j_slf4j_impl",
         "@ray_streaming_maven//:org_objenesis_objenesis",
         "@ray_streaming_maven//:org_slf4j_slf4j_api",
         "@ray_streaming_maven//:org_slf4j_slf4j_log4j12",

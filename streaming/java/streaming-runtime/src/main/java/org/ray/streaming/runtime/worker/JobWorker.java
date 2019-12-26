@@ -18,6 +18,7 @@ import org.ray.streaming.runtime.core.processor.SourceProcessor;
 import org.ray.streaming.runtime.core.processor.StreamProcessor;
 import org.ray.streaming.runtime.core.processor.TwoInputProcessor;
 import org.ray.streaming.runtime.core.transfer.TransferHandler;
+import org.ray.streaming.runtime.util.EnvUtil;
 import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.worker.context.JobWorkerContext;
@@ -33,6 +34,10 @@ import org.ray.streaming.runtime.worker.task.TwoInputStreamTask;
 public class JobWorker implements IJobWorker {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobWorker.class);
+
+  static {
+    EnvUtil.loadNativeLibraries();
+  }
 
   private StreamingWorkerConfig workerConfig;
   private JobWorkerContext workerContext;

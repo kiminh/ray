@@ -86,7 +86,8 @@ public class ResourceTest {
 
       // resource allocation
       Map<String, Double> resources = resourceManager.allocateResource(vertex);
-      Container container = vertex.getSlot().getContainer();
+      Container container = resourceManager.getResources().getContainerByContainerId(
+          vertex.getSlot().getContainerID());
       String containerName = container.getName();
       Assert.assertEquals(resources.get(containerName), 1.0);
 

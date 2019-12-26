@@ -31,13 +31,6 @@ public class JobScheduler implements IJobScheduler {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobScheduler.class);
 
-  private static final String TASK_NODE_ID = "NodeId";
-  private static final String TASK_NODE_ID_SPILIT = "-";
-  private static final String TASK_NODE_ID_PREFIX = "node-";
-  private static final String TASK_INDEX = "Index";
-  private static final String TASK_ID = "TaskId";
-  private static final String TASK_ACTOR_ID = "ActorId";
-
   private List<Container> containers;
   private StreamingConfig jobConf;
 

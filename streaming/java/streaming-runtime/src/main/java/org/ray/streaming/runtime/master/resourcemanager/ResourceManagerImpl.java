@@ -85,7 +85,8 @@ public class ResourceManagerImpl implements ResourceManager {
 
   @Override
   public Map<String, Double> allocateResource(final ExecutionVertex executionVertex) {
-    Container container = executionVertex.getSlot().getContainer();
+    Container container = resources.getContainerByContainerId(
+        executionVertex.getSlot().getContainerID());
     LOG.info("Start to allocate resource for actor with container: {}.", container);
 
     // allocate resource to actor

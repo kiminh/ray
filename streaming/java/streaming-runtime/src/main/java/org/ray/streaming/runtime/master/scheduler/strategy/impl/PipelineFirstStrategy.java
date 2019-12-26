@@ -56,7 +56,7 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
 
     for (int slotId = 0; slotId < maxSlotSize; ++slotId) {
       Container targetContainer = containers.get(slotId % containers.size());
-      Slot slot = new Slot(slotId, targetContainer);
+      Slot slot = new Slot(slotId, targetContainer.getId());
       targetContainer.getSlots().add(slot);
     }
 
@@ -222,7 +222,8 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
   }
 
   private void reclaimResource(ExecutionVertex executionVertex) {
-    Container container = executionVertex.getSlot().getContainer();
+    Container container = resources.getContainerByContainerId(
+        executionVertex.getSlot().getContainerID());
     Map<Integer, List<String>> slotActors = resources.allocatingMap.get(container.getAddress());
     String opName = executionVertex.getVertexName();
     for (Map.Entry<Integer, List<String>> entry : slotActors.entrySet()) {
