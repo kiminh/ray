@@ -7,6 +7,7 @@ def gen_streaming_java_deps():
             "com.alibaba:fastjson:1.2.50",
             "com.esotericsoftware:kryo:4.0.0",
             "com.esotericsoftware.minlog:minlog:1.2",
+            "com.esotericsoftware:reflectasm:1.11.3",
             "com.google.guava:guava:27.0.1-jre",
             "com.github.davidmoten:flatbuffers-java:1.9.0.1",
             "com.google.protobuf:protobuf-java:3.8.0",

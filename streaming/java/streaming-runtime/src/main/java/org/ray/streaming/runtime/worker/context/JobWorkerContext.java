@@ -1,5 +1,7 @@
 package org.ray.streaming.runtime.worker.context;
 
+import java.io.Serializable;
+
 import com.google.common.base.MoreObjects;
 import org.ray.api.RayActor;
 import org.ray.api.id.ActorId;
@@ -9,7 +11,7 @@ import org.ray.streaming.runtime.master.JobMaster;
 /**
  *
  */
-public class JobWorkerContext {
+public class JobWorkerContext implements Serializable {
 
   private ActorId workerId;
   private RayActor<JobMaster> master;

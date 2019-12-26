@@ -108,6 +108,10 @@ public class JobMaster implements IJobMaster {
     graphManager = new GraphManagerImpl(this);
     resourceManager = new ResourceManagerImpl(this);
 
+    // build and set graph into runtime context
+    ExecutionGraph executionGraph = graphManager.buildExecutionGraph(jobGraph);
+    runtimeContext.setGraphs(jobGraph, executionGraph);
+
     // init scheduler
     scheduler = new JobScheduler(this);
     scheduler.scheduleJob(graphManager.getExecutionGraph());

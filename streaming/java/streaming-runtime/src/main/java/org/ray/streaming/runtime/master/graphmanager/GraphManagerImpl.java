@@ -114,13 +114,4 @@ public class GraphManagerImpl implements GraphManager {
   public ExecutionGraph getExecutionGraph() {
     return getGraphs().getExecutionGraph();
   }
-
-  private void setQueueActorRelation(
-      Map<String, Set<RayActor>> queueActorMap,
-      String queueName,
-      RayActor actor) {
-
-    Set<RayActor> actorSet = queueActorMap.computeIfAbsent(queueName, k -> new HashSet());
-    actorSet.add(actor);
-  }
 }

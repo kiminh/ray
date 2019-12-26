@@ -54,7 +54,7 @@ public class JobScheduler implements IJobScheduler {
     this.jobMaster = jobMaster;
     this.graphManager = jobMaster.getGraphManager();
     this.resourceManager = jobMaster.getResourceManager();
-    this.workerController = jobMaster.getWorkerController();
+    this.workerController = new WorkerLifecycleController();
     this.strategy = resourceManager.getSlotAssignStrategy();
     this.jobConf = jobMaster.getRuntimeContext().getConf();
 
