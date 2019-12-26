@@ -196,6 +196,15 @@ cdef class ObjectID(BaseID):
     def from_random(cls):
         return cls(CObjectID.FromRandom().Binary())
 
+    def __await__(self):
+        # Delayed import because this can only be imported in py3.
+        from ray.async_compat import get_async
+        return get_async(self).__await__()
+
+    def as_future(self):
+        # Delayed import because this can only be imported in py3.
+        from ray.async_compat import get_async
+        return get_async(self)
 
 cdef class TaskID(BaseID):
     cdef CTaskID data
@@ -288,6 +297,7 @@ cdef class JobID(BaseID):
 
     @classmethod
     def from_int(cls, value):
+        assert value < 65536, "Maximum JobID integer is 65535."
         return cls(CJobID.FromInt(value).Binary())
 
     @classmethod

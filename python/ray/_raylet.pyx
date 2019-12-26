@@ -138,7 +138,7 @@ else:
     import cPickle as pickle
 
 if PY3:
-    from ray.async_compat import sync_to_async
+    from ray.async_compat import sync_to_async, AsyncGetResponse
 
 
 def set_internal_config(dict options):
@@ -688,6 +688,8 @@ cdef execute_task(
         # If we've reached the max number of executions for this worker, exit.
         task_counter = manager.get_task_counter(job_id, function_descriptor)
         if task_counter == execution_info.max_calls:
+            # Intentionally disconnect so the raylet doesn't print an error.
+            # TODO(edoakes): we should handle max_calls in the core worker.
             worker.core_worker.disconnect()
             sys.exit(0)
 
@@ -718,7 +720,9 @@ cdef CRayStatus task_execution_handler(
                     traceback_str,
                     job_id=None)
                 sys.exit(1)
-        except SystemExit:
+        except SystemExit as e:
+            if not hasattr(e, "is_ray_terminate"):
+                logger.exception("SystemExit was raised from the worker")
             # Tell the core worker to exit as soon as the result objects
             # are processed.
             return CRayStatus.SystemExit()
@@ -733,11 +737,6 @@ cdef CRayStatus check_signals() nogil:
         except KeyboardInterrupt:
             return CRayStatus.Interrupted(b"")
     return CRayStatus.OK()
-
-
-cdef void exit_handler() nogil:
-    with gil:
-        sys.exit(0)
 
 
 cdef shared_ptr[CBuffer] string_to_buffer(c_string& c_str):
@@ -785,7 +784,7 @@ cdef class CoreWorker:
             raylet_socket.encode("ascii"), job_id.native(),
             gcs_options.native()[0], log_dir.encode("utf-8"),
             node_ip_address.encode("utf-8"), node_manager_port,
-            task_execution_handler, check_signals, exit_handler, True))
+            task_execution_handler, check_signals, True))
 
     def disconnect(self):
         self.destory_event_loop_if_exists()
@@ -1173,3 +1172,41 @@ cdef class CoreWorker:
 
     def current_actor_is_asyncio(self):
         return self.core_worker.get().GetWorkerContext().CurrentActorIsAsync()
+
+    def in_memory_store_get_async(self, ObjectID object_id, future):
+        self.core_worker.get().GetAsync(
+            object_id.native(),
+            async_set_result_callback,
+            async_retry_with_plasma_callback,
+            <void*>future)
+
+cdef void async_set_result_callback(shared_ptr[CRayObject] obj,
+                                    CObjectID object_id,
+                                    void *future) with gil:
+    cdef:
+        c_vector[shared_ptr[CRayObject]] objects_to_deserialize
+
+    py_future = <object>(future)
+    loop = py_future._loop
+
+    # Object is retrieved from in memory store.
+    # Here we go through the code path used to deserialize objects.
+    objects_to_deserialize.push_back(obj)
+    data_metadata_pairs = RayObjectsToDataMetadataPairs(
+        objects_to_deserialize)
+    ids_to_deserialize = [ObjectID(object_id.Binary())]
+    objects = ray.worker.global_worker.deserialize_objects(
+        data_metadata_pairs, ids_to_deserialize)
+    loop.call_soon_threadsafe(lambda: py_future.set_result(
+        AsyncGetResponse(
+            plasma_fallback_id=None, result=objects[0])))
+
+cdef void async_retry_with_plasma_callback(shared_ptr[CRayObject] obj,
+                                           CObjectID object_id,
+                                           void *future) with gil:
+    py_future = <object>(future)
+    loop = py_future._loop
+    loop.call_soon_threadsafe(lambda: py_future.set_result(
+                AsyncGetResponse(
+                    plasma_fallback_id=ObjectID(object_id.Binary()),
+                    result=None)))
