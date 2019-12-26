@@ -21,7 +21,7 @@ import org.ray.streaming.api.context.StreamingContext;
 import org.ray.streaming.api.function.impl.FlatMapFunction;
 import org.ray.streaming.api.function.impl.ReduceFunction;
 import org.ray.streaming.api.stream.StreamSource;
-import org.ray.streaming.runtime.core.transfer.ChannelID;
+import org.ray.streaming.runtime.transfer.ChannelID;
 
 import org.ray.streaming.util.Config;
 import org.slf4j.Logger;

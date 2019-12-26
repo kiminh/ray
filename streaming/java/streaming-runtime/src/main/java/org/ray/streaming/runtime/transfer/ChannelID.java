@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.core.transfer;
+package org.ray.streaming.runtime.transfer;
 
 import java.lang.ref.Reference;
 import java.nio.ByteBuffer;

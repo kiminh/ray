@@ -88,7 +88,7 @@ public class WorkerLifecycleController implements IWorkerLifecycleController {
       return false;
     }
 
-    LOG.error("Init JobWorker [actor={}] succeed.", rayActor.getId());
+    LOG.info("Init JobWorker [actor={}] succeed.", rayActor.getId());
     return true;
   }
 

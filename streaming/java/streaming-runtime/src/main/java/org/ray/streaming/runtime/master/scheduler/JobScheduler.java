@@ -147,7 +147,7 @@ public class JobScheduler implements IJobScheduler {
       JobWorkerContext ctx = buildJobWorkerContext(vertex, masterActor);
       boolean initResult = workerController.initWorker(vertex.getWorkerActor(), ctx);
 
-      if (initResult) {
+      if (!initResult) {
         LOG.error("Init workers occur error.");
         return;
       }

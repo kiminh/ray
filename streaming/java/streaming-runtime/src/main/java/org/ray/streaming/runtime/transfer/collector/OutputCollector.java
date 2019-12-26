@@ -1,4 +1,4 @@
-package org.ray.streaming.runtime.core.transfer.collector;
+package org.ray.streaming.runtime.transfer.collector;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;
@@ -9,8 +9,8 @@ import org.slf4j.Logger;
 
 import org.ray.streaming.api.collector.Collector;
 import org.ray.streaming.api.partition.Partition;
-import org.ray.streaming.runtime.core.transfer.ChannelID;
-import org.ray.streaming.runtime.core.transfer.DataWriter;
+import org.ray.streaming.runtime.transfer.ChannelID;
+import org.ray.streaming.runtime.transfer.DataWriter;
 import org.ray.streaming.runtime.util.LoggerFactory;
 
 public class OutputCollector implements Collector<Record> {

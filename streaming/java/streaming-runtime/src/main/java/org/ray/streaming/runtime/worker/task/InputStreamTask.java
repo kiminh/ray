@@ -1,8 +1,8 @@
 package org.ray.streaming.runtime.worker.task;
 
 import org.ray.streaming.runtime.core.processor.Processor;
-import org.ray.streaming.runtime.core.transfer.Message;
-import org.ray.streaming.runtime.core.transfer.QueueMessage;
+import org.ray.streaming.runtime.transfer.Message;
+import org.ray.streaming.runtime.transfer.QueueMessage;
 import org.ray.streaming.runtime.util.Serializer;
 import org.ray.streaming.runtime.worker.JobWorker;
 

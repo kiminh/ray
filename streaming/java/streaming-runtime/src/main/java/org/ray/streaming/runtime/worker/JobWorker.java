@@ -17,7 +17,7 @@ import org.ray.streaming.runtime.core.processor.OneInputProcessor;
 import org.ray.streaming.runtime.core.processor.SourceProcessor;
 import org.ray.streaming.runtime.core.processor.StreamProcessor;
 import org.ray.streaming.runtime.core.processor.TwoInputProcessor;
-import org.ray.streaming.runtime.core.transfer.TransferHandler;
+import org.ray.streaming.runtime.transfer.TransferHandler;
 import org.ray.streaming.runtime.util.EnvUtil;
 import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;

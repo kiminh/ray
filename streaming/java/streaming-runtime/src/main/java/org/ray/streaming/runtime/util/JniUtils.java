@@ -15,7 +15,7 @@ public class JniUtils {
     try {
       System.loadLibrary(libraryName);
     } catch (UnsatisfiedLinkError error) {
-      LOG.debug("Loading native library {}.", libraryName);
+      LOG.info("Loading native library {}.", libraryName);
       // Load native library.
       String fileName = System.mapLibraryName(libraryName);
       String libPath = null;
@@ -23,7 +23,7 @@ public class JniUtils {
         libPath = libFile.getFile().getAbsolutePath();
         System.load(libPath);
       }
-      LOG.debug("Native library loaded.");
+      LOG.info("Native library loaded.");
       resetLibraryPath(libPath);
     }
   }
