@@ -3,6 +3,7 @@ package org.ray.api.runtimecontext;
 import java.util.List;
 import org.ray.api.id.ActorId;
 import org.ray.api.id.JobId;
+import org.ray.api.label.RayLabelManager;
 
 /**
  * A class used for getting information of Ray runtime.
@@ -47,4 +48,13 @@ public interface RuntimeContext {
    * Get all node information in Ray cluster.
    */
   List<NodeInfo> getAllNodeInfo();
+
+  /**
+   * Get the label manager.
+   * TODO implements RayLabelmanager
+   * @return
+   */
+  default RayLabelManager getLabelManager() {
+    return null;
+  }
 }

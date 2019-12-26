@@ -28,6 +28,7 @@ import org.ray.runtime.functionmanager.FunctionManager;
 import org.ray.runtime.functionmanager.PyFunctionDescriptor;
 import org.ray.runtime.gcs.GcsClient;
 import org.ray.runtime.generated.Common.Language;
+import org.ray.api.label.RayLabelManager;
 import org.ray.runtime.object.ObjectStore;
 import org.ray.runtime.object.RayObjectImpl;
 import org.ray.runtime.task.ArgumentsBuilder;
@@ -53,6 +54,8 @@ public abstract class AbstractRayRuntime implements RayRuntime {
   protected ObjectStore objectStore;
   protected TaskSubmitter taskSubmitter;
   protected WorkerContext workerContext;
+
+  protected RayLabelManager labelManager;
 
   public AbstractRayRuntime(RayConfig rayConfig, FunctionManager functionManager) {
     this.rayConfig = rayConfig;
@@ -193,6 +196,14 @@ public abstract class AbstractRayRuntime implements RayRuntime {
     }
   }
 
+  /**
+   * TODO we set affinity of the actor in ActorCreationOptions,
+   *   and we should pick matching ray nodes according to those affinities.
+   * @param functionDescriptor
+   * @param args
+   * @param options
+   * @return
+   */
   private RayActor createActorImpl(FunctionDescriptor functionDescriptor,
       Object[] args, ActorCreationOptions options) {
     List<FunctionArg> functionArgs = ArgumentsBuilder

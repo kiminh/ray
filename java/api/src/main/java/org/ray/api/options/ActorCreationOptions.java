@@ -1,7 +1,10 @@
 package org.ray.api.options;
 
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import org.ray.api.label.Affinity;
 
 /**
  * The options for creating actor.
@@ -21,12 +24,15 @@ public class ActorCreationOptions extends BaseTaskOptions {
 
   public final String jvmOptions;
 
+  public final List<Affinity> affinities;
+
   private ActorCreationOptions(Map<String, Double> resources, int maxReconstructions,
-      boolean useDirectCall, String jvmOptions) {
+      boolean useDirectCall, String jvmOptions, List<Affinity> affinities) {
     super(resources);
     this.maxReconstructions = maxReconstructions;
     this.useDirectCall = useDirectCall;
     this.jvmOptions = jvmOptions;
+    this.affinities = affinities;
   }
 
   /**
@@ -38,6 +44,7 @@ public class ActorCreationOptions extends BaseTaskOptions {
     private int maxReconstructions = NO_RECONSTRUCTION;
     private boolean useDirectCall = DEFAULT_USE_DIRECT_CALL;
     private String jvmOptions = null;
+    private List<Affinity> affinities = new LinkedList<>();
 
     public Builder setResources(Map<String, Double> resources) {
       this.resources = resources;
@@ -62,8 +69,14 @@ public class ActorCreationOptions extends BaseTaskOptions {
       return this;
     }
 
+    public Builder setAffinities(List<Affinity> affinities) {
+      this.affinities = affinities;
+      return this;
+    }
+
     public ActorCreationOptions createActorCreationOptions() {
-      return new ActorCreationOptions(resources, maxReconstructions, useDirectCall, jvmOptions);
+      return new ActorCreationOptions(resources, maxReconstructions, useDirectCall, jvmOptions,
+          affinities);
     }
   }
 
