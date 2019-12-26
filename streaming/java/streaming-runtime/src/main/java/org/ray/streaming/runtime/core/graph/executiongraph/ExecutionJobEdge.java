@@ -1,6 +1,7 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
 import com.google.common.base.MoreObjects;
+import org.ray.streaming.jobgraph.JobEdge;
 
 import org.ray.streaming.api.partition.Partition;
 
@@ -8,13 +9,13 @@ public class ExecutionJobEdge {
 
   private final ExecutionJobVertex producer;
   private final ExecutionJobVertex consumer;
+  private final JobEdge jobEdge;
   private final String executionJobEdgeIndex;
-  private Partition partition;
 
-  public ExecutionJobEdge(ExecutionJobVertex producer, ExecutionJobVertex consumer, Partition partition) {
+  public ExecutionJobEdge(ExecutionJobVertex producer, ExecutionJobVertex consumer, JobEdge jobEdge) {
     this.producer = producer;
     this.consumer = consumer;
-    this.partition = partition;
+    this.jobEdge = jobEdge;
     this.executionJobEdgeIndex = generateExecutionJobEdgeIndex();
   }
 
@@ -31,7 +32,7 @@ public class ExecutionJobEdge {
   }
 
   public Partition getPartition() {
-    return partition;
+    return jobEdge.getPartition();
   }
 
   @Override
@@ -39,7 +40,7 @@ public class ExecutionJobEdge {
     return MoreObjects.toStringHelper(this)
         .add("producer", producer)
         .add("consumer", consumer)
-        .add("partition", partition)
+        .add("jobEdge", jobEdge)
         .toString();
   }
 }

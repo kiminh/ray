@@ -1,6 +1,7 @@
 package org.ray.streaming.runtime.core.graph.executiongraph;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -26,8 +27,8 @@ public class ExecutionVertex implements Serializable {
   private ExecutionVertexState state = ExecutionVertexState.TO_ADD;
   private RayActor<JobWorker> workerActor;
   private Slot slot;
-  private List<ExecutionEdge> inputEdges;
-  private List<ExecutionEdge> outputEdges;
+  private List<ExecutionEdge> inputEdges = new ArrayList<>();
+  private List<ExecutionEdge> outputEdges = new ArrayList<>();
 
   public ExecutionVertex(int jobVertexId, int index, ExecutionJobVertex executionJobVertex) {
     this.vertexId = generateExecutionVertexId(jobVertexId, index);

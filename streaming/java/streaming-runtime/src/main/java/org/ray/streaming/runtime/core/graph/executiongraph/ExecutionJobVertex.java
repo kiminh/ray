@@ -13,6 +13,7 @@ import org.ray.streaming.jobgraph.LanguageType;
 import org.ray.streaming.jobgraph.VertexType;
 
 import org.ray.streaming.runtime.config.master.ResourceConfig;
+import org.ray.streaming.runtime.core.processor.ProcessBuilder;
 import org.ray.streaming.runtime.core.processor.StreamProcessor;
 import org.ray.streaming.runtime.worker.JobWorker;
 
@@ -25,6 +26,7 @@ public class ExecutionJobVertex {
   private final int jobVertexId;
   private final String jobVertexName;
   private final JobVertex jobVertex;
+  private final StreamProcessor streamProcessor;
   private int parallelism;
   private Map<String, String> jobConfig;
   private Map<String, Double> resources;
@@ -34,7 +36,7 @@ public class ExecutionJobVertex {
   private List<ExecutionJobEdge> inputEdges = new ArrayList<>();
   private List<ExecutionJobEdge> outputEdges = new ArrayList<>();
 
-  private StreamProcessor streamProcessor;
+
 
   public ExecutionJobVertex(String jobName, JobVertex jobVertex, Map<String, String> jobConfig,
       long buildTime) {
@@ -42,6 +44,7 @@ public class ExecutionJobVertex {
     this.jobVertexId = jobVertex.getVertexId();
     this.jobVertexName = jobVertex.getVertexName();
     this.jobVertex = jobVertex;
+    this.streamProcessor = ProcessBuilder.buildProcessor(jobVertex.getStreamOperator());
     this.parallelism = jobVertex.getParallelism();
     this.jobConfig = jobConfig;
     this.resources = generateResources();
@@ -138,10 +141,6 @@ public class ExecutionJobVertex {
   public void setInputEdges(
       List<ExecutionJobEdge> inputEdges) {
     this.inputEdges = inputEdges;
-  }
-
-  public void setStreamProcessor(StreamProcessor streamProcessor) {
-    this.streamProcessor = streamProcessor;
   }
 
   public StreamProcessor getStreamProcessor() {

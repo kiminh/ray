@@ -56,7 +56,7 @@ public class IntegrationTest {
     String jobName = "testStreamWordCount";
 
     Map<String, String> config = new HashMap<>();
-    config.put(Config.CHANNEL_TYPE, Config.NATIVE_CHANNEL);
+    config.put(Config.CHANNEL_TYPE, Config.MEMORY_CHANNEL);
     config.put(Config.CHANNEL_SIZE, "100000");
     streamingContext.withConfig(config);
 

@@ -10,15 +10,15 @@ public class ExecutionEdge implements Serializable {
 
   private final ExecutionVertex producer;
   private final ExecutionVertex consumer;
-  private final String executionEdgeIndex;
   private final ExecutionJobEdge executionJobEdge;
+  private final String executionEdgeIndex;
 
   public ExecutionEdge(ExecutionVertex producer, ExecutionVertex consumer,
       ExecutionJobEdge executionJobEdge) {
     this.producer = producer;
     this.consumer = consumer;
-    this.executionEdgeIndex = generateExecutionEdgeIndex();
     this.executionJobEdge = executionJobEdge;
+    this.executionEdgeIndex = generateExecutionEdgeIndex();
   }
 
   private String generateExecutionEdgeIndex() {
@@ -58,6 +58,7 @@ public class ExecutionEdge implements Serializable {
     return MoreObjects.toStringHelper(this)
         .add("producer", producer)
         .add("consumer", consumer)
+        .add("executionJobEdge", executionJobEdge)
         .add("executionEdgeIndex", executionEdgeIndex)
         .toString();
   }

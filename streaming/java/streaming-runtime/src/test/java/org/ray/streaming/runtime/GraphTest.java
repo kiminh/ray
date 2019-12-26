@@ -2,6 +2,7 @@ package org.ray.streaming.runtime;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.Lists;
@@ -17,6 +18,8 @@ import org.ray.streaming.api.stream.DataStream;
 import org.ray.streaming.api.stream.StreamSink;
 import org.ray.streaming.api.stream.StreamSource;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.master.JobMaster;
 import org.ray.streaming.runtime.master.graphmanager.GraphManager;
 import org.ray.streaming.runtime.master.graphmanager.GraphManagerImpl;
@@ -55,13 +58,26 @@ public class GraphTest {
     GraphManager graphManager = new GraphManagerImpl(jobMaster);
     JobGraph jobGraph = buildJobGraph();
     ExecutionGraph executionGraph = buildExecutionGraph(graphManager, jobGraph);
+    List<ExecutionJobVertex> executionJobVertices = executionGraph.getExecutionJobVertexList();
 
-    Assert.assertEquals(executionGraph.getExecutionJobVertexList().size(),
-        jobGraph.getJobVertexList().size());
+    Assert.assertEquals(executionJobVertices.size(), jobGraph.getJobVertexList().size());
 
     int totalVertexNum = jobGraph.getJobVertexList().stream()
         .mapToInt(vertex -> vertex.getParallelism()).sum();
     Assert.assertEquals(executionGraph.getAllExecutionVertices().size(), totalVertexNum);
+
+    int startIndex = 0;
+    ExecutionJobVertex upStream = executionJobVertices.get(startIndex);
+    ExecutionJobVertex downStream = executionJobVertices.get(startIndex + 1);
+    Assert.assertEquals(upStream.getOutputEdges().get(0).getConsumer(), downStream);
+
+    List<ExecutionVertex> upStreamVertices = upStream.getExecutionVertexList();
+    List<ExecutionVertex> downStreamVertices = downStream.getExecutionVertexList();
+    upStreamVertices.stream().forEach(vertex -> {
+      vertex.getOutputEdges().stream().forEach(upStreamOutPutEdge -> {
+        Assert.assertTrue(downStreamVertices.contains(upStreamOutPutEdge.getConsumer()));
+      });
+    });
   }
 
   public static ExecutionGraph buildExecutionGraph(GraphManager graphManager) {

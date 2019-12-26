@@ -7,6 +7,7 @@ public interface TwoInputOperator<T, O> extends Operator {
 
   void processElement(Record<T> record1, Record<O> record2);
 
+  @Override
   default OperatorType getOpType() {
     return OperatorType.TWO_INPUT;
   }

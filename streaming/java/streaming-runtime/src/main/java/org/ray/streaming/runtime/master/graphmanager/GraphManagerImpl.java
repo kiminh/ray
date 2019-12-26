@@ -1,18 +1,16 @@
 package org.ray.streaming.runtime.master.graphmanager;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import org.ray.api.RayActor;
 import org.ray.streaming.jobgraph.JobGraph;
 import org.ray.streaming.jobgraph.JobVertex;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.core.graph.Graphs;
+import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionEdge;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobEdge;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
@@ -43,8 +41,8 @@ public class GraphManagerImpl implements GraphManager {
   public ExecutionGraph buildExecutionGraph(JobGraph jobGraph) {
     LOG.info("Begin build execution graph with job graph {}.", jobGraph);
 
-    // setup execution job vertex
-    ExecutionGraph executionGraph = setupExecutionJobVertex(jobGraph);
+    // setup execution vertex
+    ExecutionGraph executionGraph = setupExecutionVertex(jobGraph);
 
     // set max parallelism
     int maxParallelism = jobGraph.getJobVertexList().stream()
@@ -60,10 +58,10 @@ public class GraphManagerImpl implements GraphManager {
   }
 
   @Override
-  public ExecutionGraph setupExecutionJobVertex(JobGraph jobGraph) {
+  public ExecutionGraph setupExecutionVertex(JobGraph jobGraph) {
     ExecutionGraph executionGraph = new ExecutionGraph(jobGraph.getJobName());
 
-    // create vertex
+    // create execution job vertex and execution vertex
     Map<Integer, ExecutionJobVertex> exeJobVertexMap = new LinkedHashMap<>();
     long buildTime = executionGraph.getBuildTime();
     for (JobVertex jobVertex : jobGraph.getJobVertexList()) {
@@ -72,16 +70,24 @@ public class GraphManagerImpl implements GraphManager {
           jobGraph.getJobConfig(), buildTime));
     }
 
-    // attach vertex
+    // attach execution job vertex
     jobGraph.getJobEdgeList().stream().forEach(jobEdge -> {
       ExecutionJobVertex producer = exeJobVertexMap.get(jobEdge.getSrcVertexId());
       ExecutionJobVertex consumer = exeJobVertexMap.get(jobEdge.getTargetVertexId());
 
       ExecutionJobEdge executionJobEdge =
-          new ExecutionJobEdge(producer, consumer, jobEdge.getPartition());
+          new ExecutionJobEdge(producer, consumer, jobEdge);
 
       producer.getOutputEdges().add(executionJobEdge);
       consumer.getInputEdges().add(executionJobEdge);
+
+      producer.getExecutionVertexList().stream().forEach(vertex -> {
+        consumer.getExecutionVertexList().stream().forEach(outputVertex -> {
+          ExecutionEdge executionEdge = new ExecutionEdge(vertex, outputVertex, executionJobEdge);
+          vertex.getOutputEdges().add(executionEdge);
+          outputVertex.getInputEdges().add(executionEdge);
+        });
+      });
     });
 
     // set execution job vertex into execution graph
@@ -90,13 +96,6 @@ public class GraphManagerImpl implements GraphManager {
         executionGraph.getExecutionJobVertexMap().values());
     executionGraph.setExecutionJobVertexList(executionJobVertexList);
 
-    return executionGraph;
-  }
-
-  @Override
-  public ExecutionGraph setupExecutionVertex(ExecutionGraph executionGraph) {
-
-    LOG.info("Set up execution vertex end.");
     return executionGraph;
   }
 

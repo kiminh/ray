@@ -97,7 +97,7 @@ public class JobScheduler implements IJobScheduler {
     // start all new added workers
     createWorkers(executionGraph);
 
-    // register worker context and start to run
+    // init worker context and start to run
     run(executionGraph);
 
     return true;
@@ -148,10 +148,7 @@ public class JobScheduler implements IJobScheduler {
 
     RayActor<JobMaster> masterActor = jobMaster.getJobMasterActor();
 
-    // setup vertex
-    graphManager.setupExecutionVertex(executionGraph);
-
-    // register worker context
+    // init worker
     long waitStartTime = System.currentTimeMillis();
     executionGraph.getAllExecutionVertices().forEach(vertex -> {
       JobWorkerContext ctx = buildJobWorkerContext(vertex, masterActor);
