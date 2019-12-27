@@ -7,6 +7,9 @@ import org.ray.streaming.jobgraph.JobGraph;
 import org.ray.streaming.runtime.core.graph.Graphs;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 
+/**
+ * The central role of graph management in JobMaster.
+ */
 public interface GraphManager extends Serializable {
 
   /**

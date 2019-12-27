@@ -8,7 +8,7 @@ import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 
 /**
- * WorkerLifecycleController is responsible for JobWorker Actor's creation and destruction
+ * WorkerLifecycleController is responsible for JobWorker Actor's life cycle.
  */
 public interface IWorkerLifecycleController {
 
@@ -16,7 +16,7 @@ public interface IWorkerLifecycleController {
    * Create a worker.
    * @param executionVertex: the specified execution vertex
    * @param resources: resources allocate by resource manager
-   * @return true if worker creation succeeded
+   * @return true if worker creation succeed
    */
   boolean createWorker(ExecutionVertex executionVertex, Map<String, Double> resources);
 
@@ -24,21 +24,21 @@ public interface IWorkerLifecycleController {
    * Init a worker.
    * @param rayActor: target worker's actor
    * @param jobWorkerContext: the worker context
-   * @return true if worker creation succeeded
+   * @return true if worker initiation succeed
    */
   boolean initWorker(RayActor rayActor, JobWorkerContext jobWorkerContext);
 
   /**
    * Start a worker.
    * @param rayActor: target worker's actor
-   * @return
+   * @return true if worker starting succeed
    */
   boolean startWorker(RayActor rayActor);
 
   /**
    * Stop a worker.
    * @param executionVertex: the specified execution vertex
-   * @return true if worker destruction succeeded
+   * @return true if worker destruction succeed
    */
   boolean destroyWorker(ExecutionVertex executionVertex);
 }

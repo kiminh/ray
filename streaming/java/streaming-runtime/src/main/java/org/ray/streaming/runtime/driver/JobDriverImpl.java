@@ -17,7 +17,7 @@ import org.ray.streaming.runtime.util.KryoUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
 
 /**
- * Job driver: used to submit job to runtime.
+ * Job driver: to submit job from api to runtime.
  */
 public class JobDriverImpl implements IJobDriver {
 

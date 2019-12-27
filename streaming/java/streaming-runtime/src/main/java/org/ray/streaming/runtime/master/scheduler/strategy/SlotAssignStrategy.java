@@ -9,6 +9,9 @@ import org.ray.streaming.runtime.core.resource.Container;
 import org.ray.streaming.runtime.core.resource.Resources;
 import org.ray.streaming.runtime.core.resource.Slot;
 
+/**
+ *
+ */
 public interface SlotAssignStrategy {
 
   /**
@@ -51,8 +54,8 @@ public interface SlotAssignStrategy {
   String getName();
 
   /**
-   * Get resources from resource manager.
-   * @param resources
+   * Update resources.
+   * @param resources the specified resources
    */
-  void setResources(Resources resources);
+  void updateResources(Resources resources);
 }

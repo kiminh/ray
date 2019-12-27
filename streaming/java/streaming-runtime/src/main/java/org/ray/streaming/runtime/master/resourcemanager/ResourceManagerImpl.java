@@ -66,7 +66,7 @@ public class ResourceManagerImpl implements ResourceManager {
     SlotAssignStrategyType slotAssignStrategyType =
         SlotAssignStrategyType.valueOf(conf.schedulerConfig.slotAssignStrategy().toUpperCase());
     slotAssignStrategy = SlotAssignStrategyFactory.getStrategy(slotAssignStrategyType);
-    slotAssignStrategy.setResources(resources);
+    slotAssignStrategy.updateResources(resources);
     LOG.info("Slot assign strategy: {}.", slotAssignStrategy.getName());
 
     updateResources();
@@ -196,20 +196,5 @@ public class ResourceManagerImpl implements ResourceManager {
   @Override
   public Resources getResources() {
     return this.resources;
-  }
-
-  @Override
-  public Map<Container, Map<String, Double>> getContainerResources() {
-    Map<Container, Map<String, Double>> containerResources = new HashMap<>();
-    Map<UniqueId, NodeInfo> nodeInfoMap = RayUtils.getNodeInfoMap();
-    LOG.info("Node info map is: {}.", nodeInfoMap);
-    nodeInfoMap.forEach((k, v) ->
-        containerResources.put(resources.containerMap.get(k), v.resources));
-    return containerResources;
-  }
-
-  @Override
-  public StreamingMasterConfig getConf() {
-    return conf;
   }
 }

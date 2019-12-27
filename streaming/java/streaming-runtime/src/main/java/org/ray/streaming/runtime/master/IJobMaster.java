@@ -1,5 +1,8 @@
 package org.ray.streaming.runtime.master;
 
+/**
+ * Job master.
+ */
 public interface IJobMaster {
 
   /**

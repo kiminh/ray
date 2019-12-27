@@ -8,6 +8,9 @@ import org.ray.streaming.runtime.master.JobMasterRuntimeContext;
 import org.ray.streaming.runtime.master.graphmanager.GraphManager;
 import org.ray.streaming.runtime.util.LoggerFactory;
 
+/**
+ * Basic coordinator.
+ */
 public abstract class BaseCoordinator implements Runnable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BaseCoordinator.class);
