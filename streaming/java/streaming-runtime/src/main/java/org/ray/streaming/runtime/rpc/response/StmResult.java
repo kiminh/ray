@@ -4,7 +4,12 @@ import java.io.Serializable;
 
 import com.google.common.base.MoreObjects;
 
+/**
+ * Result of master call worker.
+ * @param <T> result type
+ */
 public class StmResult<T> implements Serializable {
+
   protected T resultObj;
   private boolean success;
   private int resultCode;

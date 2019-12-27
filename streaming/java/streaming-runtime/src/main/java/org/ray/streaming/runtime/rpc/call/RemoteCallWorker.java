@@ -11,6 +11,9 @@ import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.worker.JobWorker;
 import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 
+/**
+ * Ray call worker.
+ */
 public class RemoteCallWorker extends RemoteCallBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(RemoteCallWorker.class);
