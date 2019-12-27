@@ -5,7 +5,7 @@ import org.ray.streaming.runtime.config.Config;
 import static org.aeonbits.owner.Config.DisableableFeature.PARAMETER_FORMATTING;
 
 /**
- *
+ * Job log config.
  */
 public interface LogConfig extends Config {
 

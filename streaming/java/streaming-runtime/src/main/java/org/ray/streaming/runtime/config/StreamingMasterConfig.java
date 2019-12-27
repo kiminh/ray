@@ -11,7 +11,7 @@ import org.ray.streaming.runtime.config.master.SchedulerConfig;
 import org.ray.streaming.runtime.util.LoggerFactory;
 
 /**
- *
+ * Streaming job master config.
  */
 public class StreamingMasterConfig extends StreamingGlobalConfig {
 

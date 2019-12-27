@@ -14,8 +14,12 @@ import org.ray.streaming.runtime.config.global.CommonConfig;
 import org.ray.streaming.runtime.config.global.LogConfig;
 import org.ray.streaming.runtime.config.global.SerializationConfig;
 import org.ray.streaming.runtime.config.global.StateBackendConfig;
+import org.ray.streaming.runtime.config.global.TransferConfig;
 import org.ray.streaming.runtime.util.LoggerFactory;
 
+/**
+ * Streaming general config. May used by both JobMaster and JobWorker.
+ */
 public class StreamingGlobalConfig {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingGlobalConfig.class);
@@ -24,6 +28,7 @@ public class StreamingGlobalConfig {
   public LogConfig logConfig;
   public SerializationConfig serializationConfig;
   public StateBackendConfig stateBackendConfig;
+  public TransferConfig transferConfig;
 
   public Map<String, String> configMap = new HashMap<>();
 
@@ -32,6 +37,7 @@ public class StreamingGlobalConfig {
     logConfig = ConfigFactory.create(LogConfig.class, conf);
     serializationConfig = ConfigFactory.create(SerializationConfig.class, conf);
     stateBackendConfig = ConfigFactory.create(StateBackendConfig.class, conf);
+    transferConfig = ConfigFactory.create(TransferConfig.class, conf);
     globalConfig2Map();
   }
 
@@ -41,6 +47,7 @@ public class StreamingGlobalConfig {
       configMap.putAll(config2Map(this.logConfig));
       configMap.putAll(config2Map(this.serializationConfig));
       configMap.putAll(config2Map(this.stateBackendConfig));
+      configMap.putAll(config2Map(this.transferConfig));
     } catch (Exception e) {
       LOG.error("Global config to map occur error.", e);
     }

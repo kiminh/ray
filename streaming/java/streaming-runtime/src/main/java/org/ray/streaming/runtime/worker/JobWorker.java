@@ -10,7 +10,7 @@ import org.ray.runtime.functionmanager.JavaFunctionDescriptor;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
-import org.ray.streaming.runtime.config.worker.TransferConfig;
+import org.ray.streaming.runtime.config.global.TransferConfig;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionEdge;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.processor.OneInputProcessor;

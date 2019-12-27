@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 
 import org.ray.streaming.api.collector.Collector;
 import org.ray.streaming.api.context.RuntimeContext;
-import org.ray.streaming.runtime.config.worker.WorkerConfig;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionEdge;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionJobVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
@@ -57,7 +56,7 @@ public abstract class StreamTask implements Runnable {
   private void prepareTask() {
     Map<String, String> queueConf = new HashMap<>();
     queueConf.putAll(jobWorker.getWorkerConfig().workerConfig2Map());
-    queueConf.put(WorkerConfig.taskId, Ray.getRuntimeContext().getCurrentJobId().toString());
+    queueConf.put(taskId + "", Ray.getRuntimeContext().getCurrentJobId().toString());
 
     ExecutionVertex executionVertex = jobWorker.getExecutionVertex();
     ExecutionJobVertex executionJobVertex = executionVertex.getExecutionJobVertex();

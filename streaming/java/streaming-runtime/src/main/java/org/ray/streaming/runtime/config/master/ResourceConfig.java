@@ -3,7 +3,7 @@ package org.ray.streaming.runtime.config.master;
 import org.ray.streaming.runtime.config.Config;
 
 /**
- *
+ * Job resource management config.
  */
 public interface ResourceConfig extends Config {
 

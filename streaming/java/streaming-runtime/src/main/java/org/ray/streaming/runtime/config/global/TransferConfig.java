@@ -1,9 +1,9 @@
-package org.ray.streaming.runtime.config.worker;
+package org.ray.streaming.runtime.config.global;
 
 import org.ray.streaming.runtime.config.Config;
 
 /**
- *
+ * Job data transfer config.
  */
 public interface TransferConfig extends Config {
 

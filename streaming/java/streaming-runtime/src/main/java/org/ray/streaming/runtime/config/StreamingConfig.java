@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- *
+ * Streaming config including general, master and worker part.
  */
 public class StreamingConfig implements Serializable {
 

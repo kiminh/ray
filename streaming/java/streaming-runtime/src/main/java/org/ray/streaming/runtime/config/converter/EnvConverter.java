@@ -8,7 +8,7 @@ import org.ray.streaming.runtime.config.types.EnvironmentType;
 import org.ray.streaming.runtime.util.EnvUtil;
 
 /**
- *
+ * Environment converter: to diff development and production env.
  */
 public class EnvConverter implements Converter<String> {
 
