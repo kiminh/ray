@@ -79,7 +79,6 @@ public class JobWorker implements IJobWorker {
     }
 
     task = createStreamTask();
-    task.start();
 
     return true;
   }

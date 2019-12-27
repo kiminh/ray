@@ -2,7 +2,6 @@ package org.ray.streaming.runtime.worker.task;
 
 import org.ray.streaming.runtime.core.processor.Processor;
 import org.ray.streaming.runtime.transfer.Message;
-import org.ray.streaming.runtime.transfer.QueueMessage;
 import org.ray.streaming.runtime.util.Serializer;
 import org.ray.streaming.runtime.worker.JobWorker;
 
@@ -27,12 +26,9 @@ public abstract class InputStreamTask extends StreamTask {
       Message message = reader.read(readTimeOutMillis);
       if (message != null) {
         byte[] bytes = new byte[message.body().remaining()];
+        message.body().get(bytes);
         Object obj = Serializer.decode(bytes);
-        if (obj instanceof QueueMessage) {
-          processor.process(obj);
-        } else {
-          throw new IllegalArgumentException("Unsupported queue item type:" + obj);
-        }
+        processor.process(obj);
       }
     }
   }

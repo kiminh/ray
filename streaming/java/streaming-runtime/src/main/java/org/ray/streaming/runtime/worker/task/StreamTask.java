@@ -112,7 +112,7 @@ public abstract class StreamTask implements Runnable {
 
   public void start() {
     this.thread.start();
-    LOG.info("started {}-{}", this.getClass().getSimpleName(), taskId);
+    LOG.info("Start stream task: {}-{}", this.getClass().getSimpleName(), taskId);
   }
 
   public void close() {

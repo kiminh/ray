@@ -10,7 +10,7 @@ import org.ray.streaming.runtime.worker.JobWorker;
 /**
  *
  */
-public class SourceStreamTask extends StreamTask{
+public class SourceStreamTask extends StreamTask {
 
   private static final Logger LOG = LoggerFactory.getLogger(SourceStreamTask.class);
 

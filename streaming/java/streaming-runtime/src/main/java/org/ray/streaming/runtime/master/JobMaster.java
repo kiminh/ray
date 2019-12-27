@@ -142,11 +142,13 @@ public class JobMaster implements IJobMaster {
   private void startWorkersByList(List<RayActor> addedActors) {
     ExecutionGraph executionGraph = graphManager.getExecutionGraph();
 
+    LOG.info("Start source workers.");
     executionGraph.getSourceActors()
         .stream()
         .filter(addedActors::contains)
         .forEach(actor -> workerController.startWorker(actor));
 
+    LOG.info("Start non-source workers.");
     executionGraph.getNonSourceActors()
         .stream()
         .filter(addedActors::contains)
