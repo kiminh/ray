@@ -39,6 +39,7 @@ public abstract class StreamTask implements Runnable {
   List<Collector> collectors = new ArrayList<>();
 
   protected volatile boolean running = true;
+  protected volatile boolean stopped = false;
 
   //Execution thread
   private Thread thread;
@@ -104,6 +105,10 @@ public abstract class StreamTask implements Runnable {
         jobWorker.getWorkerConfig().configMap, executionVertex.getParallelism());
     processor.open(collectors, runtimeContext);
   }
+
+  protected abstract void init() throws Exception;
+
+  protected abstract void cancelTask() throws Exception;
 
   public void start() {
     this.thread.start();

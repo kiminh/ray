@@ -12,11 +12,13 @@ import org.ray.streaming.runtime.worker.JobWorker;
 public abstract class InputStreamTask extends StreamTask {
 
   private long readTimeOutMillis;
-
-
   public InputStreamTask(int taskId, Processor processor, JobWorker jobWorker) {
     super(taskId, processor, jobWorker);
     readTimeOutMillis = jobWorker.getWorkerConfig().transferConfig.readMessageTimeOutMillis();
+  }
+
+  @Override
+  protected void init() {
   }
 
   @Override
@@ -32,6 +34,13 @@ public abstract class InputStreamTask extends StreamTask {
           throw new IllegalArgumentException("Unsupported queue item type:" + obj);
         }
       }
+    }
+  }
+
+  @Override
+  protected void cancelTask() throws Exception {
+    running = false;
+    while (!stopped) {
     }
   }
 }

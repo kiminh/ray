@@ -113,7 +113,12 @@ public class JobWorker implements IJobWorker {
 
   @Override
   public Boolean start() {
-    task.start();
+    try {
+      task.start();
+    } catch (Exception e) {
+     LOG.error("Start worker [{}] occur error.", executionVertex.getVertexId(), e);
+     return false;
+    }
     return true;
   }
 

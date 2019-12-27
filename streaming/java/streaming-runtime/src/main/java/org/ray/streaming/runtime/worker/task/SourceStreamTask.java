@@ -22,7 +22,17 @@ public class SourceStreamTask extends StreamTask{
   }
 
   @Override
+  protected void init() throws Exception {
+  }
+
+  @Override
+  protected void cancelTask() throws Exception {
+  }
+
+  @Override
   public void run() {
+    LOG.info("Source stream task thread start.");
+
     while (running) {
       sourceProcessor.run();
     }

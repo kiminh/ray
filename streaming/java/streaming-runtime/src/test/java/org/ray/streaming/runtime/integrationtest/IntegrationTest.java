@@ -116,7 +116,8 @@ public class IntegrationTest {
       if (count > 0) {
         count--;
         TimeUnit.MILLISECONDS.sleep(sleepTime);
-        ctx.collect(word + "-" + count);
+        LOG.info("Source output word: {}.", word);
+        ctx.collect(word);
       }
     }
 
