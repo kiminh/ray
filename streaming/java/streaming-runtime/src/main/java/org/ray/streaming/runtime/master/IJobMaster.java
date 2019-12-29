@@ -11,14 +11,4 @@ public interface IJobMaster {
    * @return
    */
   Boolean init(boolean isRecover);
-
-  /**
-   * Start all job workers.
-   */
-  void startAllWorkers();
-
-  /**
-   * Destroy all job workers.
-   */
-  Boolean destroyAllWorkers();
 }

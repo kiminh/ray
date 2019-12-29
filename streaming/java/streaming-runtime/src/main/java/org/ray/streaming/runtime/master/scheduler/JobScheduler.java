@@ -128,7 +128,36 @@ public class JobScheduler implements IJobScheduler {
   }
 
   private void startAllWorkers() {
-    jobMaster.startAllWorkers();
+    LOG.info("Start to start all workers.");
+    long startWaitTs = System.currentTimeMillis();
+
+    try {
+      startWorkersByList(graphManager.getExecutionGraph().getAllActors());
+    } catch (Exception e) {
+      LOG.error("Failed to start all workers.", e);
+    }
+
+    LOG.info("Finish to start all workers, cost {} ms.", System.currentTimeMillis() - startWaitTs);
+  }
+
+  /**
+   * Start workers by actor list.
+   * @param addedActors actor list
+   */
+  private void startWorkersByList(List<RayActor> addedActors) {
+    ExecutionGraph executionGraph = graphManager.getExecutionGraph();
+
+    LOG.info("Start source workers.");
+    executionGraph.getSourceActors()
+        .stream()
+        .filter(addedActors::contains)
+        .forEach(actor -> workerController.startWorker(actor));
+
+    LOG.info("Start non-source workers.");
+    executionGraph.getNonSourceActors()
+        .stream()
+        .filter(addedActors::contains)
+        .forEach(actor -> workerController.startWorker(actor));
   }
 
   private void initMaster() {
@@ -181,5 +210,17 @@ public class JobScheduler implements IJobScheduler {
     // TODO: extra config
 
     return workerConfMap;
+  }
+
+  public Boolean destroyAllWorkers() {
+    graphManager.getExecutionGraph().getAllExecutionVertices()
+        .forEach(vertex -> {
+          // deallocate by resource manager
+          resourceManager.deallocateResource(vertex);
+
+          // destroy by worker controller
+          workerController.destroyWorker(vertex);
+        });
+    return true;
   }
 }

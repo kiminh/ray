@@ -36,8 +36,6 @@ public class ExecutionJobVertex {
   private List<ExecutionJobEdge> inputEdges = new ArrayList<>();
   private List<ExecutionJobEdge> outputEdges = new ArrayList<>();
 
-
-
   public ExecutionJobVertex(String jobName, JobVertex jobVertex, Map<String, String> jobConfig,
       long buildTime) {
     this.jobName = jobName;

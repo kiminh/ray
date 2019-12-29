@@ -9,14 +9,13 @@ import org.ray.api.id.ActorId;
 import org.ray.streaming.runtime.master.JobMaster;
 
 /**
- *
+ * Job worker context.
  */
 public class JobWorkerContext implements Serializable {
 
   private ActorId workerId;
   private RayActor<JobMaster> master;
   private byte[] executionVertexBytes;
-
 
   public JobWorkerContext(
       ActorId workerId,
