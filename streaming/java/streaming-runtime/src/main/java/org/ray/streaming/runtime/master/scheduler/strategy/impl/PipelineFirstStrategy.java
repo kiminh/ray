@@ -240,7 +240,7 @@ public class PipelineFirstStrategy implements SlotAssignStrategy {
 
   @Override
   public String getName() {
-    return SlotAssignStrategyType.PIPELINE_FIRST_STRATEGY.getName();
+    return SlotAssignStrategyType.PIPELINE_FIRST_STRATEGY.getValue();
   }
 
   @Override

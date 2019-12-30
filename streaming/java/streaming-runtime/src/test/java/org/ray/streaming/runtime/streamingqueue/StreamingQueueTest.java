@@ -21,9 +21,10 @@ import org.ray.streaming.api.context.StreamingContext;
 import org.ray.streaming.api.function.impl.FlatMapFunction;
 import org.ray.streaming.api.function.impl.ReduceFunction;
 import org.ray.streaming.api.stream.StreamSource;
+import org.ray.streaming.runtime.config.global.TransferConfig;
+import org.ray.streaming.runtime.config.types.TransferChannelType;
 import org.ray.streaming.runtime.transfer.ChannelID;
 
-import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -145,11 +146,12 @@ public class StreamingQueueTest implements Serializable {
 
     Map<String, Integer> wordCount = new ConcurrentHashMap<>();
     StreamingContext streamingContext = StreamingContext.buildContext();
+
     Map<String, String> config = new HashMap<>();
-    config.put(Config.STREAMING_BATCH_MAX_COUNT, "1");
-    config.put(Config.CHANNEL_TYPE, Config.NATIVE_CHANNEL);
-    config.put(Config.CHANNEL_SIZE, "100000");
+    config.put(TransferConfig.CHANNEL_TYPE, TransferChannelType.NATIVE_CHANNEL.name());
+    config.put(TransferConfig.CHANNEL_SIZE, "100000");
     streamingContext.withConfig(config);
+
     List<String> text = new ArrayList<>();
     text.add("hello world eagle eagle eagle");
     StreamSource<String> streamSource = StreamSource.buildSource(streamingContext, text);

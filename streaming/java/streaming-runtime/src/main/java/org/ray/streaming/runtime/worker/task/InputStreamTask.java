@@ -6,14 +6,14 @@ import org.ray.streaming.runtime.util.Serializer;
 import org.ray.streaming.runtime.worker.JobWorker;
 
 /**
- *
+ * The super class of one-input and two-input
  */
 public abstract class InputStreamTask extends StreamTask {
 
   private long readTimeOutMillis;
   public InputStreamTask(int taskId, Processor processor, JobWorker jobWorker) {
     super(taskId, processor, jobWorker);
-    readTimeOutMillis = jobWorker.getWorkerConfig().transferConfig.readMessageTimeOutMillis();
+    readTimeOutMillis = jobWorker.getWorkerConfig().transferConfig.readerTimerIntervalMs();
   }
 
   @Override

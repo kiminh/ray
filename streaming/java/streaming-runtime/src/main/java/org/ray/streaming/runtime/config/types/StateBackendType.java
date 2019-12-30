@@ -17,11 +17,11 @@ public enum StateBackendType {
    */
   HBASE("hbase", 2);
 
-  private String name;
+  private String value;
   private int index;
 
-  StateBackendType(String name, int index) {
-    this.name = name;
+  StateBackendType(String value, int index) {
+    this.value = value;
     this.index = index;
   }
 }

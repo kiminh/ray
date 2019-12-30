@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
 import org.ray.streaming.runtime.config.global.TransferConfig;
+import org.ray.streaming.runtime.config.types.TransferChannelType;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionEdge;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.processor.OneInputProcessor;
@@ -68,8 +69,8 @@ public class JobWorker implements IJobWorker {
     this.workerConfig = new StreamingWorkerConfig(executionVertex.getJobConfig());
 
     //init transfer
-    String channelType = workerConfig.transferConfig.chennelType();
-    if (channelType.equalsIgnoreCase(TransferConfig.NATIVE_CHANNEL)) {
+    TransferChannelType channelType = workerConfig.transferConfig.channelType();
+    if (TransferChannelType.NATIVE_CHANNEL == channelType) {
       transferHandler = new TransferHandler(
           getNativeCoreWorker(),
           new JavaFunctionDescriptor(JobWorker.class.getName(), "onWriterMessage", "([B)V"),

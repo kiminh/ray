@@ -10,14 +10,17 @@ import com.alibaba.fastjson.JSON;
 import com.google.common.base.Preconditions;
 import org.ray.api.RayActor;
 import org.ray.api.id.ActorId;
+import org.ray.streaming.operator.OperatorType;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
+import org.ray.streaming.runtime.config.worker.WorkerInternalConfig;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertexState;
 import org.ray.streaming.runtime.core.resource.Container;
+import org.ray.streaming.runtime.generated.Streaming;
 import org.ray.streaming.runtime.master.JobMaster;
 import org.ray.streaming.runtime.master.graphmanager.GraphManager;
 import org.ray.streaming.runtime.master.resourcemanager.ResourceManager;
@@ -122,7 +125,7 @@ public class JobScheduler implements IJobScheduler {
    * @param executionGraph
    */
   private void run(ExecutionGraph executionGraph) {
-    initWorkers(executionGraph, jobConf.workerConfigTemplate);
+    initWorkers(executionGraph);
     initMaster();
     startAllWorkers();
   }
@@ -164,8 +167,7 @@ public class JobScheduler implements IJobScheduler {
     jobMaster.init(false);
   }
 
-  private void initWorkers(ExecutionGraph executionGraph,
-      final StreamingWorkerConfig configTemplate) {
+  private void initWorkers(ExecutionGraph executionGraph) {
     LOG.info("Begin initiating workers.");
 
     RayActor<JobMaster> masterActor = jobMaster.getJobMasterActor();
@@ -189,6 +191,14 @@ public class JobScheduler implements IJobScheduler {
   private JobWorkerContext buildJobWorkerContext(
       ExecutionVertex executionVertex,
       RayActor<JobMaster> masterActor) {
+
+    // set worker internal config
+    Map<String, String> workerInternalConfig = new HashMap<>();
+    workerInternalConfig.put(WorkerInternalConfig.WORKER_NAME, executionVertex.getVertexName());
+    workerInternalConfig.put(WorkerInternalConfig.WORKER_TYPE, executionVertex.getVertextType().name());
+    workerInternalConfig.put(WorkerInternalConfig.OP_NAME, executionVertex.getVertexName());
+    workerInternalConfig.put(WorkerInternalConfig.TASK_ID, executionVertex.getVertexId() + "");
+    executionVertex.getJobConfig().putAll(workerInternalConfig);
 
     // create worker context
     JobWorkerContext ctx = new JobWorkerContext(

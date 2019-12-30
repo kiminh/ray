@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.ImmutableMap;
 import org.ray.api.Ray;
-import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -20,6 +19,8 @@ import org.ray.streaming.api.function.impl.FlatMapFunction;
 import org.ray.streaming.api.function.impl.ReduceFunction;
 import org.ray.streaming.api.function.impl.SourceFunction;
 import org.ray.streaming.api.stream.StreamSource;
+import org.ray.streaming.runtime.config.global.TransferConfig;
+import org.ray.streaming.runtime.config.types.TransferChannelType;
 import org.ray.streaming.runtime.util.TestHelper;
 
 public class IntegrationTest {
@@ -56,8 +57,8 @@ public class IntegrationTest {
     String jobName = "testStreamWordCount";
 
     Map<String, String> config = new HashMap<>();
-    config.put(Config.CHANNEL_TYPE, Config.MEMORY_CHANNEL);
-    config.put(Config.CHANNEL_SIZE, "100000");
+    config.put(TransferConfig.CHANNEL_TYPE, TransferChannelType.MEMORY_CHANNEL.name());
+    config.put(TransferConfig.CHANNEL_SIZE, "100000");
     streamingContext.withConfig(config);
 
     final int tot = 100;

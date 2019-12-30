@@ -54,10 +54,6 @@ public abstract class StreamTask implements Runnable {
   }
 
   private void prepareTask() {
-    Map<String, String> queueConf = new HashMap<>();
-    queueConf.putAll(jobWorker.getWorkerConfig().workerConfig2Map());
-    queueConf.put(taskId + "", Ray.getRuntimeContext().getCurrentJobId().toString());
-
     ExecutionVertex executionVertex = jobWorker.getExecutionVertex();
     ExecutionJobVertex executionJobVertex = executionVertex.getExecutionJobVertex();
 
@@ -76,7 +72,7 @@ public abstract class StreamTask implements Runnable {
         channelIDs.add(vertexId);
         targetActorIds.add(actorId);
       });
-      DataWriter writer = new DataWriter(channelIDs, targetActorIds, queueConf);
+      DataWriter writer = new DataWriter(channelIDs, targetActorIds, jobWorker.getWorkerConfig());
       collectors.add(new StreamCollector(channelIDs, writer,
           executionJobVertex.getOutputEdges().get(0).getPartition()));
     }
@@ -97,7 +93,7 @@ public abstract class StreamTask implements Runnable {
         fromActorIds.add(v);
       });
       LOG.info("Register queue consumer, queues {}.", channelIDs);
-      reader = new DataReader(channelIDs, fromActorIds, queueConf);
+      reader = new DataReader(channelIDs, fromActorIds, jobWorker.getWorkerConfig());
     }
 
     RuntimeContext runtimeContext = new StreamingRuntimeContext(executionVertex,

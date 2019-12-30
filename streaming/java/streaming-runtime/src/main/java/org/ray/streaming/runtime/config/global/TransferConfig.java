@@ -1,44 +1,42 @@
 package org.ray.streaming.runtime.config.global;
 
 import org.ray.streaming.runtime.config.Config;
+import org.ray.streaming.runtime.config.types.TransferChannelType;
 
 /**
  * Job data transfer config.
  */
+
 public interface TransferConfig extends Config {
 
-  String MEMORY_CHANNEL = "memory_channel";
-  String NATIVE_CHANNEL = "native_channel";
+  String CHANNEL_TYPE = "streaming.transfer.channel.type";
+  String CHANNEL_SIZE = "streaming.transfer.channel.size";
+  String READER_IS_RECREATE = "streaming.transfer.channel.is-recreate";
+  String READER_TIMER_INTERVAL_MS = "streaming.transfer.channel.timer.interval.ms";
+  String RING_BUFFER_CAPACITY = "streaming.transfer.ring-buffer.capacity";
+  String EMPTY_MSG_INTERVAL = "streaming.transfer.empty-message.interval";
 
-  @DefaultValue(value = NATIVE_CHANNEL)
-  @Key(value = "channel_type")
-  String chennelType();
+  @DefaultValue(value = "NATIVE_CHANNEL")
+  @Key(value = CHANNEL_TYPE)
+  TransferChannelType channelType();
 
   @DefaultValue(value = "100000000")
-  @Key(value = "channel_size")
-  String channelSize();
+  @Key(value = CHANNEL_SIZE)
+  long channelSize();
 
   @DefaultValue(value = "false")
-  @Key(value = "streaming.is_recreate")
-  String isResreate();
+  @Key(value = READER_IS_RECREATE)
+  boolean readerIsRecreate();
 
-  /**
-   * @return return from DataReader.getBundle if only empty message read in this interval.
-   */
   @DefaultValue(value = "-1")
-  @Key(value = "timer_interval_ms")
-  String timerIntervalMs();
+  @Key(value = READER_TIMER_INTERVAL_MS)
+  long readerTimerIntervalMs();
 
-  @DefaultValue(value = "")
-  @Key(value = "streaming.ring_buffer_capacity")
-  String streamingRingBufferCapacity();
+  @DefaultValue(value = "-1")
+  @Key(value = RING_BUFFER_CAPACITY)
+  int ringBufferCapacity();
 
-
-  @DefaultValue(value = "")
-  @Key(value = "streaming.empty_message_interval")
-  String streamingEmptyMessageInterval();
-
-  @DefaultValue(value = "1000")
-  @Key(value = "streaming.queue.read.timeout.millis")
-  long readMessageTimeOutMillis();
+  @DefaultValue(value = "-1")
+  @Key(value = EMPTY_MSG_INTERVAL)
+  int emptyMsgInterval();
 }

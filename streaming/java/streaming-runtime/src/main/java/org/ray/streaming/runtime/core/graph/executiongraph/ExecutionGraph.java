@@ -118,7 +118,7 @@ public class ExecutionGraph implements Serializable {
 
   public List<RayActor> getNonSourceActors() {
     List<ExecutionJobVertex> executionJobVertices = executionJobVertexList.stream()
-        .filter(executionJobVertex -> executionJobVertex.isProcessVertex()
+        .filter(executionJobVertex -> executionJobVertex.isTransformVertex()
             || executionJobVertex.isSinkVertex())
         .collect(Collectors.toList());
 
@@ -133,9 +133,9 @@ public class ExecutionGraph implements Serializable {
     return getActorsFromJobVertices(executionJobVertices);
   }
 
-  public List<RayActor> getProcessActors() {
+  public List<RayActor> getTransformActors() {
     List<ExecutionJobVertex> executionJobVertices = executionJobVertexList.stream()
-        .filter(executionJobVertex -> executionJobVertex.isProcessVertex())
+        .filter(executionJobVertex -> executionJobVertex.isTransformVertex())
         .collect(Collectors.toList());
 
     return getActorsFromJobVertices(executionJobVertices);

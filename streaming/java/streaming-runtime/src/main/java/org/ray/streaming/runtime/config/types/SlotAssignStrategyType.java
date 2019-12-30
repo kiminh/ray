@@ -22,15 +22,15 @@ public enum SlotAssignStrategyType {
    */
   STABLE_SHIFT_STRATEGY("stable_shift_strategy", 3);
 
-  private String name;
+  private String value;
   private int index;
 
-  SlotAssignStrategyType(String name, int index) {
-    this.name = name;
+  SlotAssignStrategyType(String value, int index) {
+    this.value = value;
     this.index = index;
   }
 
-  public String getName() {
-    return name;
+  public String getValue() {
+    return value;
   }
 }

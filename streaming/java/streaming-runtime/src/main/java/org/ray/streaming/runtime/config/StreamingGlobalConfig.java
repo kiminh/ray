@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.global.CommonConfig;
 import org.ray.streaming.runtime.config.global.LogConfig;
-import org.ray.streaming.runtime.config.global.SerializationConfig;
 import org.ray.streaming.runtime.config.global.StateBackendConfig;
 import org.ray.streaming.runtime.config.global.TransferConfig;
 import org.ray.streaming.runtime.util.LoggerFactory;
@@ -26,7 +25,6 @@ public class StreamingGlobalConfig {
 
   public CommonConfig commonConfig;
   public LogConfig logConfig;
-  public SerializationConfig serializationConfig;
   public StateBackendConfig stateBackendConfig;
   public TransferConfig transferConfig;
 
@@ -35,7 +33,6 @@ public class StreamingGlobalConfig {
   public StreamingGlobalConfig(Map<String, String> conf) {
     commonConfig = ConfigFactory.create(CommonConfig.class, conf);
     logConfig = ConfigFactory.create(LogConfig.class, conf);
-    serializationConfig = ConfigFactory.create(SerializationConfig.class, conf);
     stateBackendConfig = ConfigFactory.create(StateBackendConfig.class, conf);
     transferConfig = ConfigFactory.create(TransferConfig.class, conf);
     globalConfig2Map();
@@ -45,7 +42,6 @@ public class StreamingGlobalConfig {
     try {
       configMap.putAll(config2Map(this.commonConfig));
       configMap.putAll(config2Map(this.logConfig));
-      configMap.putAll(config2Map(this.serializationConfig));
       configMap.putAll(config2Map(this.stateBackendConfig));
       configMap.putAll(config2Map(this.transferConfig));
     } catch (Exception e) {

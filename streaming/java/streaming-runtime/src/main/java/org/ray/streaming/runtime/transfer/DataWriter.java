@@ -3,15 +3,15 @@ package org.ray.streaming.runtime.transfer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Preconditions;
 import org.ray.api.id.ActorId;
 import org.ray.runtime.RayNativeRuntime;
-import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 
+import org.ray.streaming.runtime.config.StreamingWorkerConfig;
+import org.ray.streaming.runtime.config.types.TransferChannelType;
 import org.ray.streaming.runtime.util.JniUtils;
 import org.ray.streaming.runtime.util.LoggerFactory;
 import org.ray.streaming.runtime.util.Platform;
@@ -21,6 +21,7 @@ import org.ray.streaming.runtime.util.Platform;
  * to downstream workers
  */
 public class DataWriter {
+
   private static final Logger LOG = LoggerFactory.getLogger(DataWriter.class);
 
   static {
@@ -43,26 +44,26 @@ public class DataWriter {
   /**
    * @param outputChannels output channels ids
    * @param toActors       downstream output actors
-   * @param conf           configuration
+   * @param workerConfig   configuration
    */
   public DataWriter(List<String> outputChannels,
                     List<ActorId> toActors,
-                    Map<String, String> conf) {
+                    StreamingWorkerConfig workerConfig) {
     Preconditions.checkArgument(!outputChannels.isEmpty());
     Preconditions.checkArgument(outputChannels.size() == toActors.size());
     byte[][] outputChannelsBytes = outputChannels.stream()
         .map(ChannelID::idStrToBytes).toArray(byte[][]::new);
     byte[][] toActorsBytes = toActors.stream()
         .map(ActorId::getBytes).toArray(byte[][]::new);
-    long channelSize = Long.parseLong(
-        conf.getOrDefault(Config.CHANNEL_SIZE, Config.CHANNEL_SIZE_DEFAULT));
+
+    long channelSize = workerConfig.transferConfig.channelSize();
     long[] msgIds = new long[outputChannels.size()];
     for (int i = 0; i < outputChannels.size(); i++) {
       msgIds[i] = 0;
     }
-    String channelType = conf.getOrDefault(Config.CHANNEL_TYPE, Config.DEFAULT_CHANNEL_TYPE);
+    TransferChannelType channelType = workerConfig.transferConfig.channelType();
     boolean isMock = false;
-    if (Config.MEMORY_CHANNEL.equals(channelType)) {
+    if (TransferChannelType.MEMORY_CHANNEL == channelType) {
       isMock = true;
     }
     this.nativeWriterPtr = createWriterNative(
@@ -70,7 +71,7 @@ public class DataWriter {
         toActorsBytes,
         msgIds,
         channelSize,
-        ChannelUtils.toNativeConf(conf),
+        ChannelUtils.toNativeConf(workerConfig),
         isMock
     );
     LOG.info("create DataWriter succeed");

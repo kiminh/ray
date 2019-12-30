@@ -153,8 +153,8 @@ public class ExecutionVertex implements Serializable {
     return executionJobVertex.isSourceVertex();
   }
 
-  public boolean isProcessVertex() {
-    return executionJobVertex.isProcessVertex();
+  public boolean isTransformVertex() {
+    return executionJobVertex.isTransformVertex();
   }
 
   public boolean isSinkVertex() {

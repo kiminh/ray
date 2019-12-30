@@ -3,6 +3,7 @@ package org.ray.streaming.runtime.core.processor;
 import java.util.List;
 
 import org.ray.streaming.operator.Operator;
+import org.ray.streaming.operator.OperatorType;
 import org.slf4j.Logger;
 
 import org.ray.streaming.api.collector.Collector;
@@ -35,6 +36,10 @@ public abstract class StreamProcessor<T, P extends Operator> implements Processo
       this.operator.open(collectors, runtimeContext);
     }
     LOG.info("opened {}", this);
+  }
+
+  public OperatorType getOperatorType() {
+    return operator.getOpType();
   }
 
   @Override

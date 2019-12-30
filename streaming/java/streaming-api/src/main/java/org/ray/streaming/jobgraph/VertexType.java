@@ -13,7 +13,7 @@ public enum VertexType {
   /**
    * Process type.
    */
-  PROCESS("process", 2),
+  TRANSFORM("transform", 2),
 
   /**
    * Sink type.

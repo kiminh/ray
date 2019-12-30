@@ -13,10 +13,13 @@ import org.ray.api.RayActor;
 import org.ray.api.annotation.RayRemote;
 import org.ray.api.id.ActorId;
 import org.ray.runtime.actor.NativeRayActor;
-import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.ray.streaming.runtime.config.StreamingWorkerConfig;
+import org.ray.streaming.runtime.config.global.CommonConfig;
+import org.ray.streaming.runtime.config.global.TransferConfig;
+import org.ray.streaming.runtime.config.types.TransferChannelType;
 import org.ray.streaming.runtime.transfer.ChannelID;
 import org.ray.streaming.runtime.transfer.DataWriter;
 
@@ -24,7 +27,7 @@ import org.ray.streaming.runtime.transfer.DataWriter;
 public class WriterWorker extends Worker {
   private static final Logger LOGGER = LoggerFactory.getLogger(WriterWorker.class);
 
-  private String name = null;
+  private String name;
   private List<String> outputQueueList = null;
   private List<ActorId> outputActorIds = new ArrayList<>();
   DataWriter dataWriter = null;
@@ -74,11 +77,12 @@ public class WriterWorker extends Worker {
     }
     Map<String, String> conf = new HashMap<>();
 
-    conf.put(Config.CHANNEL_TYPE, Config.NATIVE_CHANNEL);
-    conf.put(Config.CHANNEL_SIZE, "100000");
-    conf.put(Config.STREAMING_JOB_NAME, "integrationTest1");
+    conf.put(TransferConfig.CHANNEL_TYPE, TransferChannelType.NATIVE_CHANNEL.name());
+    conf.put(TransferConfig.CHANNEL_SIZE, "100000");
+    conf.put(CommonConfig.JOB_NAME, "integrationTest1");
 
-    dataWriter = new DataWriter(this.outputQueueList, this.outputActorIds, conf);
+    dataWriter = new DataWriter(this.outputQueueList, this.outputActorIds,
+        new StreamingWorkerConfig(conf));
     Thread writerThread = new Thread(Ray.wrapRunnable(new Runnable() {
       @Override
       public void run() {

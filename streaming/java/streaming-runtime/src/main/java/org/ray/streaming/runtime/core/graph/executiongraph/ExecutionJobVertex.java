@@ -161,8 +161,8 @@ public class ExecutionJobVertex {
     return getVertexType() == VertexType.SOURCE;
   }
 
-  public boolean isProcessVertex() {
-    return getVertexType() == VertexType.PROCESS;
+  public boolean isTransformVertex() {
+    return getVertexType() == VertexType.TRANSFORM;
   }
 
   public boolean isSinkVertex() {

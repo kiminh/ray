@@ -1,44 +1,62 @@
 package org.ray.streaming.runtime.transfer;
 
-import java.util.Map;
-
 import org.apache.commons.lang.StringUtils;
-import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 
+import org.ray.streaming.runtime.config.StreamingWorkerConfig;
 import org.ray.streaming.runtime.generated.Streaming;
+import org.ray.streaming.runtime.generated.Streaming.OperatorType;
 import org.ray.streaming.runtime.util.LoggerFactory;
 
 public class ChannelUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(ChannelUtils.class);
 
-  static byte[] toNativeConf(Map<String, String> conf) {
+  static byte[] toNativeConf(StreamingWorkerConfig workerConfig) {
     Streaming.StreamingConfig.Builder builder = Streaming.StreamingConfig.newBuilder();
-    if (!StringUtils.isEmpty(conf.get(Config.STREAMING_JOB_NAME))) {
-      builder.setJobName(conf.get(Config.STREAMING_JOB_NAME));
+
+    // job name
+    String jobName = workerConfig.commonConfig.jobName();
+    if (!StringUtils.isEmpty(jobName)) {
+      builder.setJobName(workerConfig.commonConfig.jobName());
     }
-    if (!StringUtils.isEmpty(conf.get(Config.TASK_JOB_ID))) {
-      builder.setTaskJobId(conf.get(Config.TASK_JOB_ID));
+
+    // job id
+    String jobId = workerConfig.commonConfig.jobId();
+    if (!StringUtils.isEmpty(jobId)) {
+      builder.setTaskJobId(jobId);
     }
-    if (!StringUtils.isEmpty(conf.get(Config.STREAMING_WORKER_NAME))) {
-      builder.setWorkerName(conf.get(Config.STREAMING_WORKER_NAME));
+
+    // worker name
+    String workerName = workerConfig.workerInternalConfig.workerName();
+    if (!StringUtils.isEmpty(workerName)) {
+      builder.setWorkerName(workerName);
     }
-    if (!StringUtils.isEmpty(conf.get(Config.STREAMING_OP_NAME))) {
-      builder.setOpName(conf.get(Config.STREAMING_OP_NAME));
+
+    // operator name
+    String operatorName = workerConfig.workerInternalConfig.workerOperatorName();
+    if (!StringUtils.isEmpty(operatorName)) {
+      builder.setOpName(operatorName);
     }
-    if (!StringUtils.isEmpty(conf.get(Config.STREAMING_RING_BUFFER_CAPACITY))) {
-      builder.setRingBufferCapacity(
-          Integer.parseInt(conf.get(Config.STREAMING_RING_BUFFER_CAPACITY)));
+
+    // operator type
+    OperatorType operatorType = workerConfig.workerInternalConfig.workerType();
+    builder.setRole(operatorType);
+
+    // ring buffer capacity
+    int ringBufferCapacity = workerConfig.transferConfig.ringBufferCapacity();
+    if (ringBufferCapacity != -1) {
+      builder.setRingBufferCapacity(ringBufferCapacity);
     }
-    if (!StringUtils.isEmpty(conf.get(Config.STREAMING_EMPTY_MESSAGE_INTERVAL))) {
-      builder.setEmptyMessageInterval(
-          Integer.parseInt(conf.get(Config.STREAMING_EMPTY_MESSAGE_INTERVAL)));
+
+    // empty message interval
+    int emptyMsgInterval = workerConfig.transferConfig.emptyMsgInterval();
+    if (emptyMsgInterval != -1) {
+      builder.setEmptyMessageInterval(emptyMsgInterval);
     }
     Streaming.StreamingConfig streamingConf = builder.build();
-    LOG.info("Streaming native conf {}", streamingConf.toString());
+    LOG.info("Streaming native conf is: {}", streamingConf.toString());
     return streamingConf.toByteArray();
   }
-
 }
 

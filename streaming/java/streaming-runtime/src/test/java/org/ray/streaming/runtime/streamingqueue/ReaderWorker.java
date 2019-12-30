@@ -10,12 +10,16 @@ import org.ray.api.Ray;
 import org.ray.api.RayActor;
 import org.ray.api.annotation.RayRemote;
 import org.ray.api.id.ActorId;
-import org.ray.streaming.runtime.transfer.DataMessage;
-import org.ray.streaming.runtime.transfer.DataReader;
-import org.ray.streaming.util.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+
+import org.ray.streaming.runtime.config.StreamingWorkerConfig;
+import org.ray.streaming.runtime.config.global.CommonConfig;
+import org.ray.streaming.runtime.config.global.TransferConfig;
+import org.ray.streaming.runtime.config.types.TransferChannelType;
+import org.ray.streaming.runtime.transfer.DataMessage;
+import org.ray.streaming.runtime.transfer.DataReader;
 
 @RayRemote
 public class ReaderWorker extends Worker {
@@ -65,10 +69,12 @@ public class ReaderWorker extends Worker {
 
     Map<String, String> conf = new HashMap<>();
 
-    conf.put(Config.CHANNEL_TYPE, Config.NATIVE_CHANNEL);
-    conf.put(Config.CHANNEL_SIZE, "100000");
-    conf.put(Config.STREAMING_JOB_NAME, "integrationTest1");
-    dataReader = new DataReader(inputQueueList, inputActorIds, conf);
+    conf.put(TransferConfig.CHANNEL_TYPE, TransferChannelType.NATIVE_CHANNEL.name());
+    conf.put(TransferConfig.CHANNEL_SIZE, "100000");
+    conf.put(CommonConfig.JOB_NAME, "integrationTest1");
+
+    dataReader = new DataReader(inputQueueList, inputActorIds,
+        new StreamingWorkerConfig(conf));
 
     // Should not GetBundle in RayCall thread
     Thread readThread = new Thread(Ray.wrapRunnable(new Runnable() {

@@ -35,7 +35,8 @@ public class JobDriverImpl implements IJobDriver {
         .setMaxReconstructions(ActorCreationOptions.INFINITE_RECONSTRUCTIONS)
         .createActorCreationOptions();
 
-    // set job name at start
+    // set job name and id at start
+    jobConfig.put(CommonConfig.JOB_ID, Ray.getRuntimeContext().getCurrentJobId().toString());
     jobConfig.put(CommonConfig.JOB_NAME, jobGraph.getJobName());
 
     this.jobMasterActor = Ray.createActor(JobMaster::new, jobConfig, options);
