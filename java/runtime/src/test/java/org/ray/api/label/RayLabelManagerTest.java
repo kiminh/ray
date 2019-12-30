@@ -59,9 +59,11 @@ public class RayLabelManagerTest {
         .setAffinities(Collections.singletonList(mppAffinity))
         .createActorCreationOptions();
 
-    // create actors / actor group
+    // creat training job actors
     Ray.createActor(TrainActor::new, trainingOptions);
+    // create streaming job actors
     Ray.createActor(StreamingActor::new, streamingOptions);
+    // create mpp job actors
     Ray.createActor(MppActor::new, mppOptions);
   }
 
