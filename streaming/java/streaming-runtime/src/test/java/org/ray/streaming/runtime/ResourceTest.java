@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.ray.api.Ray;
+import org.ray.streaming.runtime.core.resource.ContainerID;
+import org.ray.streaming.runtime.core.resource.Slot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -80,13 +82,13 @@ public class ResourceTest {
     });
 
     // slot assign
-    Map<String, Map<Integer, List<String>>> allocatingMap = strategy.assignSlot(executionGraph);
+    Map<ContainerID, List<Slot>> allocatingMap = strategy.assignSlot(executionGraph);
     executionVertexList.stream().forEach(vertex -> {
       Assert.assertTrue(allocatingMap.toString().contains(vertex.getVertexName()));
 
       // resource allocation
       Map<String, Double> resources = resourceManager.allocateResource(vertex);
-      Container container = resourceManager.getResources().getContainerByContainerId(
+      Container container = resourceManager.getResources().getRegisterContainerByContainerId(
           vertex.getSlot().getContainerID());
       String containerName = container.getName();
       Assert.assertEquals(resources.get(containerName), 1.0);

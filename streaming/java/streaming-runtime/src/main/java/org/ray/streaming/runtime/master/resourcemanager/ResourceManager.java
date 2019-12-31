@@ -39,7 +39,7 @@ public interface ResourceManager {
   SlotAssignStrategy getSlotAssignStrategy();
 
   /**
-   * Update resources content.
+   * Update resources content, for `failover`.
    * @param resources The specified resources content.
    */
   void setResources(Resources resources);

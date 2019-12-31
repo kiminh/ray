@@ -21,7 +21,6 @@ public class JobMasterRuntimeContext implements Serializable {
 
   public JobMasterRuntimeContext(StreamingConfig conf) {
     this.conf = conf;
-    this.resources = new Resources(conf.masterConfig.resourceConfig);
   }
 
   public String getJobName() {

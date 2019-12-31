@@ -7,6 +7,8 @@ import java.util.Map;
 import com.alibaba.fastjson.JSON;
 import com.google.common.base.Preconditions;
 import org.ray.api.RayActor;
+import org.ray.streaming.runtime.core.resource.ContainerID;
+import org.ray.streaming.runtime.core.resource.Slot;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
@@ -72,14 +74,14 @@ public class JobScheduler implements IJobScheduler {
 
     // allocate slot
     int slotNumPerContainer = strategy.getSlotNumPerContainer(containers, maxParallelism);
-    resourceManager.getResources().slotNumPerContainer = slotNumPerContainer;
+    resourceManager.getResources().setSlotNumPerContainer(slotNumPerContainer);
     LOG.info("Slot num per container: {}.", slotNumPerContainer);
 
     strategy.allocateSlot(containers, slotNumPerContainer);
-    LOG.info("Container slot map is: {}.", resourceManager.getResources().getContainerSlotsMap());
+    LOG.info("Container slot map is: {}.", resourceManager.getResources().getAllocatingMap());
 
     // assign slot
-    Map<String, Map<Integer, List<String>>> allocatingMap = strategy.assignSlot(executionGraph);
+    Map<ContainerID, List<Slot>> allocatingMap = strategy.assignSlot(executionGraph);
     LOG.info("Allocating map is: {}.", JSON.toJSONString(allocatingMap));
 
     // start all new added workers
