@@ -10,8 +10,8 @@ public class TwoInputProcessor<T, O> extends StreamProcessor<Record, TwoInputOpe
 
   private static final Logger LOG = LoggerFactory.getLogger(TwoInputProcessor.class);
 
-  private String leftStream;
-  private String rightStream;
+  private int leftStreamJobVertexId;
+  private int rightStreamJobVertexId;
 
   public TwoInputProcessor(TwoInputOperator<T, O> operator) {
     super(operator);
@@ -20,7 +20,7 @@ public class TwoInputProcessor<T, O> extends StreamProcessor<Record, TwoInputOpe
   @Override
   public void process(Record record) {
     try {
-      if (record.getStream().equals(leftStream)) {
+      if (record.getStream().equals(leftStreamJobVertexId)) {
         this.operator.processElement(record, null);
       } else {
         this.operator.processElement(null, record);
@@ -35,19 +35,19 @@ public class TwoInputProcessor<T, O> extends StreamProcessor<Record, TwoInputOpe
     this.operator.close();
   }
 
-  public String getLeftStream() {
-    return leftStream;
+  public int getLeftStreamJobVertexId() {
+    return leftStreamJobVertexId;
   }
 
-  public void setLeftStream(String leftStream) {
-    this.leftStream = leftStream;
+  public void setLeftStreamJobVertexId(int leftStreamJobVertexId) {
+    this.leftStreamJobVertexId = leftStreamJobVertexId;
   }
 
-  public String getRightStream() {
-    return rightStream;
+  public int setRightStreamJobVertexId() {
+    return rightStreamJobVertexId;
   }
 
-  public void setRightStream(String rightStream) {
-    this.rightStream = rightStream;
+  public void setRightStreamJobVertexId(int rightStreamJobVertexId) {
+    this.rightStreamJobVertexId = rightStreamJobVertexId;
   }
 }

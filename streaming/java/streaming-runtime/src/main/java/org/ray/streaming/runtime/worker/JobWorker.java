@@ -10,7 +10,6 @@ import org.ray.runtime.functionmanager.JavaFunctionDescriptor;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.StreamingWorkerConfig;
-import org.ray.streaming.runtime.config.global.TransferConfig;
 import org.ray.streaming.runtime.config.types.TransferChannelType;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionEdge;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
@@ -40,12 +39,10 @@ public class JobWorker implements IJobWorker {
     EnvUtil.loadNativeLibraries();
   }
 
-  private StreamingWorkerConfig workerConfig;
   private JobWorkerContext workerContext;
   private ExecutionVertex executionVertex;
-
+  private StreamingWorkerConfig workerConfig;
   private TransferHandler transferHandler;
-
   private StreamTask task;
 
   public JobWorker() {
@@ -79,7 +76,7 @@ public class JobWorker implements IJobWorker {
           new JavaFunctionDescriptor(JobWorker.class.getName(), "onReaderMessageSync", "([B)[B"));
     }
 
-    task = createStreamTask();
+    this.task = createStreamTask();
 
     return true;
   }
@@ -101,9 +98,8 @@ public class JobWorker implements IJobWorker {
       task = new OneInputStreamTask(executionVertex.getVertexId(), streamProcessor, this);
     } else if (streamProcessor instanceof TwoInputProcessor) {
       List<ExecutionEdge> inputEdges = this.executionVertex.getInputEdges();
-      //TODO
-      String leftStream = null;
-      String rightStream = null;
+      int leftStream = inputEdges.get(0).getProducer().getExecutionJobVertex().getJobVertex().getVertexId();
+      int rightStream = inputEdges.get(1).getProducer().getExecutionJobVertex().getJobVertex().getVertexId();
       task = new TwoInputStreamTask(executionVertex.getVertexId(), streamProcessor, this, leftStream, rightStream);
     } else {
       throw new RuntimeException("Unsupported processor type:" + streamProcessor);

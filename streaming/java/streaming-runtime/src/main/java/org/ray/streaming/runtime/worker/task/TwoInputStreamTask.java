@@ -5,14 +5,14 @@ import org.ray.streaming.runtime.core.processor.TwoInputProcessor;
 import org.ray.streaming.runtime.worker.JobWorker;
 
 /**
- *
+ * Two input type. e.g. join
  */
 public class TwoInputStreamTask extends InputStreamTask {
 
   public TwoInputStreamTask(int taskId, Processor processor, JobWorker jobWorker,
-      String leftStream, String rightStream) {
+      int leftStreamJobVertexId, int rightStreamJobVertexId) {
     super(taskId, processor, jobWorker);
-    ((TwoInputProcessor)(super.processor)).setLeftStream(leftStream);
-    ((TwoInputProcessor)(super.processor)).setRightStream(rightStream);
+    ((TwoInputProcessor)(super.processor)).setLeftStreamJobVertexId(leftStreamJobVertexId);
+    ((TwoInputProcessor)(super.processor)).setRightStreamJobVertexId(rightStreamJobVertexId);
   }
 }
