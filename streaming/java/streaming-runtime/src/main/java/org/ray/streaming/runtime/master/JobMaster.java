@@ -80,6 +80,7 @@ public class JobMaster implements IJobMaster {
       LOG.info("Recover graph manager, resource manager and scheduler.");
       graphManager = new GraphManagerImpl(this);
       resourceManager = new ResourceManagerImpl(this);
+      resourceManager.setResources(runtimeContext.getResources());
       scheduler = new JobScheduler(this);
     }
 
@@ -106,6 +107,7 @@ public class JobMaster implements IJobMaster {
     // init manager
     graphManager = new GraphManagerImpl(this);
     resourceManager = new ResourceManagerImpl(this);
+    runtimeContext.setResources(resourceManager.getResources());
 
     // build and set graph into runtime context
     ExecutionGraph executionGraph = graphManager.buildExecutionGraph(jobGraph);

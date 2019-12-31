@@ -14,6 +14,7 @@ import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.ray.api.Ray;
 import org.ray.api.id.UniqueId;
 import org.ray.api.runtimecontext.NodeInfo;
+import org.ray.streaming.runtime.config.master.ResourceConfig;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.StreamingMasterConfig;
@@ -34,58 +35,48 @@ public class ResourceManagerImpl implements ResourceManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(ResourceManagerImpl.class);
 
-  private static final long CHECK_INTERVAL_SEC = 1;
-  // TODO: get capacity from config
-  private static final int CAPACITY = 500;
+  //Container used tag
   private static final String CONTAINER_ENGAGED_KEY = "CONTAINER_ENGAGED_KEY";
-  private static final String CONTAINER_HOT_BACKUP_KEY = "CONTAINER_HOT_BACKUP_KEY";
 
-  private StreamingMasterConfig conf;
+  private ResourceConfig resourceConfig;
   private SlotAssignStrategy slotAssignStrategy;
 
-  private final JobMasterRuntimeContext runtimeContext;
   private final JobMaster jobMaster;
   private final Resources resources;
 
-  /**
-   * Thread
-   */
-  private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
-      1, new BasicThreadFactory
-      .Builder().namingPattern("updateResource-schedule-pool-%d").daemon(true).build());
+  private final ScheduledExecutorService scheduledExecutorService;
 
   public ResourceManagerImpl(JobMaster jobMaster) {
-    this.runtimeContext = jobMaster.getRuntimeContext();
     this.jobMaster = jobMaster;
-    this.resources = runtimeContext.getResources();
-    this.conf = runtimeContext.getConf().masterConfig;
-    boolean autoScalingEnable = !TestHelper.isUTPattern();
-    LOG.info("ResourceManagerImpl begin init, conf is {}, resources are {}, autoScalingEnable is {}.",
-        conf.resourceConfig, resources, autoScalingEnable);
+    StreamingMasterConfig masterConfig = jobMaster.getRuntimeContext().getConf().masterConfig;
+
+    this.resourceConfig = masterConfig.resourceConfig;
+    this.resources = new Resources(resourceConfig);
+    LOG.info("ResourceManagerImpl begin init, conf is {}, resources are {}.",
+        resourceConfig, resources);
 
     SlotAssignStrategyType slotAssignStrategyType =
-        SlotAssignStrategyType.valueOf(conf.schedulerConfig.slotAssignStrategy().toUpperCase());
-    slotAssignStrategy = SlotAssignStrategyFactory.getStrategy(slotAssignStrategyType);
-    slotAssignStrategy.updateResources(resources);
+        SlotAssignStrategyType.valueOf(jobMaster.getRuntimeContext().getConf().masterConfig.schedulerConfig.slotAssignStrategy().toUpperCase());
+    this.slotAssignStrategy = SlotAssignStrategyFactory.getStrategy(slotAssignStrategyType);
+    this.slotAssignStrategy.updateResources(resources);
     LOG.info("Slot assign strategy: {}.", slotAssignStrategy.getName());
 
-    updateResources();
+    this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
+
+    checkAndUpdateResources();
 
     if (!TestHelper.isUTPattern()) {
-      scheduledExecutorService.scheduleAtFixedRate(Ray.wrapRunnable(() -> {
-            Ray.wrapRunnable(() -> updateResources());
-          }),
-          CHECK_INTERVAL_SEC,
-          CHECK_INTERVAL_SEC,
-          TimeUnit.SECONDS
-      );
+      long intervalSecond = resourceConfig.resourceCheckIntervalSecond();
+      this.scheduledExecutorService.scheduleAtFixedRate(Ray.wrapRunnable(this::checkAndUpdateResources),
+          0, intervalSecond, TimeUnit.SECONDS);
     }
     LOG.info("ResourceManagerImpl init success.");
   }
 
   @Override
   public Map<String, Double> allocateResource(final ExecutionVertex executionVertex) {
-    Container container = resources.getContainerByContainerId(
+    //executionVertex -> slot -> container
+    Container container = resources.getRegisterContainerByContainerId(
         executionVertex.getSlot().getContainerID());
     LOG.info("Start to allocate resource for actor with container: {}.", container);
 
@@ -109,78 +100,7 @@ public class ResourceManagerImpl implements ResourceManager {
 
   @Override
   public List<Container> getRegisteredContainers() {
-    return new ArrayList<>(resources.containerMap.values());
-  }
-
-  private void registerContainer(final NodeInfo nodeInfo) {
-    LOG.info("Register container {}.", nodeInfo);
-
-    Container container = new Container(nodeInfo.nodeAddress, nodeInfo.nodeId, nodeInfo.nodeHostname);
-    container.setAvailableResource(nodeInfo.resources);
-
-    // handle deleted containers
-    if (!resources.unhandledDeletedContainers.isEmpty()) {
-      Container deletedContainer = resources.unhandledDeletedContainers.remove(0);
-      container.setId(deletedContainer.getId());
-      LOG.info("Deleted container {} reset resource success, left {} deleted containers to handle.",
-          deletedContainer, resources.unhandledDeletedContainers.size());
-    }
-
-    // create ray resource
-    Ray.setResource(container.getNodeId(), container.getName(), CAPACITY);
-    Ray.setResource(container.getNodeId(), CONTAINER_ENGAGED_KEY, 1);
-
-    // update container map
-    resources.containerMap.put(container.getNodeId(), container);
-  }
-
-  private void unregisterContainer(final Container container, boolean isLoss) {
-    LOG.info("Unregister container {}, isLoss: {}.", container, isLoss);
-
-    if (isLoss) {
-      LOG.error("Container {} is lost.", container);
-    } else {
-      // delete resource with capacity=0
-      Ray.setResource(container.getNodeId(), container.getName(), 0);
-      Ray.setResource(container.getNodeId(), CONTAINER_ENGAGED_KEY, 0);
-
-      // remove from container map
-      resources.containerMap.remove(container.getNodeId());
-    }
-  }
-
-  public void updateResources() {
-    // get add&del nodes
-    Map<UniqueId, NodeInfo> latestNodeInfos = RayUtils.getNodeInfoMap();
-    List<UniqueId> addNodes = latestNodeInfos.keySet().stream()
-        .filter(addr -> !resources.containerMap.containsKey(addr)).collect(Collectors.toList());
-    List<UniqueId> delNodes = resources.containerMap.keySet().stream()
-        .filter(nodeId -> !latestNodeInfos.containsKey(nodeId)).collect(Collectors.toList());
-
-    // update container info
-    if (!addNodes.isEmpty() || !delNodes.isEmpty()) {
-      LOG.info("Latest node infos: {}, containers: {}.", latestNodeInfos, resources.containerMap);
-      LOG.info("Get add nodes info: {}, del nodes info: {}.", addNodes, delNodes);
-
-      // get unregister containers
-      for (UniqueId nodeId : delNodes) {
-        Container deletedContainer = resources.containerMap.get(nodeId);
-        resources.unhandledDeletedContainers.add(deletedContainer);
-        LOG.info("Remove container {} from container list.", deletedContainer);
-      }
-
-      // register containers
-      for (UniqueId nodeId : addNodes) {
-        registerContainer(latestNodeInfos.get(nodeId));
-      }
-
-      // unregister containers
-      if (!delNodes.isEmpty()) {
-        for (Container deletedContainer : resources.unhandledDeletedContainers) {
-          unregisterContainer(deletedContainer, true);
-        }
-      }
-    }
+    return new ArrayList<>(resources.getRegisterContainers());
   }
 
   @Override
@@ -190,11 +110,74 @@ public class ResourceManagerImpl implements ResourceManager {
 
   @Override
   public void setResources(Resources resources) {
-    this.runtimeContext.setResources(resources);
+    this.jobMaster.getRuntimeContext().setResources(resources);
   }
 
   @Override
   public Resources getResources() {
     return this.resources;
+  }
+
+  private void checkAndUpdateResources() {
+    // get add&del nodes
+    List<NodeInfo> latestNodeInfos = RayUtils.getNodeInfoList();
+
+    List<NodeInfo> addNodes = latestNodeInfos.stream().filter(nodeInfo -> {
+      for (Container container : resources.getRegisterContainers()) {
+        if (container.getNodeId().equals(nodeInfo.nodeId)) {
+          return false;
+        }
+      }
+      return true;
+    }).collect(Collectors.toList());
+
+    List<Container> deleteContainers = resources.getRegisterContainers().stream().filter(container -> {
+      for (NodeInfo nodeInfo : latestNodeInfos) {
+        if (nodeInfo.nodeId.equals(container.getNodeId())) {
+          return false;
+        }
+      }
+      return true;
+    }).collect(Collectors.toList());
+    LOG.info("Latest node infos: {}, current containers: {}, add nodes: {}, delete nodes: {}.",
+        latestNodeInfos, resources.getRegisterContainers(), addNodes, deleteContainers);
+
+    //Register new nodes.
+    if (!addNodes.isEmpty()) {
+      for (NodeInfo node : addNodes) {
+        registerContainer(node);
+      }
+    }
+    //Clear deleted nodes
+    if (!deleteContainers.isEmpty()) {
+      for (Container container : deleteContainers) {
+        unregisterContainer(container);
+      }
+    }
+  }
+
+  private void registerContainer(final NodeInfo nodeInfo) {
+    LOG.info("Register container {}.", nodeInfo);
+
+    Container container = new Container(nodeInfo.nodeId, nodeInfo.nodeAddress, nodeInfo.nodeHostname);
+    container.setAvailableResource(nodeInfo.resources);
+
+    // create ray resource
+    Ray.setResource(container.getNodeId(), container.getName(), resources.getMaxActorNumPerContainer());
+    Ray.setResource(container.getNodeId(), CONTAINER_ENGAGED_KEY, 1);
+
+    // update register container list
+    resources.getRegisterContainers().add(container);
+  }
+
+  private void unregisterContainer(final Container container) {
+    LOG.info("Unregister container {}.", container);
+
+    // delete resource with capacity to 0
+    Ray.setResource(container.getNodeId(), container.getName(), 0);
+    Ray.setResource(container.getNodeId(), CONTAINER_ENGAGED_KEY, 0);
+
+    // remove from container map
+    resources.getRegisterContainers().remove(container);
   }
 }

@@ -9,6 +9,10 @@ import java.util.Map;
 import com.google.common.base.MoreObjects;
 import org.ray.api.id.UniqueId;
 
+/**
+ * Resource manager unit abstraction.
+ * Container identifies the available resource(cpu,mem) and allocated slots.
+ */
 public class Container implements Serializable {
 
   private ContainerID id;
@@ -22,11 +26,11 @@ public class Container implements Serializable {
   public Container() {
   }
 
-  public Container(String address, UniqueId nodeId, String hostname) {
+  public Container(UniqueId nodeId, String address, String hostname) {
     this.id = new ContainerID();
+    this.nodeId = nodeId;
     this.address = address;
     this.hostname = hostname;
-    this.nodeId = nodeId;
   }
 
   public void setId(ContainerID id) {

@@ -1,14 +1,20 @@
 package org.ray.streaming.runtime.core.resource;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.base.MoreObjects;
 
 public class Slot implements Serializable {
   private int id;
+  /**
+   * The slot belongs to a container.
+   */
   private ContainerID containerID;
   private AtomicInteger actorCount = new AtomicInteger(0);
+  private List<Integer> executionVertexIds = new ArrayList<>();
 
   public Slot(int id, ContainerID containerID) {
     this.id = id;
@@ -25,6 +31,14 @@ public class Slot implements Serializable {
 
   public AtomicInteger getActorCount() {
     return actorCount;
+  }
+
+  public List<Integer> getExecutionVertexIds() {
+    return executionVertexIds;
+  }
+
+  public void setExecutionVertexIds(List<Integer> executionVertexIds) {
+    this.executionVertexIds = executionVertexIds;
   }
 
   @Override

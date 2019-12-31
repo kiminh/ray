@@ -1,110 +1,133 @@
 package org.ray.streaming.runtime.core.resource;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import com.google.common.base.MoreObjects;
-import org.ray.api.id.UniqueId;
 
+import org.ray.api.id.UniqueId;
 import org.ray.streaming.runtime.config.master.ResourceConfig;
 
-public class Resources {
+/**
+ * Resource description of ResourceManager.
+ */
+public class Resources implements Serializable {
 
   /**
-   * NodeId -> Container
+   * Available containers registered to ResourceManager.
    */
-  public Map<UniqueId, Container> containerMap = new ConcurrentHashMap<>(16);
+  private List<Container> registerContainers = new ArrayList<>();
 
   /**
-   * Unhandled container del event
+   * Mapping of allocated container to slots.
    */
-  public List<Container> unhandledDeletedContainers = new LinkedList<>();
+  private Map<ContainerID, List<Slot>> allocatingMap = new HashMap<>(16);
 
   /**
-   * Allocate info
-   * Key - container address
-   * Value - Slot info:
-   *         Key - slot id
-   *         Value - vertex name
+   * Number of slots per container.
    */
-  public Map<String, Map<Integer, List<String>>> allocatingMap = new HashMap<>(16);
+  private int slotNumPerContainer = 0;
 
-  public int slotNumPerContainer = 0;
-  public int currentContainerIndex = 0;
-  public int currentContainerAllocatedNum = 0;
-  public int capacityPerContainer = 0;
+  /**
+   * Number of actors per container.
+   */
+  private int actorPerContainer = 0;
+
+  /**
+   * Number of actors that the current container has allocated.
+   */
+  private int currentContainerAllocatedActorNum = 0;
+
+  /**
+   * The container index currently being allocated.
+   */
+  private int currentContainerIndex = 0;
+
+  private int maxActorNumPerContainer;
+
 
   public Resources(ResourceConfig resourceConfig) {
+    maxActorNumPerContainer = resourceConfig.maxActorNumPerContainer();
   }
 
-  /**
-   * Hot backup container list
-   */
-  public List<UniqueId> hotBackupNodes = new ArrayList<>();
-
-  /**
-   * Recently idle containers' id list
-   */
-  public List<UniqueId> recentlyIdleContainerIds = new ArrayList<>();
-
-  public List<Container> getContainers() {
-    return containerMap.values().stream().collect(Collectors.toList());
+  public List<Container> getRegisterContainers() {
+    return registerContainers;
   }
 
-  public Container getContainerByContainerId(ContainerID containerID) {
-    return containerMap.values().stream().filter(container -> {
-      return container.getId().equals(containerID);
-    }).findFirst().get();
+  public void setSlotNumPerContainer(int slotNumPerContainer) {
+    this.slotNumPerContainer = slotNumPerContainer;
   }
 
+  public int getSlotNumPerContainer() {
+    return slotNumPerContainer;
+  }
+
+  public void setRegisterContainers(
+      List<Container> registerContainers) {
+    this.registerContainers = registerContainers;
+  }
+
+  public void setCurrentContainerIndex(int currentContainerIndex) {
+    this.currentContainerIndex = currentContainerIndex;
+  }
+
+  public int getCurrentContainerIndex() {
+    return currentContainerIndex;
+  }
+
+  public void setCurrentContainerAllocatedActorNum(int currentContainerAllocatedActorNum) {
+    this.currentContainerAllocatedActorNum = currentContainerAllocatedActorNum;
+  }
+
+  public int getCurrentContainerAllocatedActorNum() {
+    return currentContainerAllocatedActorNum;
+  }
+
+  public int getActorPerContainer() {
+    return actorPerContainer;
+  }
+
+  public void setActorPerContainer(int actorPerContainer) {
+    this.actorPerContainer = actorPerContainer;
+  }
+
+  public Container getRegisterContainerByContainerId(ContainerID containerID) {
+    return registerContainers.stream().filter(container -> container.getId().equals(containerID))
+        .findFirst().get();
+  }
+
+  public int getMaxActorNumPerContainer() {
+    return maxActorNumPerContainer;
+  }
+
+  public Map<ContainerID, List<Slot>> getAllocatingMap() {
+    return allocatingMap;
+  }
+
+  public void setAllocatingMap(
+      Map<ContainerID, List<Slot>> allocatingMap) {
+    this.allocatingMap = allocatingMap;
+  }
 
   public Map<UniqueId, Map<String, Double>> getAllAvailableResource() {
-    Map<UniqueId, Map<String, Double>> availableResourceMap = new HashMap<>();
-    containerMap.values().stream()
-        .forEach(container -> availableResourceMap
-            .put(container.getNodeId(), container.getAvailableResource()));
-
-    return availableResourceMap;
-  }
-
-  public int getCurrentSlotNum() {
-    return containerMap.values().stream()
-        .mapToInt(container -> container.getSlots().size()).sum();
-  }
-
-  public Map<UniqueId, List<Slot>> getContainerSlotsMap() {
-    Map<UniqueId, List<Slot>> containerSlotsMap = new HashMap<>();
-    containerMap.values().stream()
-        .forEach(container -> containerSlotsMap.put(container.getNodeId(), container.getSlots()));
-    return containerSlotsMap;
-  }
-
-  public Map<String, Integer> getAllocatedActorCounter() {
-    Map<String, Integer> allocatedActorCounter = new HashMap<>();
-    allocatingMap.entrySet().forEach(entry -> {
-      int allocatedActorNum = entry.getValue().values().stream().mapToInt(List::size).sum();
-      allocatedActorCounter.put(entry.getKey(), allocatedActorNum);
-    });
-    return allocatedActorCounter;
+    return registerContainers.stream()
+        .collect(Collectors.toMap(Container::getNodeId, Container::getAvailableResource));
   }
 
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-        .add("containerMap", containerMap)
-        .add("unhandledDeletedContainers", unhandledDeletedContainers)
+        .add("registerContainers", registerContainers)
         .add("allocatingMap", allocatingMap)
         .add("slotNumPerContainer", slotNumPerContainer)
-        .add("capacityPerContainer", capacityPerContainer)
+        .add("actorPerContainer", actorPerContainer)
+        .add("currentContainerAllocatedActorNum", currentContainerAllocatedActorNum)
         .add("currentContainerIndex", currentContainerIndex)
-        .add("currentContainerAllocatedNum", currentContainerAllocatedNum)
-        .add("hotBackupNodes", hotBackupNodes)
-        .add("recentlyIdleContainers", recentlyIdleContainerIds)
+        .add("maxActorNumPerContainer", maxActorNumPerContainer)
         .toString();
   }
 }
