@@ -1,16 +1,12 @@
 package org.ray.streaming.runtime.master.scheduler;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import com.alibaba.fastjson.JSON;
 import com.google.common.base.Preconditions;
 import org.ray.api.RayActor;
-import org.ray.api.id.ActorId;
-import org.ray.streaming.operator.OperatorType;
 import org.slf4j.Logger;
 
 import org.ray.streaming.runtime.config.StreamingConfig;
@@ -20,7 +16,6 @@ import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertex;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionVertexState;
 import org.ray.streaming.runtime.core.resource.Container;
-import org.ray.streaming.runtime.generated.Streaming;
 import org.ray.streaming.runtime.master.JobMaster;
 import org.ray.streaming.runtime.master.graphmanager.GraphManager;
 import org.ray.streaming.runtime.master.resourcemanager.ResourceManager;
@@ -42,9 +37,6 @@ public class JobScheduler implements IJobScheduler {
   private final GraphManager graphManager;
   private final WorkerLifecycleController workerController;
   private final SlotAssignStrategy strategy;
-
-  private Long lastPartialCheckpointId = 1L;
-  private Set<ActorId> waitingCommitActorIds = new HashSet<>();
 
   public JobScheduler(JobMaster jobMaster) {
     this.jobMaster = jobMaster;
@@ -192,14 +184,6 @@ public class JobScheduler implements IJobScheduler {
       ExecutionVertex executionVertex,
       RayActor<JobMaster> masterActor) {
 
-    // set worker internal config
-    Map<String, String> workerInternalConfig = new HashMap<>();
-    workerInternalConfig.put(WorkerInternalConfig.WORKER_NAME, executionVertex.getVertexName());
-    workerInternalConfig.put(WorkerInternalConfig.WORKER_TYPE, executionVertex.getVertextType().name());
-    workerInternalConfig.put(WorkerInternalConfig.OP_NAME, executionVertex.getVertexName());
-    workerInternalConfig.put(WorkerInternalConfig.TASK_ID, executionVertex.getVertexId() + "");
-    executionVertex.getJobConfig().putAll(workerInternalConfig);
-
     // create worker context
     JobWorkerContext ctx = new JobWorkerContext(
         executionVertex.getWorkerActorId(),
@@ -217,7 +201,12 @@ public class JobScheduler implements IJobScheduler {
     // pass worker config template (common part)
     workerConfMap.putAll(workerConfigTemplate.configMap);
 
-    // TODO: extra config
+    // set worker internal config
+    workerConfMap.put(WorkerInternalConfig.WORKER_NAME, executionVertex.getVertexName());
+    workerConfMap.put(WorkerInternalConfig.WORKER_TYPE, executionVertex.getVertextType().name());
+    workerConfMap.put(WorkerInternalConfig.OP_NAME, executionVertex.getVertexName());
+    workerConfMap.put(WorkerInternalConfig.TASK_ID, executionVertex.getVertexId() + "");
+    executionVertex.getJobConfig().putAll(workerConfMap);
 
     return workerConfMap;
   }
