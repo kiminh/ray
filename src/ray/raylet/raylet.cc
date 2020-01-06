@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "ray/common/status.h"
+#include "ray/gcs/gcs_client/service_based_gcs_client.h"
 
 namespace {
 
@@ -46,12 +47,11 @@ Raylet::Raylet(boost::asio::io_service &main_service, const std::string &socket_
                const ObjectManagerConfig &object_manager_config,
                std::shared_ptr<gcs::GcsClient> gcs_client)
     : self_node_id_(ClientID::FromRandom()),
-      gcs_client_(gcs_client),
-      object_directory_(std::make_shared<ObjectDirectory>(main_service, gcs_client_)),
+      object_directory_(std::make_shared<ObjectDirectory>(main_service, gcs_client)),
       object_manager_(main_service, self_node_id_, object_manager_config,
                       object_directory_),
       node_manager_(main_service, self_node_id_, node_manager_config, object_manager_,
-                    gcs_client_, object_directory_),
+                    gcs_client, object_directory_),
       socket_name_(socket_name),
       acceptor_(main_service, local_stream_protocol::endpoint(
 #if defined(BOOST_ASIO_HAS_LOCAL_SOCKETS)
@@ -69,6 +69,12 @@ Raylet::Raylet(boost::asio::io_service &main_service, const std::string &socket_
   self_node_info_.set_object_manager_port(object_manager_.GetServerPort());
   self_node_info_.set_node_manager_port(node_manager_.GetServerPort());
   self_node_info_.set_node_manager_hostname(boost::asio::ip::host_name());
+
+  if (RayConfig::instance().gcs_service_enabled()) {
+    gcs_client_ = std::make_shared<gcs::ServiceBasedGcsClient>(gcs_client->GetOptions());
+  } else {
+    gcs_client_ = gcs_client;
+  }
 }
 
 Raylet::~Raylet() {}

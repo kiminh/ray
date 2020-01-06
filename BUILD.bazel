@@ -398,6 +398,7 @@ cc_library(
         ":ray_util",
         ":stats_lib",
         ":worker_rpc",
+        ":service_based_gcs_client_lib",
         "@boost//:asio",
         "@boost//:process",
         "@com_github_jupp0r_prometheus_cpp//pull",
