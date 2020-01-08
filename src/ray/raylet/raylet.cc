@@ -71,7 +71,16 @@ Raylet::Raylet(boost::asio::io_service &main_service, const std::string &socket_
   self_node_info_.set_node_manager_hostname(boost::asio::ip::host_name());
 
   if (RayConfig::instance().gcs_service_enabled()) {
+    RAY_LOG(INFO) << "Gcs service enable.";
     gcs_client_ = std::make_shared<gcs::ServiceBasedGcsClient>(gcs_client->GetOptions());
+
+    thread_io_service_.reset(new std::thread([this] {
+      std::unique_ptr<boost::asio::io_service::work> work(
+          new boost::asio::io_service::work(io_service_));
+      io_service_.run();
+    }));
+
+    RAY_CHECK_OK(gcs_client_->Connect(io_service_));
   } else {
     gcs_client_ = gcs_client;
   }
@@ -94,7 +103,7 @@ void Raylet::Stop() {
 ray::Status Raylet::RegisterGcs() {
   RAY_RETURN_NOT_OK(gcs_client_->Nodes().RegisterSelf(self_node_info_));
 
-  RAY_LOG(DEBUG) << "Node manager " << self_node_id_ << " started on "
+  RAY_LOG(INFO) << "Node manager " << self_node_id_ << " started on "
                  << self_node_info_.node_manager_address() << ":"
                  << self_node_info_.node_manager_port() << " object manager at "
                  << self_node_info_.node_manager_address() << ":"

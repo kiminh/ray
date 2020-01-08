@@ -854,7 +854,7 @@ void NodeManager::ProcessClientMessage(
     const uint8_t *message_data) {
   auto registered_worker = worker_pool_.GetRegisteredWorker(client);
   auto message_type_value = static_cast<protocol::MessageType>(message_type);
-  RAY_LOG(DEBUG) << "[Worker] Message "
+  RAY_LOG(INFO) << "[Worker] Message "
                  << protocol::EnumNameMessageType(message_type_value) << "("
                  << message_type << ") from worker with PID "
                  << (registered_worker
@@ -965,6 +965,7 @@ void NodeManager::ProcessClientMessage(
 
 void NodeManager::ProcessRegisterClientRequestMessage(
     const std::shared_ptr<LocalClientConnection> &client, const uint8_t *message_data) {
+  RAY_LOG(INFO) << "00000000000000000000000000000000000";
   client->Register();
   flatbuffers::FlatBufferBuilder fbb;
   auto reply =
