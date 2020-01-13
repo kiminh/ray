@@ -164,7 +164,9 @@ class CoreWorkerTest : public ::testing::Test {
         .append(" --python_worker_command=\"" + mock_worker_executable + " " +
                 store_socket_name + " " + raylet_socket_name + " " +
                 std::to_string(port) + "\"")
-        .append(" --config_list=initial_reconstruction_timeout_milliseconds,2000,gcs_service_enabled,1")
+        .append(
+            " --config_list=initial_reconstruction_timeout_milliseconds,2000,gcs_service_"
+            "enabled,1")
         .append(" & echo $! > " + raylet_socket_name + ".pid");
 
     RAY_LOG(DEBUG) << "Ray Start command: " << ray_start_cmd;
@@ -642,411 +644,411 @@ TEST_F(ZeroNodeTest, TestTaskSpecPerf) {
                 << ", which takes " << current_time_ms() - start_ms << " ms";
 }
 
-//TEST_F(SingleNodeTest, TestDirectActorTaskSubmissionPerf) {
-//  CoreWorker driver(WorkerType::DRIVER, Language::PYTHON, raylet_store_socket_names_[0],
-//                    raylet_socket_names_[0], JobID::FromInt(1), gcs_options_, "",
-//                    "127.0.0.1", node_manager_port, nullptr);
-//  std::vector<ObjectID> object_ids;
-//  // Create an actor.
-//  std::unordered_map<std::string, double> resources;
-//  auto actor_id = CreateActorHelper(driver, resources,
-//                                    /*is_direct_call=*/true,
-//                                    /*max_reconstructions=*/0);
-//  // wait for actor creation finish.
-//  ASSERT_TRUE(WaitForDirectCallActorState(driver, actor_id, true, 30 * 1000 /* 30s */));
-//  // Test submitting some tasks with by-value args for that actor.
-//  int64_t start_ms = current_time_ms();
-//  const int num_tasks = 100000;
-//  RAY_LOG(INFO) << "start submitting " << num_tasks << " tasks";
-//  for (int i = 0; i < num_tasks; i++) {
-//    // Create arguments with PassByValue.
-//    std::vector<TaskArg> args;
-//    int64_t array[] = {SHOULD_CHECK_MESSAGE_ORDER, i};
-//    auto buffer = std::make_shared<LocalMemoryBuffer>(reinterpret_cast<uint8_t *>(array),
-//                                                      sizeof(array));
-//    args.emplace_back(TaskArg::PassByValue(std::make_shared<RayObject>(buffer, nullptr)));
-//
-//    TaskOptions options{1, false, resources};
-//    std::vector<ObjectID> return_ids;
-//    RayFunction func(ray::Language::PYTHON, {"MergeInputArgsAsOutput"});
-//
-//    RAY_CHECK_OK(driver.SubmitActorTask(actor_id, func, args, options, &return_ids));
-//    ASSERT_EQ(return_ids.size(), 1);
-//    object_ids.emplace_back(return_ids[0]);
-//  }
-//  RAY_LOG(INFO) << "finish submitting " << num_tasks << " tasks"
-//                << ", which takes " << current_time_ms() - start_ms << " ms";
-//
-//  for (const auto &object_id : object_ids) {
-//    std::vector<std::shared_ptr<RayObject>> results;
-//    RAY_CHECK_OK(driver.Get({object_id}, -1, &results));
-//    ASSERT_EQ(results.size(), 1);
-//  }
-//  RAY_LOG(INFO) << "finish executing " << num_tasks << " tasks"
-//                << ", which takes " << current_time_ms() - start_ms << " ms";
-//}
-//
-//TEST_F(ZeroNodeTest, TestWorkerContext) {
-//  auto job_id = NextJobId();
-//
-//  WorkerContext context(WorkerType::WORKER, job_id);
-//  ASSERT_TRUE(context.GetCurrentTaskID().IsNil());
-//  ASSERT_EQ(context.GetNextTaskIndex(), 1);
-//  ASSERT_EQ(context.GetNextTaskIndex(), 2);
-//  ASSERT_EQ(context.GetNextPutIndex(), 1);
-//  ASSERT_EQ(context.GetNextPutIndex(), 2);
-//
-//  auto thread_func = [&context]() {
-//    // Verify that task_index, put_index are thread-local.
-//    ASSERT_EQ(context.GetNextTaskIndex(), 1);
-//    ASSERT_EQ(context.GetNextPutIndex(), 1);
-//  };
-//
-//  std::thread async_thread(thread_func);
-//  async_thread.join();
-//
-//  // Verify that these fields are thread-local.
-//  ASSERT_EQ(context.GetNextTaskIndex(), 3);
-//  ASSERT_EQ(context.GetNextPutIndex(), 3);
-//}
-//
-//TEST_F(ZeroNodeTest, TestActorHandle) {
-//  // Test actor handle serialization and deserialization round trip.
-//  JobID job_id = NextJobId();
-//  ActorHandle original(ActorID::Of(job_id, TaskID::ForDriverTask(job_id), 0), job_id,
-//                       ObjectID::FromRandom(), Language::PYTHON, /*is_direct_call=*/false,
-//                       {});
-//  std::string output;
-//  original.Serialize(&output);
-//  ActorHandle deserialized(output);
-//  ASSERT_EQ(deserialized.GetActorID(), original.GetActorID());
-//  ASSERT_EQ(deserialized.ActorLanguage(), original.ActorLanguage());
-//  ASSERT_EQ(deserialized.ActorCreationTaskFunctionDescriptor(),
-//            original.ActorCreationTaskFunctionDescriptor());
-//
-//  // TODO: Test submission from different handles.
-//}
-//
-//TEST_F(SingleNodeTest, TestMemoryStoreProvider) {
-//  std::shared_ptr<CoreWorkerMemoryStore> provider_ptr =
-//      std::make_shared<CoreWorkerMemoryStore>();
-//
-//  auto &provider = *provider_ptr;
-//
-//  uint8_t array1[] = {1, 2, 3, 4, 5, 6, 7, 8};
-//  uint8_t array2[] = {10, 11, 12, 13, 14, 15};
-//
-//  std::vector<RayObject> buffers;
-//  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1)),
-//                       std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1) / 2));
-//  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2)),
-//                       std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2) / 2));
-//
-//  std::vector<ObjectID> ids(buffers.size());
-//  for (size_t i = 0; i < ids.size(); i++) {
-//    ids[i] = ObjectID::FromRandom().WithDirectTransportType();
-//    RAY_CHECK_OK(provider.Put(buffers[i], ids[i]));
-//  }
-//
-//  absl::flat_hash_set<ObjectID> wait_ids(ids.begin(), ids.end());
-//  absl::flat_hash_set<ObjectID> wait_results;
-//
-//  ObjectID nonexistent_id = ObjectID::FromRandom().WithDirectTransportType();
-//  WorkerContext ctx(WorkerType::WORKER, JobID::Nil());
-//  wait_ids.insert(nonexistent_id);
-//  RAY_CHECK_OK(provider.Wait(wait_ids, ids.size() + 1, 100, ctx, &wait_results));
-//  ASSERT_EQ(wait_results.size(), ids.size());
-//  ASSERT_TRUE(wait_results.count(nonexistent_id) == 0);
-//
-//  // Test Wait() where the required `num_objects` is less than size of `wait_ids`.
-//  wait_results.clear();
-//  RAY_CHECK_OK(provider.Wait(wait_ids, ids.size(), -1, ctx, &wait_results));
-//  ASSERT_EQ(wait_results.size(), ids.size());
-//  ASSERT_TRUE(wait_results.count(nonexistent_id) == 0);
-//
-//  // Test Get().
-//  bool got_exception = false;
-//  absl::flat_hash_map<ObjectID, std::shared_ptr<RayObject>> results;
-//  absl::flat_hash_set<ObjectID> ids_set(ids.begin(), ids.end());
-//  RAY_CHECK_OK(provider.Get(ids_set, -1, ctx, &results, &got_exception));
-//
-//  ASSERT_TRUE(!got_exception);
-//  ASSERT_EQ(results.size(), ids.size());
-//  for (size_t i = 0; i < ids.size(); i++) {
-//    const auto &expected = buffers[i];
-//    ASSERT_EQ(results[ids[i]]->GetData()->Size(), expected.GetData()->Size());
-//    ASSERT_EQ(memcmp(results[ids[i]]->GetData()->Data(), expected.GetData()->Data(),
-//                     expected.GetData()->Size()),
-//              0);
-//    ASSERT_EQ(results[ids[i]]->GetMetadata()->Size(), expected.GetMetadata()->Size());
-//    ASSERT_EQ(memcmp(results[ids[i]]->GetMetadata()->Data(),
-//                     expected.GetMetadata()->Data(), expected.GetMetadata()->Size()),
-//              0);
-//  }
-//
-//  // Test Delete().
-//  // clear the reference held.
-//  results.clear();
-//
-//  absl::flat_hash_set<ObjectID> plasma_object_ids;
-//  provider.Delete(ids_set, &plasma_object_ids);
-//  ASSERT_TRUE(plasma_object_ids.empty());
-//
-//  usleep(200 * 1000);
-//  ASSERT_TRUE(provider.Get(ids_set, 0, ctx, &results, &got_exception).IsTimedOut());
-//  ASSERT_TRUE(!got_exception);
-//  ASSERT_EQ(results.size(), 0);
-//
-//  // Test Wait() with objects which will become ready later.
-//  std::vector<ObjectID> ready_ids(buffers.size());
-//  std::vector<ObjectID> unready_ids(buffers.size());
-//  for (size_t i = 0; i < unready_ids.size(); i++) {
-//    ready_ids[i] = ObjectID::FromRandom().WithDirectTransportType();
-//    RAY_CHECK_OK(provider.Put(buffers[i], ready_ids[i]));
-//    unready_ids[i] = ObjectID::FromRandom().WithDirectTransportType();
-//  }
-//
-//  auto thread_func = [&unready_ids, &provider, &buffers]() {
-//    sleep(1);
-//
-//    for (size_t i = 0; i < unready_ids.size(); i++) {
-//      RAY_CHECK_OK(provider.Put(buffers[i], unready_ids[i]));
-//    }
-//  };
-//
-//  std::thread async_thread(thread_func);
-//
-//  wait_ids.clear();
-//  wait_ids.insert(ready_ids.begin(), ready_ids.end());
-//  wait_ids.insert(unready_ids.begin(), unready_ids.end());
-//  wait_results.clear();
-//
-//  // Check that only the ready ids are returned when timeout ends before thread runs.
-//  RAY_CHECK_OK(provider.Wait(wait_ids, ready_ids.size() + 1, 100, ctx, &wait_results));
-//  ASSERT_EQ(ready_ids.size(), wait_results.size());
-//  for (const auto &ready_id : ready_ids) {
-//    ASSERT_TRUE(wait_results.find(ready_id) != wait_results.end());
-//  }
-//  for (const auto &unready_id : unready_ids) {
-//    ASSERT_TRUE(wait_results.find(unready_id) == wait_results.end());
-//  }
-//
-//  wait_results.clear();
-//  // Check that enough objects are returned after the thread inserts at least one object.
-//  RAY_CHECK_OK(provider.Wait(wait_ids, ready_ids.size() + 1, 5000, ctx, &wait_results));
-//  ASSERT_TRUE(wait_results.size() >= ready_ids.size() + 1);
-//  for (const auto &ready_id : ready_ids) {
-//    ASSERT_TRUE(wait_results.find(ready_id) != wait_results.end());
-//  }
-//
-//  wait_results.clear();
-//  // Check that all objects are returned after the thread completes.
-//  async_thread.join();
-//  RAY_CHECK_OK(provider.Wait(wait_ids, wait_ids.size(), -1, ctx, &wait_results));
-//  ASSERT_EQ(wait_results.size(), ready_ids.size() + unready_ids.size());
-//  for (const auto &ready_id : ready_ids) {
-//    ASSERT_TRUE(wait_results.find(ready_id) != wait_results.end());
-//  }
-//  for (const auto &unready_id : unready_ids) {
-//    ASSERT_TRUE(wait_results.find(unready_id) != wait_results.end());
-//  }
-//}
+TEST_F(SingleNodeTest, TestDirectActorTaskSubmissionPerf) {
+  CoreWorker driver(WorkerType::DRIVER, Language::PYTHON, raylet_store_socket_names_[0],
+                    raylet_socket_names_[0], JobID::FromInt(1), gcs_options_, "",
+                    "127.0.0.1", node_manager_port, nullptr);
+  std::vector<ObjectID> object_ids;
+  // Create an actor.
+  std::unordered_map<std::string, double> resources;
+  auto actor_id = CreateActorHelper(driver, resources,
+                                    /*is_direct_call=*/true,
+                                    /*max_reconstructions=*/0);
+  // wait for actor creation finish.
+  ASSERT_TRUE(WaitForDirectCallActorState(driver, actor_id, true, 30 * 1000 /* 30s */));
+  // Test submitting some tasks with by-value args for that actor.
+  int64_t start_ms = current_time_ms();
+  const int num_tasks = 100000;
+  RAY_LOG(INFO) << "start submitting " << num_tasks << " tasks";
+  for (int i = 0; i < num_tasks; i++) {
+    // Create arguments with PassByValue.
+    std::vector<TaskArg> args;
+    int64_t array[] = {SHOULD_CHECK_MESSAGE_ORDER, i};
+    auto buffer = std::make_shared<LocalMemoryBuffer>(reinterpret_cast<uint8_t *>(array),
+                                                      sizeof(array));
+    args.emplace_back(TaskArg::PassByValue(std::make_shared<RayObject>(buffer, nullptr)));
 
-//TEST_F(SingleNodeTest, TestObjectInterface) {
-//  CoreWorker core_worker(WorkerType::DRIVER, Language::PYTHON,
-//                         raylet_store_socket_names_[0], raylet_socket_names_[0],
-//                         JobID::FromInt(1), gcs_options_, "", "127.0.0.1",
-//                         node_manager_port, nullptr);
-//
-//  uint8_t array1[] = {1, 2, 3, 4, 5, 6, 7, 8};
-//  uint8_t array2[] = {10, 11, 12, 13, 14, 15};
-//
-//  std::vector<RayObject> buffers;
-//  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1)),
-//                       std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1) / 2));
-//  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2)),
-//                       std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2) / 2));
-//
-//  std::vector<ObjectID> ids(buffers.size());
-//  for (size_t i = 0; i < ids.size(); i++) {
-//    RAY_CHECK_OK(core_worker.Put(buffers[i], &ids[i]));
-//  }
-//
-//  // Test Get().
-//  std::vector<std::shared_ptr<RayObject>> results;
-//  RAY_CHECK_OK(core_worker.Get(ids, -1, &results));
-//  ASSERT_EQ(results.size(), ids.size());
-//  for (size_t i = 0; i < ids.size(); i++) {
-//    ASSERT_EQ(*results[i]->GetData(), *buffers[i].GetData());
-//    ASSERT_EQ(*results[i]->GetMetadata(), *buffers[i].GetMetadata());
-//  }
-//
-//  // Test Get() returns early when it encounters an error.
-//  std::vector<ObjectID> ids_with_exception(ids.begin(), ids.end());
-//  ids_with_exception.push_back(ObjectID::FromRandom());
-//  std::vector<RayObject> buffers_with_exception(buffers.begin(), buffers.end());
-//  std::string error_string = std::to_string(ray::rpc::TASK_EXECUTION_EXCEPTION);
-//  char error_buffer[error_string.size()];
-//  size_t len = error_string.copy(error_buffer, error_string.size(), 0);
-//  buffers_with_exception.emplace_back(
-//      nullptr, std::make_shared<LocalMemoryBuffer>(
-//                   reinterpret_cast<uint8_t *>(error_buffer), len));
-//
-//  RAY_CHECK_OK(core_worker.Put(buffers_with_exception.back(), ids_with_exception.back()));
-//  RAY_CHECK_OK(core_worker.Get(ids_with_exception, -1, &results));
-//
-//  // Test Wait().
-//  ObjectID non_existent_id = ObjectID::FromRandom();
-//  std::vector<ObjectID> all_ids(ids);
-//  all_ids.push_back(non_existent_id);
-//
-//  std::vector<bool> wait_results;
-//  RAY_CHECK_OK(core_worker.Wait(all_ids, 2, -1, &wait_results));
-//  ASSERT_EQ(wait_results.size(), 3);
-//  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
-//
-//  RAY_CHECK_OK(core_worker.Wait(all_ids, 3, 100, &wait_results));
-//  ASSERT_EQ(wait_results.size(), 3);
-//  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
-//
-//  // Test Delete().
-//  // clear the reference held by PlasmaBuffer.
-//  results.clear();
-//  RAY_CHECK_OK(core_worker.Delete(ids, true, false));
-//
-//  // Note that Delete() calls RayletClient::FreeObjects and would not
-//  // wait for objects being deleted, so wait a while for plasma store
-//  // to process the command.
-//  usleep(200 * 1000);
-//  ASSERT_TRUE(core_worker.Get(ids, 0, &results).IsTimedOut());
-//  ASSERT_EQ(results.size(), 2);
-//  ASSERT_TRUE(!results[0]);
-//  ASSERT_TRUE(!results[1]);
-//}
-//
-//TEST_F(TwoNodeTest, TestObjectInterfaceCrossNodes) {
-//  CoreWorker worker1(WorkerType::DRIVER, Language::PYTHON, raylet_store_socket_names_[0],
-//                     raylet_socket_names_[0], NextJobId(), gcs_options_, "", "127.0.0.1",
-//                     node_manager_port, nullptr);
-//
-//  CoreWorker worker2(WorkerType::DRIVER, Language::PYTHON, raylet_store_socket_names_[1],
-//                     raylet_socket_names_[1], NextJobId(), gcs_options_, "", "127.0.0.1",
-//                     node_manager_port, nullptr);
-//
-//  uint8_t array1[] = {1, 2, 3, 4, 5, 6, 7, 8};
-//  uint8_t array2[] = {10, 11, 12, 13, 14, 15};
-//
-//  std::vector<std::shared_ptr<LocalMemoryBuffer>> buffers;
-//  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1)));
-//  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2)));
-//
-//  std::vector<ObjectID> ids(buffers.size());
-//  for (size_t i = 0; i < ids.size(); i++) {
-//    RAY_CHECK_OK(worker1.Put(RayObject(buffers[i], nullptr), &ids[i]));
-//  }
-//
-//  // Test Get() from remote node.
-//  std::vector<std::shared_ptr<RayObject>> results;
-//  RAY_CHECK_OK(worker2.Get(ids, -1, &results));
-//
-//  ASSERT_EQ(results.size(), 2);
-//  for (size_t i = 0; i < ids.size(); i++) {
-//    ASSERT_EQ(results[i]->GetData()->Size(), buffers[i]->Size());
-//    ASSERT_EQ(*(results[i]->GetData()), *buffers[i]);
-//  }
-//
-//  // Test Wait() from remote node.
-//  ObjectID non_existent_id = ObjectID::FromRandom();
-//  std::vector<ObjectID> all_ids(ids);
-//  all_ids.push_back(non_existent_id);
-//
-//  std::vector<bool> wait_results;
-//  RAY_CHECK_OK(worker2.Wait(all_ids, 2, -1, &wait_results));
-//  ASSERT_EQ(wait_results.size(), 3);
-//  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
-//
-//  RAY_CHECK_OK(worker2.Wait(all_ids, 3, 100, &wait_results));
-//  ASSERT_EQ(wait_results.size(), 3);
-//  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
-//
-//  // Test Delete() from all machines.
-//  // clear the reference held by PlasmaBuffer.
-//  results.clear();
-//  RAY_CHECK_OK(worker2.Delete(ids, false, false));
-//
-//  // Note that Delete() calls RayletClient::FreeObjects and would not
-//  // wait for objects being deleted, so wait a while for plasma store
-//  // to process the command.
-//  usleep(1000 * 1000);
-//  // Verify objects are deleted from both machines.
-//  ASSERT_TRUE(worker2.Get(ids, 0, &results).IsTimedOut());
-//  ASSERT_EQ(results.size(), 2);
-//  ASSERT_TRUE(!results[0]);
-//  ASSERT_TRUE(!results[1]);
-//
-//  // TODO(edoakes): this currently fails because the object is pinned on the
-//  // creating node. Should be fixed or removed once we decide the semantics
-//  // for Delete() with pinning.
-//  // ASSERT_TRUE(worker1.Get(ids, 0, &results).IsTimedOut());
-//  // ASSERT_EQ(results.size(), 2);
-//  // ASSERT_TRUE(!results[0]);
-//  // ASSERT_TRUE(!results[1]);
-//}
+    TaskOptions options{1, false, resources};
+    std::vector<ObjectID> return_ids;
+    RayFunction func(ray::Language::PYTHON, {"MergeInputArgsAsOutput"});
 
-//TEST_F(SingleNodeTest, TestNormalTaskLocal) {
-//  std::unordered_map<std::string, double> resources;
-//  TestNormalTask(resources);
-//}
-//
-//TEST_F(TwoNodeTest, TestNormalTaskCrossNodes) {
-//  std::unordered_map<std::string, double> resources;
-//  resources.emplace("resource1", 1);
-//  TestNormalTask(resources);
-//}
-//
-//TEST_F(SingleNodeTest, TestActorTaskLocal) {
-//  std::unordered_map<std::string, double> resources;
-//  TestActorTask(resources, false);
-//}
-//
-//TEST_F(TwoNodeTest, TestActorTaskCrossNodes) {
-//  std::unordered_map<std::string, double> resources;
-//  resources.emplace("resource1", 1);
-//  TestActorTask(resources, false);
-//}
+    RAY_CHECK_OK(driver.SubmitActorTask(actor_id, func, args, options, &return_ids));
+    ASSERT_EQ(return_ids.size(), 1);
+    object_ids.emplace_back(return_ids[0]);
+  }
+  RAY_LOG(INFO) << "finish submitting " << num_tasks << " tasks"
+                << ", which takes " << current_time_ms() - start_ms << " ms";
+
+  for (const auto &object_id : object_ids) {
+    std::vector<std::shared_ptr<RayObject>> results;
+    RAY_CHECK_OK(driver.Get({object_id}, -1, &results));
+    ASSERT_EQ(results.size(), 1);
+  }
+  RAY_LOG(INFO) << "finish executing " << num_tasks << " tasks"
+                << ", which takes " << current_time_ms() - start_ms << " ms";
+}
+
+TEST_F(ZeroNodeTest, TestWorkerContext) {
+  auto job_id = NextJobId();
+
+  WorkerContext context(WorkerType::WORKER, job_id);
+  ASSERT_TRUE(context.GetCurrentTaskID().IsNil());
+  ASSERT_EQ(context.GetNextTaskIndex(), 1);
+  ASSERT_EQ(context.GetNextTaskIndex(), 2);
+  ASSERT_EQ(context.GetNextPutIndex(), 1);
+  ASSERT_EQ(context.GetNextPutIndex(), 2);
+
+  auto thread_func = [&context]() {
+    // Verify that task_index, put_index are thread-local.
+    ASSERT_EQ(context.GetNextTaskIndex(), 1);
+    ASSERT_EQ(context.GetNextPutIndex(), 1);
+  };
+
+  std::thread async_thread(thread_func);
+  async_thread.join();
+
+  // Verify that these fields are thread-local.
+  ASSERT_EQ(context.GetNextTaskIndex(), 3);
+  ASSERT_EQ(context.GetNextPutIndex(), 3);
+}
+
+TEST_F(ZeroNodeTest, TestActorHandle) {
+  // Test actor handle serialization and deserialization round trip.
+  JobID job_id = NextJobId();
+  ActorHandle original(ActorID::Of(job_id, TaskID::ForDriverTask(job_id), 0), job_id,
+                       ObjectID::FromRandom(), Language::PYTHON, /*is_direct_call=*/false,
+                       {});
+  std::string output;
+  original.Serialize(&output);
+  ActorHandle deserialized(output);
+  ASSERT_EQ(deserialized.GetActorID(), original.GetActorID());
+  ASSERT_EQ(deserialized.ActorLanguage(), original.ActorLanguage());
+  ASSERT_EQ(deserialized.ActorCreationTaskFunctionDescriptor(),
+            original.ActorCreationTaskFunctionDescriptor());
+
+  // TODO: Test submission from different handles.
+}
+
+TEST_F(SingleNodeTest, TestMemoryStoreProvider) {
+  std::shared_ptr<CoreWorkerMemoryStore> provider_ptr =
+      std::make_shared<CoreWorkerMemoryStore>();
+
+  auto &provider = *provider_ptr;
+
+  uint8_t array1[] = {1, 2, 3, 4, 5, 6, 7, 8};
+  uint8_t array2[] = {10, 11, 12, 13, 14, 15};
+
+  std::vector<RayObject> buffers;
+  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1)),
+                       std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1) / 2));
+  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2)),
+                       std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2) / 2));
+
+  std::vector<ObjectID> ids(buffers.size());
+  for (size_t i = 0; i < ids.size(); i++) {
+    ids[i] = ObjectID::FromRandom().WithDirectTransportType();
+    RAY_CHECK_OK(provider.Put(buffers[i], ids[i]));
+  }
+
+  absl::flat_hash_set<ObjectID> wait_ids(ids.begin(), ids.end());
+  absl::flat_hash_set<ObjectID> wait_results;
+
+  ObjectID nonexistent_id = ObjectID::FromRandom().WithDirectTransportType();
+  WorkerContext ctx(WorkerType::WORKER, JobID::Nil());
+  wait_ids.insert(nonexistent_id);
+  RAY_CHECK_OK(provider.Wait(wait_ids, ids.size() + 1, 100, ctx, &wait_results));
+  ASSERT_EQ(wait_results.size(), ids.size());
+  ASSERT_TRUE(wait_results.count(nonexistent_id) == 0);
+
+  // Test Wait() where the required `num_objects` is less than size of `wait_ids`.
+  wait_results.clear();
+  RAY_CHECK_OK(provider.Wait(wait_ids, ids.size(), -1, ctx, &wait_results));
+  ASSERT_EQ(wait_results.size(), ids.size());
+  ASSERT_TRUE(wait_results.count(nonexistent_id) == 0);
+
+  // Test Get().
+  bool got_exception = false;
+  absl::flat_hash_map<ObjectID, std::shared_ptr<RayObject>> results;
+  absl::flat_hash_set<ObjectID> ids_set(ids.begin(), ids.end());
+  RAY_CHECK_OK(provider.Get(ids_set, -1, ctx, &results, &got_exception));
+
+  ASSERT_TRUE(!got_exception);
+  ASSERT_EQ(results.size(), ids.size());
+  for (size_t i = 0; i < ids.size(); i++) {
+    const auto &expected = buffers[i];
+    ASSERT_EQ(results[ids[i]]->GetData()->Size(), expected.GetData()->Size());
+    ASSERT_EQ(memcmp(results[ids[i]]->GetData()->Data(), expected.GetData()->Data(),
+                     expected.GetData()->Size()),
+              0);
+    ASSERT_EQ(results[ids[i]]->GetMetadata()->Size(), expected.GetMetadata()->Size());
+    ASSERT_EQ(memcmp(results[ids[i]]->GetMetadata()->Data(),
+                     expected.GetMetadata()->Data(), expected.GetMetadata()->Size()),
+              0);
+  }
+
+  // Test Delete().
+  // clear the reference held.
+  results.clear();
+
+  absl::flat_hash_set<ObjectID> plasma_object_ids;
+  provider.Delete(ids_set, &plasma_object_ids);
+  ASSERT_TRUE(plasma_object_ids.empty());
+
+  usleep(200 * 1000);
+  ASSERT_TRUE(provider.Get(ids_set, 0, ctx, &results, &got_exception).IsTimedOut());
+  ASSERT_TRUE(!got_exception);
+  ASSERT_EQ(results.size(), 0);
+
+  // Test Wait() with objects which will become ready later.
+  std::vector<ObjectID> ready_ids(buffers.size());
+  std::vector<ObjectID> unready_ids(buffers.size());
+  for (size_t i = 0; i < unready_ids.size(); i++) {
+    ready_ids[i] = ObjectID::FromRandom().WithDirectTransportType();
+    RAY_CHECK_OK(provider.Put(buffers[i], ready_ids[i]));
+    unready_ids[i] = ObjectID::FromRandom().WithDirectTransportType();
+  }
+
+  auto thread_func = [&unready_ids, &provider, &buffers]() {
+    sleep(1);
+
+    for (size_t i = 0; i < unready_ids.size(); i++) {
+      RAY_CHECK_OK(provider.Put(buffers[i], unready_ids[i]));
+    }
+  };
+
+  std::thread async_thread(thread_func);
+
+  wait_ids.clear();
+  wait_ids.insert(ready_ids.begin(), ready_ids.end());
+  wait_ids.insert(unready_ids.begin(), unready_ids.end());
+  wait_results.clear();
+
+  // Check that only the ready ids are returned when timeout ends before thread runs.
+  RAY_CHECK_OK(provider.Wait(wait_ids, ready_ids.size() + 1, 100, ctx, &wait_results));
+  ASSERT_EQ(ready_ids.size(), wait_results.size());
+  for (const auto &ready_id : ready_ids) {
+    ASSERT_TRUE(wait_results.find(ready_id) != wait_results.end());
+  }
+  for (const auto &unready_id : unready_ids) {
+    ASSERT_TRUE(wait_results.find(unready_id) == wait_results.end());
+  }
+
+  wait_results.clear();
+  // Check that enough objects are returned after the thread inserts at least one object.
+  RAY_CHECK_OK(provider.Wait(wait_ids, ready_ids.size() + 1, 5000, ctx, &wait_results));
+  ASSERT_TRUE(wait_results.size() >= ready_ids.size() + 1);
+  for (const auto &ready_id : ready_ids) {
+    ASSERT_TRUE(wait_results.find(ready_id) != wait_results.end());
+  }
+
+  wait_results.clear();
+  // Check that all objects are returned after the thread completes.
+  async_thread.join();
+  RAY_CHECK_OK(provider.Wait(wait_ids, wait_ids.size(), -1, ctx, &wait_results));
+  ASSERT_EQ(wait_results.size(), ready_ids.size() + unready_ids.size());
+  for (const auto &ready_id : ready_ids) {
+    ASSERT_TRUE(wait_results.find(ready_id) != wait_results.end());
+  }
+  for (const auto &unready_id : unready_ids) {
+    ASSERT_TRUE(wait_results.find(unready_id) != wait_results.end());
+  }
+}
+
+TEST_F(SingleNodeTest, TestObjectInterface) {
+  CoreWorker core_worker(WorkerType::DRIVER, Language::PYTHON,
+                         raylet_store_socket_names_[0], raylet_socket_names_[0],
+                         JobID::FromInt(1), gcs_options_, "", "127.0.0.1",
+                         node_manager_port, nullptr);
+
+  uint8_t array1[] = {1, 2, 3, 4, 5, 6, 7, 8};
+  uint8_t array2[] = {10, 11, 12, 13, 14, 15};
+
+  std::vector<RayObject> buffers;
+  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1)),
+                       std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1) / 2));
+  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2)),
+                       std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2) / 2));
+
+  std::vector<ObjectID> ids(buffers.size());
+  for (size_t i = 0; i < ids.size(); i++) {
+    RAY_CHECK_OK(core_worker.Put(buffers[i], &ids[i]));
+  }
+
+  // Test Get().
+  std::vector<std::shared_ptr<RayObject>> results;
+  RAY_CHECK_OK(core_worker.Get(ids, -1, &results));
+  ASSERT_EQ(results.size(), ids.size());
+  for (size_t i = 0; i < ids.size(); i++) {
+    ASSERT_EQ(*results[i]->GetData(), *buffers[i].GetData());
+    ASSERT_EQ(*results[i]->GetMetadata(), *buffers[i].GetMetadata());
+  }
+
+  // Test Get() returns early when it encounters an error.
+  std::vector<ObjectID> ids_with_exception(ids.begin(), ids.end());
+  ids_with_exception.push_back(ObjectID::FromRandom());
+  std::vector<RayObject> buffers_with_exception(buffers.begin(), buffers.end());
+  std::string error_string = std::to_string(ray::rpc::TASK_EXECUTION_EXCEPTION);
+  char error_buffer[error_string.size()];
+  size_t len = error_string.copy(error_buffer, error_string.size(), 0);
+  buffers_with_exception.emplace_back(
+      nullptr, std::make_shared<LocalMemoryBuffer>(
+                   reinterpret_cast<uint8_t *>(error_buffer), len));
+
+  RAY_CHECK_OK(core_worker.Put(buffers_with_exception.back(), ids_with_exception.back()));
+  RAY_CHECK_OK(core_worker.Get(ids_with_exception, -1, &results));
+
+  // Test Wait().
+  ObjectID non_existent_id = ObjectID::FromRandom();
+  std::vector<ObjectID> all_ids(ids);
+  all_ids.push_back(non_existent_id);
+
+  std::vector<bool> wait_results;
+  RAY_CHECK_OK(core_worker.Wait(all_ids, 2, -1, &wait_results));
+  ASSERT_EQ(wait_results.size(), 3);
+  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
+
+  RAY_CHECK_OK(core_worker.Wait(all_ids, 3, 100, &wait_results));
+  ASSERT_EQ(wait_results.size(), 3);
+  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
+
+  // Test Delete().
+  // clear the reference held by PlasmaBuffer.
+  results.clear();
+  RAY_CHECK_OK(core_worker.Delete(ids, true, false));
+
+  // Note that Delete() calls RayletClient::FreeObjects and would not
+  // wait for objects being deleted, so wait a while for plasma store
+  // to process the command.
+  usleep(200 * 1000);
+  ASSERT_TRUE(core_worker.Get(ids, 0, &results).IsTimedOut());
+  ASSERT_EQ(results.size(), 2);
+  ASSERT_TRUE(!results[0]);
+  ASSERT_TRUE(!results[1]);
+}
+
+TEST_F(TwoNodeTest, TestObjectInterfaceCrossNodes) {
+  CoreWorker worker1(WorkerType::DRIVER, Language::PYTHON, raylet_store_socket_names_[0],
+                     raylet_socket_names_[0], NextJobId(), gcs_options_, "", "127.0.0.1",
+                     node_manager_port, nullptr);
+
+  CoreWorker worker2(WorkerType::DRIVER, Language::PYTHON, raylet_store_socket_names_[1],
+                     raylet_socket_names_[1], NextJobId(), gcs_options_, "", "127.0.0.1",
+                     node_manager_port, nullptr);
+
+  uint8_t array1[] = {1, 2, 3, 4, 5, 6, 7, 8};
+  uint8_t array2[] = {10, 11, 12, 13, 14, 15};
+
+  std::vector<std::shared_ptr<LocalMemoryBuffer>> buffers;
+  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array1, sizeof(array1)));
+  buffers.emplace_back(std::make_shared<LocalMemoryBuffer>(array2, sizeof(array2)));
+
+  std::vector<ObjectID> ids(buffers.size());
+  for (size_t i = 0; i < ids.size(); i++) {
+    RAY_CHECK_OK(worker1.Put(RayObject(buffers[i], nullptr), &ids[i]));
+  }
+
+  // Test Get() from remote node.
+  std::vector<std::shared_ptr<RayObject>> results;
+  RAY_CHECK_OK(worker2.Get(ids, -1, &results));
+
+  ASSERT_EQ(results.size(), 2);
+  for (size_t i = 0; i < ids.size(); i++) {
+    ASSERT_EQ(results[i]->GetData()->Size(), buffers[i]->Size());
+    ASSERT_EQ(*(results[i]->GetData()), *buffers[i]);
+  }
+
+  // Test Wait() from remote node.
+  ObjectID non_existent_id = ObjectID::FromRandom();
+  std::vector<ObjectID> all_ids(ids);
+  all_ids.push_back(non_existent_id);
+
+  std::vector<bool> wait_results;
+  RAY_CHECK_OK(worker2.Wait(all_ids, 2, -1, &wait_results));
+  ASSERT_EQ(wait_results.size(), 3);
+  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
+
+  RAY_CHECK_OK(worker2.Wait(all_ids, 3, 100, &wait_results));
+  ASSERT_EQ(wait_results.size(), 3);
+  ASSERT_EQ(wait_results, std::vector<bool>({true, true, false}));
+
+  // Test Delete() from all machines.
+  // clear the reference held by PlasmaBuffer.
+  results.clear();
+  RAY_CHECK_OK(worker2.Delete(ids, false, false));
+
+  // Note that Delete() calls RayletClient::FreeObjects and would not
+  // wait for objects being deleted, so wait a while for plasma store
+  // to process the command.
+  usleep(1000 * 1000);
+  // Verify objects are deleted from both machines.
+  ASSERT_TRUE(worker2.Get(ids, 0, &results).IsTimedOut());
+  ASSERT_EQ(results.size(), 2);
+  ASSERT_TRUE(!results[0]);
+  ASSERT_TRUE(!results[1]);
+
+  // TODO(edoakes): this currently fails because the object is pinned on the
+  // creating node. Should be fixed or removed once we decide the semantics
+  // for Delete() with pinning.
+  // ASSERT_TRUE(worker1.Get(ids, 0, &results).IsTimedOut());
+  // ASSERT_EQ(results.size(), 2);
+  // ASSERT_TRUE(!results[0]);
+  // ASSERT_TRUE(!results[1]);
+}
+
+TEST_F(SingleNodeTest, TestNormalTaskLocal) {
+  std::unordered_map<std::string, double> resources;
+  TestNormalTask(resources);
+}
+
+TEST_F(TwoNodeTest, TestNormalTaskCrossNodes) {
+  std::unordered_map<std::string, double> resources;
+  resources.emplace("resource1", 1);
+  TestNormalTask(resources);
+}
+
+TEST_F(SingleNodeTest, TestActorTaskLocal) {
+  std::unordered_map<std::string, double> resources;
+  TestActorTask(resources, false);
+}
+
+TEST_F(TwoNodeTest, TestActorTaskCrossNodes) {
+  std::unordered_map<std::string, double> resources;
+  resources.emplace("resource1", 1);
+  TestActorTask(resources, false);
+}
 
 TEST_F(SingleNodeTest, TestDirectActorTaskLocal) {
   std::unordered_map<std::string, double> resources;
   TestActorTask(resources, true);
 }
 
-//TEST_F(TwoNodeTest, TestDirectActorTaskCrossNodes) {
-//  std::unordered_map<std::string, double> resources;
-//  resources.emplace("resource1", 1);
-//  TestActorTask(resources, true);
-//}
-//
-//TEST_F(SingleNodeTest, TestDirectActorTaskLocalReconstruction) {
-//  std::unordered_map<std::string, double> resources;
-//  TestActorReconstruction(resources, true);
-//}
-//
-//TEST_F(TwoNodeTest, TestDirectActorTaskCrossNodesReconstruction) {
-//  std::unordered_map<std::string, double> resources;
-//  resources.emplace("resource1", 1);
-//  TestActorReconstruction(resources, true);
-//}
-//
-//TEST_F(SingleNodeTest, TestDirectActorTaskLocalFailure) {
-//  std::unordered_map<std::string, double> resources;
-//  TestActorFailure(resources, true);
-//}
-//
-//TEST_F(TwoNodeTest, TestDirectActorTaskCrossNodesFailure) {
-//  std::unordered_map<std::string, double> resources;
-//  resources.emplace("resource1", 1);
-//  TestActorFailure(resources, true);
-//}
+TEST_F(TwoNodeTest, TestDirectActorTaskCrossNodes) {
+  std::unordered_map<std::string, double> resources;
+  resources.emplace("resource1", 1);
+  TestActorTask(resources, true);
+}
+
+TEST_F(SingleNodeTest, TestDirectActorTaskLocalReconstruction) {
+  std::unordered_map<std::string, double> resources;
+  TestActorReconstruction(resources, true);
+}
+
+TEST_F(TwoNodeTest, TestDirectActorTaskCrossNodesReconstruction) {
+  std::unordered_map<std::string, double> resources;
+  resources.emplace("resource1", 1);
+  TestActorReconstruction(resources, true);
+}
+
+TEST_F(SingleNodeTest, TestDirectActorTaskLocalFailure) {
+  std::unordered_map<std::string, double> resources;
+  TestActorFailure(resources, true);
+}
+
+TEST_F(TwoNodeTest, TestDirectActorTaskCrossNodesFailure) {
+  std::unordered_map<std::string, double> resources;
+  resources.emplace("resource1", 1);
+  TestActorFailure(resources, true);
+}
 
 }  // namespace ray
 
