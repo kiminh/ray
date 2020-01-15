@@ -16,6 +16,19 @@ namespace ray {
 
 namespace raylet {
 
+/// This class is used to represents a
+class RayWorkerCommand {
+ public:
+
+  static RayWorkerCommand from(const TaskSpec &task_spec) {
+
+    return RayWorkerCommand();
+  }
+
+ private:
+  std::vector<std::string> command_;
+};
+
 /// Worker class encapsulates the implementation details of a worker. A worker
 /// is the execution container around a unit of Ray work, such as a task or an
 /// actor. Ray units of work execute in the context of a Worker.
