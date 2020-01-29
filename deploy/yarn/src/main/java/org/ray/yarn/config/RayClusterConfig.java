@@ -3,7 +3,6 @@ package org.ray.yarn.config;
 import com.google.common.collect.Maps;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * Configuration for Ray Cluster Setup
@@ -11,9 +10,9 @@ import org.apache.commons.lang.StringUtils;
 public class RayClusterConfig extends AppConfig {
 
   // Amt of memory to request for container in which shell script will be executed
-  int containerMemory = 10;
+  long containerMemory = 10;
   // Amt. of virtual cores to request for container in which shell script will be executed
-  int containerVirtualCores = 1;
+  int containerVCores = 1;
   // No. of containers in which the shell script needs to be executed
   int numContainers = 1;
   // Node Label to schedule
@@ -63,29 +62,29 @@ public class RayClusterConfig extends AppConfig {
       numRoles.put("work", 1);
     }
 
-    if (containerMemory < 0 || containerVirtualCores < 0 || numContainers < 1) {
+    if (containerMemory < 0 || containerVCores < 0 || numContainers < 1) {
       throw new IllegalArgumentException(
           "Invalid no. of containers or container memory/vcores specified," + " exiting."
-              + " Specified containerMemory=" + containerMemory + ", containerVirtualCores="
-              + containerVirtualCores + ", numContainer=" + numContainers);
+              + " Specified containerMemory=" + containerMemory + ", containerVCores="
+              + containerVCores + ", numContainer=" + numContainers);
     }
 
   }
 
-  public int getContainerMemory() {
+  public long getContainerMemory() {
     return containerMemory;
   }
 
-  public void setContainerMemory(int containerMemory) {
+  public void setContainerMemory(long containerMemory) {
     this.containerMemory = containerMemory;
   }
 
-  public int getContainerVirtualCores() {
-    return containerVirtualCores;
+  public int getContainerVCores() {
+    return containerVCores;
   }
 
-  public void setContainerVirtualCores(int containerVirtualCores) {
-    this.containerVirtualCores = containerVirtualCores;
+  public void setContainerVCores(int containerVCores) {
+    this.containerVCores = containerVCores;
   }
 
   public int getNumContainers() {

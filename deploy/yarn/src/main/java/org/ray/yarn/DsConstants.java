@@ -11,6 +11,10 @@ import org.apache.hadoop.classification.InterfaceStability;
 public class DsConstants {
 
   /**
+   * Ray configuration file option
+   */
+  public static final String RAY_CONF_PARAM = "ray-conf";
+  /**
    * Environment key name pointing to the shell script's location.
    */
   public static final String RAY_ARCHIVE_LOCATION = "RAY_ARCHIVE_LOCATION";

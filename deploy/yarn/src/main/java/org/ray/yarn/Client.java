@@ -79,7 +79,6 @@ public class Client {
 
   private static final String appMasterJarPath = "AppMaster.jar";
   private static final String log4jPath = "log4j.properties";
-  private static final String rayConfParam = "ray-conf";
 
   // Configuration
   RayClusterConfig rayConf = null;
@@ -129,7 +128,7 @@ public class Client {
     opts = new Options();
 
     opts.addOption("help", false, "Print usage");
-    opts.addOption(rayConfParam, true, "Ray Yarn Configuration");
+    opts.addOption(DsConstants.RAY_CONF_PARAM, true, "Ray Yarn Configuration");
   }
 
   public Client() throws Exception {
@@ -162,16 +161,17 @@ public class Client {
       return false;
     }
 
-    if (!cliParser.hasOption(rayConfParam)) {
-      throw new IllegalArgumentException(rayConfParam + " must be specified");
+    if (!cliParser.hasOption(DsConstants.RAY_CONF_PARAM)) {
+      throw new IllegalArgumentException(DsConstants.RAY_CONF_PARAM + " must be specified");
     }
 
-    String rayConfPath = cliParser.getOptionValue(rayConfParam);
+    String rayConfPath = cliParser.getOptionValue(DsConstants.RAY_CONF_PARAM);
     try {
       rayConf = YamlUtil.loadFile(rayConfPath, RayClusterConfig.class);
       rayConf.validate();
     } catch (IOException e) {
       logger.error("Fail to read ray configuration from file " + rayConfPath);
+      throw new RuntimeException("Fail to read ray configuration from file", e);
     }
 
     // FIXME
@@ -358,7 +358,7 @@ public class Client {
     vargs.add(appMasterMainClass);
     // Set params for Application Master
     vargs.add("--containerMemory " + String.valueOf(rayConf.getContainerMemory()));
-    vargs.add("--containerVcores " + String.valueOf(rayConf.getContainerVirtualCores()));
+    vargs.add("--containerVcores " + String.valueOf(rayConf.getContainerVCores()));
     vargs.add("--numContainers " + String.valueOf(rayConf.getNumContainers()));
     // TODO replace with conf file
 

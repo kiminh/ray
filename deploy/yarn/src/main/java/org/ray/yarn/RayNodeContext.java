@@ -8,15 +8,26 @@ public class RayNodeContext {
     this.role = role;
   }
 
+  public RayNodeContext(String role, Long requestId) {
+    this.role = role;
+    this.requestId = requestId;
+  }
+
   String role;
 
   boolean isRunning = false;
 
-  boolean isAlocating = false;
+  boolean isAllocating = false;
+
+  boolean isReleasing = false;
+
+  boolean isCompleted = false;
 
   String instanceId = null;
 
   Container container = null;
 
   int failCounter = 0;
+
+  Long requestId;
 }
