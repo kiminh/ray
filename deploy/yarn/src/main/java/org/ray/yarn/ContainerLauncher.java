@@ -1,5 +1,6 @@
 package org.ray.yarn;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -20,6 +21,7 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.URL;
+import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 
 /**
  * Thread to connect to the {@link ContainerManagementProtocol} and launch the container that will
@@ -34,7 +36,9 @@ public class ContainerLauncher implements Runnable {
   private String role;
   private long sleepMillis = 0;
 
-  NmCallbackHandler containerListener;
+  static NmCallbackHandler containerListener;
+  NMClientAsync nmClientAsync;
+  ApplicationMasterState amState = null;
 
   public ContainerLauncher(Container lcontainer, NmCallbackHandler containerListener,
       String rayInstanceId, String role, long sleepMillis) {
@@ -69,57 +73,18 @@ public class ContainerLauncher implements Runnable {
     // resources too.
     // In this scenario, if a shell script is specified, we need to have it
     // copied and made available to the container.
-    String rayArchiveFileLocalPath = "Ray-package";
-    if (!rayArchiveFile.isEmpty()) {
-      Path rayArchivePath = new Path(rayArchiveFile);
-
-      URL yarnUrl = null;
-      try {
-        yarnUrl = URL.fromURI(new URI(rayArchivePath.toString()));
-      } catch (URISyntaxException e) {
-        logger.error("Error when trying to use Ray archive path specified" + " in env, path="
-            + rayArchivePath, e);
-        // A failure scenario on bad input such as invalid shell script path
-        // We know we cannot continue launching the container
-        // so we should release it.
-        // TODO
-        numCompletedContainers.incrementAndGet();
-        numFailedContainers.incrementAndGet();
-        return;
-      }
-      LocalResource rayRsrc = LocalResource.newInstance(yarnUrl, LocalResourceType.ARCHIVE,
-          LocalResourceVisibility.APPLICATION, rayArchiveFileLen, rayArchiveFileTimestamp);
-      localResources.put(rayArchiveFileLocalPath, rayRsrc);
-      shellCommand = LINUX_BASH_COMMEND;
-    }
+    // TODO add resources
 
     // Set the necessary command to execute on the allocated container
     Vector<CharSequence> vargs = new Vector<CharSequence>(5);
 
-    // Set executable command
-    vargs.add(shellCommand);
-    // Set shell script path
-    if (!rayArchiveFile.isEmpty()) {
-      vargs.add(rayArchiveFileLocalPath + "/" + rayShellStringPath);
-    }
-
     // Set args based on role
     switch (role) {
       case "head":
-        vargs.add("--head");
-        vargs.add("--redis-address");
-        vargs.add(redisAddress);
-        if (headNodeStaticArgs != null) {
-          vargs.add(headNodeStaticArgs);
-        }
+        // TODO
         break;
       case "work":
-        //vargs.add("--work");
-        vargs.add("--redis_port");
-        vargs.add(String.valueOf(redisPort));
-        if (workNodeStaticArgs != null) {
-          vargs.add(workNodeStaticArgs);
-        }
+        // TODO set env redis address
         break;
       default:
         break;
@@ -133,9 +98,6 @@ public class ContainerLauncher implements Runnable {
     } catch (UnknownHostException e) {
       e.printStackTrace();
     }
-
-    // Set args for the shell command if any
-    vargs.add(shellArgs);
 
     // Add log redirect params
     vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
@@ -153,12 +115,18 @@ public class ContainerLauncher implements Runnable {
 
     // Set up ContainerLaunchContext, setting local resource, environment,
     // command and token for constructor.
-
-    Map<String, String> myShellEnv = new HashMap<String, String>(shellEnv);
-    myShellEnv.put(YARN_SHELL_ID, rayInstanceId);
+    Map<String, String> myShellEnv = new HashMap<String, String>();
     ContainerLaunchContext ctx = ContainerLaunchContext.newInstance(localResources, myShellEnv,
-        commands, null, allTokens.duplicate(), null);
+        commands, null, amState.allTokens.duplicate(), null);
     containerListener.addContainer(container.getId(), container);
     nmClientAsync.startContainerAsync(container, ctx);
+  }
+
+  @VisibleForTesting
+  public static Thread create(Container allocatedContainer, String shellId, String role,
+      long sleepMillis) {
+    ContainerLauncher runnableLaunchContainer = new ContainerLauncher(
+        allocatedContainer, containerListener, shellId, role, sleepMillis);
+    return new Thread(runnableLaunchContainer);
   }
 }

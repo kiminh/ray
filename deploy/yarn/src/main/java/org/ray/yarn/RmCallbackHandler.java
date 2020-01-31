@@ -1,19 +1,28 @@
 package org.ray.yarn;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeReport;
+import org.apache.hadoop.yarn.api.records.Priority;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.UpdatedContainer;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
+import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
+import org.apache.hadoop.yarn.client.api.TimelineClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.ray.yarn.config.RayClusterConfig;
+import org.ray.yarn.utils.TimelineUtils;
 
 public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
 
@@ -22,6 +31,10 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
   private final ApplicationMasterState amState = null;
   private final NMClientAsync nmClientAsync = null;
   private final AMRMClientAsync amRmClient = null;
+  private final TimelineClient timelineClient = null;
+  private final List<Thread> launchThreads = new ArrayList<Thread>();
+  private final UserGroupInformation appSubmitterUgi = null;
+  private final Configuration yarnConf = null;
 
   @Override
   public void onContainersCompleted(List<ContainerStatus> completedContainers) {
@@ -38,7 +51,7 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
       assert (containerStatus.getState() == ContainerState.COMPLETE);
       // ignore containers we know nothing about - probably from a previous
       // attempt
-      if (!launchedContainers.contains(containerStatus.getContainerId())) {
+      if (!amState.launchedContainers.contains(containerStatus.getContainerId())) {
         logger.info("Ignoring completed status of " + containerStatus.getContainerId()
             + "; unknown container(probably launched by previous attempt)");
         continue;
@@ -109,7 +122,7 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
             + containerStatus.getContainerId());
       }
       if (timelineClient != null) {
-        publishContainerEndEvent(timelineClient, containerStatus, domainId, appSubmitterUgi);
+        TimelineUtils.publishContainerEndEvent(timelineClient, containerStatus, rayConf.getDomainId(), appSubmitterUgi, yarnConf);
       }
 
       if (restartClasterFlag) {
@@ -161,7 +174,7 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
         } else {
           shouldSleep = true;
         }
-        launchThread = createLaunchContainerThread(allocatedContainer, rayInstanceId, node.role,
+        launchThread = ContainerLauncher.create(allocatedContainer, rayInstanceId, node.role,
             shouldSleep ? 20000 : 0);
         break;
       }
@@ -185,7 +198,7 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
       // the main thread unblocked
       // as all containers may not be allocated at one go.
       launchThreads.add(launchThread);
-      launchedContainers.add(allocatedContainer.getId());
+      amState.launchedContainers.add(allocatedContainer.getId());
       launchThread.start();
     }
   }
@@ -216,4 +229,41 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
     amState.done = true;
     amRmClient.stop();
   }
+
+  private int setupContainerRequest() {
+    int requestCount = 0;
+    for (RayNodeContext nodeContext : amState.indexToNode) {
+      if (nodeContext.isRunning == false && nodeContext.isAllocating == false) {
+        ContainerRequest containerAsk = setupContainerAskForRm();
+        amRmClient.addContainerRequest(containerAsk);
+        requestCount++;
+        nodeContext.isAllocating = true;
+        logger.info("Setup container request: " + containerAsk);
+      }
+    }
+    logger.info("Setup container request, count is " + requestCount);
+    return requestCount;
+  }
+
+  /**
+   * Setup the request that will be sent to the RM for the container ask.
+   *
+   * @return the setup ResourceRequest to be sent to RM
+   */
+  private ContainerRequest setupContainerAskForRm() {
+    // setup requirements for hosts
+    // using * as any host will do for the distributed shell app
+    // set the priority for the request
+    Priority pri = Priority.newInstance(rayConf.getShellCmdPriority());
+
+    // Set up resource type requirements
+    // For now, memory and CPU are supported so we set memory and cpu requirements
+    Resource capability = Resource
+        .newInstance(rayConf.getContainerMemory(), rayConf.getContainerVCores());
+
+    ContainerRequest request = new ContainerRequest(capability, null, null, pri);
+    logger.info("Requested container ask: " + request.toString());
+    return request;
+  }
+
 }
