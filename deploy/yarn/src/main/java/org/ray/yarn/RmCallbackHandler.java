@@ -10,11 +10,18 @@ import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.UpdatedContainer;
+import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
+import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
+import org.ray.yarn.config.RayClusterConfig;
 
 public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
 
   public static final Log logger = LogFactory.getLog(RmCallbackHandler.class);
+  private final RayClusterConfig rayConf = null;
+  private final ApplicationMasterState amState = null;
+  private final NMClientAsync nmClientAsync = null;
+  private final AMRMClientAsync amRmClient = null;
 
   @Override
   public void onContainersCompleted(List<ContainerStatus> completedContainers) {
@@ -22,7 +29,7 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
     logger.info(
         "Got response from RM for container ask, completedCnt=" + completedContainers.size());
     for (ContainerStatus containerStatus : completedContainers) {
-      logger.info(appAttemptId + " got container status for containerID="
+      logger.info(amState.appAttemptId + " got container status for containerID="
           + containerStatus.getContainerId() + ", state=" + containerStatus.getState()
           + ", exitStatus=" + containerStatus.getExitStatus() + ", diagnostics="
           + containerStatus.getDiagnostics());
@@ -42,7 +49,7 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
       if (0 != exitStatus) {
         // container failed
         logger.info("container failed, exit status is " + exitStatus);
-        for (RayNodeContext node : indexToNode) {
+        for (RayNodeContext node : amState.indexToNode) {
           if (node.container != null
               && node.container.getId().equals(containerStatus.getContainerId())) {
             logger.info("ray node failed, the role is " + node.role);
@@ -60,12 +67,12 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
             node.container = null;
             node.failCounter++;
 
-            if (disableProcessFo) {
+            if (rayConf.isDisableProcessFo()) {
               logger.info("process failover is disable, ignore container failed");
               break;
             }
 
-            if (supremeFo) {
+            if (rayConf.isSupremeFo()) {
               logger.info("Start supreme failover");
               restartClasterFlag = true;
             }
@@ -73,15 +80,15 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
             if (node.role == "head") {
               restartClasterFlag = true;
             }
-            numAllocatedContainers.decrementAndGet();
-            numRequestedContainers.decrementAndGet();
+            amState.numAllocatedContainers.decrementAndGet();
+            amState.numRequestedContainers.decrementAndGet();
             break;
           }
         }
 
         if (restartClasterFlag) {
           logger.info("restart all the Container of ray node");
-          for (RayNodeContext node : indexToNode) {
+          for (RayNodeContext node : amState.indexToNode) {
             if (node.isRunning && node.container != null) {
               amRmClient.releaseAssignedContainer(node.container.getId());
               node.isRunning = false;
@@ -89,15 +96,15 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
               node.instanceId = null;
               node.container = null;
               node.failCounter++;
-              numAllocatedContainers.decrementAndGet();
-              numRequestedContainers.decrementAndGet();
+              amState.numAllocatedContainers.decrementAndGet();
+              amState.numRequestedContainers.decrementAndGet();
             }
           }
         }
       } else {
         // nothing to do
         // container completed successfully
-        numCompletedContainers.incrementAndGet();
+        amState.numCompletedContainers.incrementAndGet();
         logger.info("Container completed successfully." + ", containerId="
             + containerStatus.getContainerId());
       }
@@ -111,15 +118,15 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
     }
 
     // ask for more containers if any failed
-    int askCount = numTotalContainers - numRequestedContainers.get();
-    numRequestedContainers.addAndGet(askCount);
+    int askCount = amState.numTotalContainers - amState.numRequestedContainers.get();
+    amState.numRequestedContainers.addAndGet(askCount);
 
     int requestCount = setupContainerRequest();
     assert requestCount == askCount : "The request count is inconsistent(onContainersCompleted): "
         + requestCount + " != " + askCount;
 
-    if (numCompletedContainers.get() == numTotalContainers) {
-      done = true;
+    if (amState.numCompletedContainers.get() == amState.numTotalContainers) {
+      amState.done = true;
     }
   }
 
@@ -127,29 +134,29 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
   public void onContainersAllocated(List<Container> allocatedContainers) {
     logger.info(
         "Got response from RM for container ask, allocatedCnt=" + allocatedContainers.size());
-    numAllocatedContainers.addAndGet(allocatedContainers.size());
+    amState.numAllocatedContainers.addAndGet(allocatedContainers.size());
     for (Container allocatedContainer : allocatedContainers) {
-      String rayInstanceId = Integer.toString(rayInstanceCounter);
-      rayInstanceCounter++;
+      String rayInstanceId = Integer.toString(amState.rayInstanceCounter);
+      amState.rayInstanceCounter++;
 
       Thread launchThread = null;
       boolean shouldSleep = false;
-      for (RayNodeContext node : indexToNode) {
+      for (RayNodeContext node : amState.indexToNode) {
         if (node.isRunning) {
           continue;
         }
         node.isRunning = true;
-        node.isAlocating = false;
+        node.isAllocating = false;
         node.instanceId = rayInstanceId;
         node.container = allocatedContainer;
-        containerToNode.put(allocatedContainer.getId().toString(), node);
+        amState.containerToNode.put(allocatedContainer.getId().toString(), node);
         if (node.role == "head") {
           try {
-            redisAddress =
+            amState.redisAddress =
                 InetAddress.getByName(allocatedContainer.getNodeHttpAddress().split(":")[0])
-                    .getHostAddress() + ":" + redisPort;
+                    .getHostAddress() + ":" + amState.redisPort;
           } catch (UnknownHostException e) {
-            redisAddress = "";
+            amState.redisAddress = "";
           }
         } else {
           shouldSleep = true;
@@ -189,7 +196,7 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
 
   @Override
   public void onShutdownRequest() {
-    done = true;
+    amState.done = true;
   }
 
   @Override
@@ -199,14 +206,14 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
   @Override
   public float getProgress() {
     // set progress to deliver to RM on next heartbeat
-    float progress = (float) numCompletedContainers.get() / numTotalContainers;
+    float progress = (float) amState.numCompletedContainers.get() / amState.numTotalContainers;
     return progress;
   }
 
   @Override
   public void onError(Throwable e) {
     logger.error("Error in RMCallbackHandler: ", e);
-    done = true;
+    amState.done = true;
     amRmClient.stop();
   }
 }

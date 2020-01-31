@@ -11,6 +11,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
+import org.ray.yarn.config.RayClusterConfig;
 
 public class NmCallbackHandler extends NMClientAsync.AbstractCallbackHandler {
 
@@ -19,6 +20,9 @@ public class NmCallbackHandler extends NMClientAsync.AbstractCallbackHandler {
   private ConcurrentMap<ContainerId, Container> containers =
       new ConcurrentHashMap<ContainerId, Container>();
   private final ApplicationMaster applicationMaster;
+  private final RayClusterConfig rayConf = null;
+  private final ApplicationMasterState amState = null;
+  private final NMClientAsync nmClientAsync = null;
 
   public NmCallbackHandler(ApplicationMaster applicationMaster) {
     this.applicationMaster = applicationMaster;
@@ -52,11 +56,11 @@ public class NmCallbackHandler extends NMClientAsync.AbstractCallbackHandler {
     }
     Container container = containers.get(containerId);
     if (container != null) {
-      applicationMaster.nmClientAsync.getContainerStatusAsync(containerId, container.getNodeId());
+      nmClientAsync.getContainerStatusAsync(containerId, container.getNodeId());
     }
     if (applicationMaster.timelineClient != null) {
       applicationMaster.publishContainerStartEvent(applicationMaster.timelineClient, container,
-          applicationMaster.domainId, applicationMaster.appSubmitterUgi);
+          rayConf.getDomainId(), applicationMaster.appSubmitterUgi);
     }
   }
 
@@ -67,8 +71,8 @@ public class NmCallbackHandler extends NMClientAsync.AbstractCallbackHandler {
   public void onStartContainerError(ContainerId containerId, Throwable t) {
     logger.error("Failed to start Container " + containerId);
     containers.remove(containerId);
-    applicationMaster.numCompletedContainers.incrementAndGet();
-    applicationMaster.numFailedContainers.incrementAndGet();
+    amState.numCompletedContainers.incrementAndGet();
+    amState.numFailedContainers.incrementAndGet();
   }
 
   @Override

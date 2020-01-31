@@ -611,7 +611,7 @@ public class ApplicationMaster {
     }
   }
 
-  private void publishContainerStartEvent(final TimelineClient timelineClient,
+  void publishContainerStartEvent(final TimelineClient timelineClient,
       final Container container, String domainId, UserGroupInformation ugi) {
     final TimelineEntity entity = new TimelineEntity();
     entity.setEntityId(container.getId().toString());
