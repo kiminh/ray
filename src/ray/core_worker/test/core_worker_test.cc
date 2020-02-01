@@ -27,7 +27,6 @@ namespace {
 std::string store_executable;
 std::string raylet_executable;
 int node_manager_port = 0;
-std::string raylet_monitor_executable;
 std::string mock_worker_executable;
 std::string gcs_server_executable;
 
@@ -94,14 +93,8 @@ class CoreWorkerTest : public ::testing::Test {
       store_socket = StartStore();
     }
 
-    // core worker test relies on node resources. It's important that one raylet can
-    // receive the heartbeat from another. So starting raylet monitor is required here.
-    raylet_monitor_pid_ = StartRayletMonitor("127.0.0.1");
-
     // start gcs server
-    if (getenv("RAY_GCS_SERVICE_ENABLED") != nullptr) {
-      gcs_server_pid_ = StartGcsServer("127.0.0.1");
-    }
+    gcs_server_pid_ = StartGcsServer("127.0.0.1");
 
     // start raylet on each node. Assign each node with different resources so that
     // a task can be scheduled to the desired node.
@@ -119,10 +112,6 @@ class CoreWorkerTest : public ::testing::Test {
 
     for (const auto &store_socket : raylet_store_socket_names_) {
       StopStore(store_socket);
-    }
-
-    if (!raylet_monitor_pid_.empty()) {
-      StopRayletMonitor(raylet_monitor_pid_);
     }
 
     if (!gcs_server_pid_.empty()) {
@@ -190,27 +179,6 @@ class CoreWorkerTest : public ::testing::Test {
     ASSERT_TRUE(system(("rm -rf " + raylet_socket_name + ".pid").c_str()) == 0);
   }
 
-  std::string StartRayletMonitor(std::string redis_address) {
-    std::string raylet_monitor_pid =
-        "/tmp/raylet_monitor" + ObjectID::FromRandom().Hex() + ".pid";
-    std::string raylet_monitor_start_cmd = raylet_monitor_executable;
-    raylet_monitor_start_cmd.append(" --redis_address=" + redis_address)
-        .append(" --redis_port=6379")
-        .append(" & echo $! > " + raylet_monitor_pid);
-
-    RAY_LOG(DEBUG) << "Raylet monitor Start command: " << raylet_monitor_start_cmd;
-    RAY_CHECK(system(raylet_monitor_start_cmd.c_str()) == 0);
-    usleep(200 * 1000);
-    return raylet_monitor_pid;
-  }
-
-  void StopRayletMonitor(std::string raylet_monitor_pid) {
-    std::string kill_9 = "kill -9 `cat " + raylet_monitor_pid + "`";
-    RAY_LOG(DEBUG) << kill_9;
-    ASSERT_TRUE(system(kill_9.c_str()) == 0);
-    ASSERT_TRUE(system(("rm -f " + raylet_monitor_pid).c_str()) == 0);
-  }
-
   std::string StartGcsServer(std::string redis_address) {
     std::string gcs_server_pid =
         "/tmp/gcs_server" + ObjectID::FromRandom().Hex() + ".pid";
@@ -268,7 +236,6 @@ class CoreWorkerTest : public ::testing::Test {
 
   std::vector<std::string> raylet_socket_names_;
   std::vector<std::string> raylet_store_socket_names_;
-  std::string raylet_monitor_pid_;
   gcs::GcsClientOptions gcs_options_;
   std::string gcs_server_pid_;
 };
@@ -1080,12 +1047,11 @@ TEST_F(TwoNodeTest, TestDirectActorTaskCrossNodesFailure) {
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
-  RAY_CHECK(argc == 7);
+  RAY_CHECK(argc == 6);
   store_executable = std::string(argv[1]);
   raylet_executable = std::string(argv[2]);
   node_manager_port = std::stoi(std::string(argv[3]));
-  raylet_monitor_executable = std::string(argv[4]);
-  mock_worker_executable = std::string(argv[5]);
-  gcs_server_executable = std::string(argv[6]);
+  mock_worker_executable = std::string(argv[4]);
+  gcs_server_executable = std::string(argv[5]);
   return RUN_ALL_TESTS();
 }

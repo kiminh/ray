@@ -538,8 +538,7 @@ def test_warning_monitor_died(ray_start_2_cpus):
     time.sleep(1)
 
     # Cause the monitor to raise an exception by pushing a malformed message to
-    # Redis. This will probably kill the raylet and the raylet_monitor in
-    # addition to the monitor.
+    # Redis. This will probably kill the raylet in addition to the monitor.
     fake_id = 20 * b"\x00"
     malformed_message = "asdf"
     redis_client = ray.worker.global_worker.redis_client

@@ -132,7 +132,6 @@ def test_driver_lives_sequential(ray_start_regular):
     ray.worker._global_node.kill_plasma_store()
     ray.worker._global_node.kill_log_monitor()
     ray.worker._global_node.kill_monitor()
-    ray.worker._global_node.kill_raylet_monitor()
 
     # If the driver can reach the tearDown method, then it is still alive.
 
@@ -145,9 +144,8 @@ def test_driver_lives_parallel(ray_start_regular):
     process_infos = (all_processes[ray_constants.PROCESS_TYPE_PLASMA_STORE] +
                      all_processes[ray_constants.PROCESS_TYPE_RAYLET] +
                      all_processes[ray_constants.PROCESS_TYPE_LOG_MONITOR] +
-                     all_processes[ray_constants.PROCESS_TYPE_MONITOR] +
-                     all_processes[ray_constants.PROCESS_TYPE_RAYLET_MONITOR])
-    assert len(process_infos) == 5
+                     all_processes[ray_constants.PROCESS_TYPE_MONITOR])
+    assert len(process_infos) == 4
 
     # Kill all the components in parallel.
     for process_info in process_infos:

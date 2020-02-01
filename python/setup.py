@@ -20,7 +20,6 @@ ray_files = [
     "ray/core/src/ray/gcs/redis_module/libray_redis_module.so",
     "ray/core/src/plasma/plasma_store_server",
     "ray/_raylet.so",
-    "ray/core/src/ray/raylet/raylet_monitor",
     "ray/core/src/ray/gcs/gcs_server",
     "ray/core/src/ray/raylet/raylet",
     "ray/dashboard/dashboard.py",

@@ -585,21 +585,6 @@ class Node:
         assert ray_constants.PROCESS_TYPE_MONITOR not in self.all_processes
         self.all_processes[ray_constants.PROCESS_TYPE_MONITOR] = [process_info]
 
-    def start_raylet_monitor(self):
-        """Start the raylet monitor."""
-        stdout_file, stderr_file = self.new_log_files("raylet_monitor")
-        process_info = ray.services.start_raylet_monitor(
-            self._redis_address,
-            stdout_file=stdout_file,
-            stderr_file=stderr_file,
-            redis_password=self._ray_params.redis_password,
-            config=self._config)
-        assert (ray_constants.PROCESS_TYPE_RAYLET_MONITOR not in
-                self.all_processes)
-        self.all_processes[ray_constants.PROCESS_TYPE_RAYLET_MONITOR] = [
-            process_info
-        ]
-
     def start_head_processes(self):
         """Start head processes on the node."""
         logger.debug(
@@ -609,11 +594,8 @@ class Node:
         # If this is the head node, start the relevant head node processes.
         self.start_redis()
 
-        if os.environ.get(ray_constants.RAY_GCS_SERVICE_ENABLED, None):
-            self.start_gcs_server()
-
         self.start_monitor()
-        self.start_raylet_monitor()
+        self.start_gcs_server()
         if self._ray_params.include_webui:
             self.start_dashboard(require_webui=True)
         elif self._ray_params.include_webui is None:
@@ -798,16 +780,6 @@ class Node:
         """
         self._kill_process_type(
             ray_constants.PROCESS_TYPE_GCS_SERVER, check_alive=check_alive)
-
-    def kill_raylet_monitor(self, check_alive=True):
-        """Kill the raylet monitor.
-
-        Args:
-            check_alive (bool): Raise an exception if the process was already
-                dead.
-        """
-        self._kill_process_type(
-            ray_constants.PROCESS_TYPE_RAYLET_MONITOR, check_alive=check_alive)
 
     def kill_reaper(self, check_alive=True):
         """Kill the reaper process.
