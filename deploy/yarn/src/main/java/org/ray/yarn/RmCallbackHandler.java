@@ -1,6 +1,5 @@
 package org.ray.yarn;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -16,13 +15,12 @@ import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.UpdatedContainer;
-import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.TimelineClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.ray.yarn.config.RayClusterConfig;
-import org.ray.yarn.utils.TimelineUtils;
+import org.ray.yarn.utils.TimelineUtil;
 
 public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
 
@@ -122,7 +120,7 @@ public class RmCallbackHandler extends AMRMClientAsync.AbstractCallbackHandler {
             + containerStatus.getContainerId());
       }
       if (timelineClient != null) {
-        TimelineUtils.publishContainerEndEvent(timelineClient, containerStatus, rayConf.getDomainId(), appSubmitterUgi, yarnConf);
+        TimelineUtil.publishContainerEndEvent(timelineClient, containerStatus, rayConf.getDomainId(), appSubmitterUgi, yarnConf);
       }
 
       if (restartClasterFlag) {

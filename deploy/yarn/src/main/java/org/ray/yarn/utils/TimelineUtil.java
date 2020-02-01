@@ -19,9 +19,9 @@ import org.apache.hadoop.yarn.client.api.TimelineClient;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.ray.yarn.ApplicationMaster;
 
-public class TimelineUtils {
+public class TimelineUtil {
 
-  private static final Log logger = LogFactory.getLog(TimelineUtils.class);
+  private static final Log logger = LogFactory.getLog(TimelineUtil.class);
   private static final String CONTAINER_ENTITY_GROUP_ID = "CONTAINERS";
   private static final String APPID_TIMELINE_FILTER_NAME = "appId";
   private static final String USER_TIMELINE_FILTER_NAME = "user";
