@@ -1,0 +1,31 @@
+workspace(name = "ray_on_yarn")
+
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+RULES_JVM_EXTERNAL_TAG = "2.8"
+RULES_JVM_EXTERNAL_SHA = "79c9850690d7614ecdb72d68394f994fef7534b292c4867ce5e7dec0aa7bdfad"
+
+http_archive(
+    name = "rules_jvm_external",
+    strip_prefix = "rules_jvm_external-%s" % RULES_JVM_EXTERNAL_TAG,
+    sha256 = RULES_JVM_EXTERNAL_SHA,
+    url = "https://github.com/bazelbuild/rules_jvm_external/archive/%s.zip" % RULES_JVM_EXTERNAL_TAG,
+)
+
+http_archive(
+    name = "bazel_common",
+    strip_prefix = "bazel-common-084aadd3b854cad5d5e754a7e7d958ac531e6801",
+    url = "https://github.com/google/bazel-common/archive/084aadd3b854cad5d5e754a7e7d958ac531e6801.zip",
+)
+
+BAZEL_SKYLIB_TAG = "0.8.0"
+
+http_archive(
+    name = "bazel_skylib",
+    strip_prefix = "bazel-skylib-%s" % BAZEL_SKYLIB_TAG,
+    url = "https://github.com/bazelbuild/bazel-skylib/archive/%s.tar.gz" %
+          BAZEL_SKYLIB_TAG,
+)
+# LOAD RAY ON YARN BAZEL CONFIG
+load("//:ray_on_yarn.bzl", "ray_on_yarn_maven_install")
+ray_on_yarn_maven_install()

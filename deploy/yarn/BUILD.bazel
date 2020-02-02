@@ -1,0 +1,61 @@
+load("@bazel_common//tools/maven:pom_file.bzl", "pom_file")
+
+java_library(
+    name = "ray-on-yarn",
+    srcs = glob(["src/main/java/**/*.java"]),
+    resources = glob(["src/main/resources/**"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@ray_on_yarn_maven//:org_apache_hadoop_hadoop_yarn_common",
+        "@ray_on_yarn_maven//:org_apache_hadoop_hadoop_common",
+        "@ray_on_yarn_maven//:org_apache_hadoop_hadoop_yarn_client",
+        "@ray_on_yarn_maven//:commons_lang_commons_lang",
+        "@ray_on_yarn_maven//:commons_cli_commons_cli",
+        "@ray_on_yarn_maven//:commons_io_commons_io",
+        "@ray_on_yarn_maven//:log4j_log4j",
+        "@ray_on_yarn_maven//:commons_logging_commons_logging",
+        "@ray_on_yarn_maven//:org_apache_hadoop_hadoop_yarn_api",
+        "@ray_on_yarn_maven//:org_apache_hadoop_hadoop_annotations",
+        "@ray_on_yarn_maven//:com_sun_jersey_jersey_client",
+        "@ray_on_yarn_maven//:com_google_guava_guava",
+    ],
+)
+
+pom_file(
+    name = "ray-on-yarn-pom",
+    targets = [
+        ":ray-on-yarn",
+    ],
+    template_file = "pom_template.xml",
+)
+
+java_library(
+    name = "ray-on-yarn-test",
+    srcs = glob(["src/test/java/**/*.java"]),
+    resources = glob(["src/test/resources/**"]),
+    deps = [
+        ":ray-on-yarn",
+        "@ray_on_yarn_maven//:org_testng_testng",
+    ],
+)
+
+java_test(
+    name = "test-ray-on-yarn",
+    size = "large",
+    args = [
+        "-testjar $(location :ray-on-yarn-test)",
+        "-d /tmp/streaming_test_result",
+        "-verbose",
+        "2",
+    ],
+    data = [
+        ":ray-on-yarn-test",
+    ],
+    main_class = "org.testng.TestNG",
+    use_testrunner = False,
+    runtime_deps = [
+        ":ray-on-yarn",
+        ":ray-on-yarn-test",
+    ],
+)
+
