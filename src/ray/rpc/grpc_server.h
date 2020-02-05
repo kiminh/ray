@@ -82,6 +82,12 @@ class GrpcServer {
   void RegisterService(GrpcService &service);
 
  protected:
+  void ProcessUnaryCall(
+    ServerUnaryCall *server_call, bool ok);
+
+  void ProcessStreamCall(ServerStreamCall *server_call,
+                                   bool is_reply, bool ok);
+
   /// This function runs in a background thread. It keeps polling events from the
   /// `ServerCompletionQueue`, and dispaches the event to the `ServiceHandler` instances
   /// via the `ServerCall` objects.
@@ -129,6 +135,8 @@ class GrpcService {
   /// Return the underlying grpc::Service object for this class.
   /// This is passed to `GrpcServer` to be registered to grpc `ServerBuilder`.
   virtual grpc::Service &GetGrpcService() = 0;
+
+  virtual bool HasStreamCall() { return false; }
 
   /// Subclasses should implement this method to initialize the `ServerCallFactory`
   /// instances, as well as specify maximum number of concurrent requests that gRPC
