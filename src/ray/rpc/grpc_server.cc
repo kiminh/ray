@@ -119,6 +119,7 @@ void GrpcServer::ProcessStreamCall(ServerStreamCall *server_call,
       switch (server_call->GetState()) {
       case ServerStreamCall::CallState::CONNECTING:
         server_call->OnConnectFinished();
+        server_call->SetState(ServerStreamCall::CallState::READING);
         break;
       case ServerStreamCall::CallState::READING:
         server_call->HandleRequest();
@@ -158,9 +159,11 @@ void GrpcServer::PollEventsFromCompletionQueue(int index) {
     auto call_type = call->GetType();
     switch (call_type) {
     case ServerCallType::UNARY:
+      std::cout << "unary call" << std::endl;
       ProcessUnaryCall(reinterpret_cast<ServerUnaryCall *>(call.get()), ok);
       break;
     case ServerCallType::STREAM:
+      std::cout << "stream call" << std::endl;
       ProcessStreamCall(reinterpret_cast<ServerStreamCall *>(call.get()), is_reply, ok);
       break;
     default:

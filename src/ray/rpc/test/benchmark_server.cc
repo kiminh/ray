@@ -28,6 +28,8 @@ using ray::rpc::StreamEchoReply;
 using ray::rpc::SendReplyCallback;
 using ray::rpc::SendStreamReplyCallback;
 
+using namespace std;
+
 class BenchmarkServer : public ray::rpc::EchoServiceHandler {
 public:
   BenchmarkServer(int port)
@@ -41,7 +43,9 @@ public:
   /// Handle a `DebugEcho` request.
   void HandleEcho(const EchoRequest &request, EchoReply *reply,
                   SendReplyCallback send_reply_callback) override {
-
+    
+    reply->set_reply_message(request.request_message());                
+    send_reply_callback(ray::Status::OK(), nullptr, nullptr);
   }
 
   /// Handle `DebugStreamEcho` requests.
@@ -49,10 +53,18 @@ public:
       const StreamEchoRequest &request,
       StreamEchoReply *reply,
       SendStreamReplyCallback send_reply_callback) override {
+    
+    cout << "server received request: " << request.request_id() << endl;
+    reply->set_request_id(request.request_id());
+    reply->set_reply_message(request.request_message());                
+    send_reply_callback();
 
   }
 
   void Run() {
+    server_.RegisterService(grpc_service_);
+    server_.Run();
+
     boost::asio::io_service::work work(io_service_);
     io_service_.run();
   }

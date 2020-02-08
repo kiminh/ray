@@ -239,6 +239,7 @@ class UnaryCallManager {
         // cases (e.g., test_wait will hang on shutdown without this check).
         break;
       } else if (status != grpc::CompletionQueue::TIMEOUT) {
+        std::cout << "received unary reply" << std::endl;
         auto tag = reinterpret_cast<ClientCallTag *>(got_tag);
         tag->GetCall()->SetReturnStatus();
         if (ok && !main_service_.stopped() && !shutdown_) {
@@ -370,27 +371,29 @@ class ClientStreamCallImpl : public ClientStreamCall {
   }
 
   void WriteRequest(std::shared_ptr<Request> request) {
-    write_mutex_.Lock();
+    absl::MutexLock lock(&write_mutex_);
     if (ready_to_write_) {
       ready_to_write_ = false;
-      write_mutex_.Unlock();
+      // write_mutex_.Unlock();
+      std::cout << "WriteRequest " << request->request_id() << std::endl;
       stream_->Write(*request, reinterpret_cast<void *>(tag_));
     } else {
       pending_requests_.emplace(request);
-      write_mutex_.Unlock();
+      // write_mutex_.Unlock();
     }
   }
 
   void WriteNextRequest() override {
-    write_mutex_.Lock();
+    absl::MutexLock lock(&write_mutex_);
     if (pending_requests_.empty()) {
       ready_to_write_ = true;
-      write_mutex_.Unlock();
+      // write_mutex_.Unlock();
     } else {
       ready_to_write_ = false;
       auto request = pending_requests_.front();
       pending_requests_.pop();
-      write_mutex_.Unlock();
+      // write_mutex_.Unlock();
+      std::cout << "WriteRequest " << request->request_id() << std::endl;
       stream_->Write(*request, reinterpret_cast<void *>(tag_));
     }
   }
@@ -542,6 +545,7 @@ class StreamCallManager {
         // cases (e.g., test_wait will hang on shutdown without this check).
         break;
       } else if (status != grpc::CompletionQueue::TIMEOUT) {
+        std::cout << "received stream reply" << std::endl;
         auto tag = reinterpret_cast<ClientCallTag *>(got_tag);
         tag->GetCall()->SetReturnStatus();
         if (ok && !main_service_.stopped() && !shutdown_) {
@@ -605,7 +609,7 @@ class ClientCallManager {
       typename GrpcService::Stub &stub,
       const PrepareAsyncFunction<GrpcService, Request, Reply> prepare_async_function,
       const Request &request, const ClientCallback<Reply> &callback) {
-    unary_call_manager_.CreateCall<GrpcService, Request, Reply>(
+    return unary_call_manager_.CreateCall<GrpcService, Request, Reply>(
         stub, prepare_async_function, request, callback);
   }
 
@@ -614,7 +618,7 @@ class ClientCallManager {
       typename GrpcService::Stub &stub,
       const PrepareAsyncStreamFunction<GrpcService, Request, Reply> prepare_async_function,
       const ClientCallback<Reply> &callback) {
-    stream_call_manager_.CreateCall<GrpcService, Request, Reply>(
+    return stream_call_manager_.CreateCall<GrpcService, Request, Reply>(
         stub, prepare_async_function, callback);
   }
 

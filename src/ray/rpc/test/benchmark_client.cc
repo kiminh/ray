@@ -22,6 +22,7 @@ using grpc::Status;
 
 using ray::rpc::EchoClient;
 using ray::rpc::StreamEchoRequest;
+using ray::rpc::StreamEchoReply;
 using ray::rpc::ClientCallManager;
 
 class BenchmarkClient {
@@ -35,9 +36,14 @@ public:
     boost::asio::io_service::work work(io_service_);
     std::thread thread = std::thread(&BenchmarkClient::RunIOService, this);
 
+    test_client_.StartStreamEcho([](const ray::Status &status,
+        const StreamEchoReply &reply) {
+          cout << "received reply " << endl;
+        });
+
     uint64_t request_id = 0;
     while (true) {
-      // cout << "send request " << request_id << endl;
+      cout << "send request " << request_id << endl;
       auto request = std::make_shared<StreamEchoRequest>();
       request->set_request_id(++request_id);
       request->set_request_message(str);
