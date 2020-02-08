@@ -393,7 +393,7 @@ class ServerStreamCallImpl : public ServerStreamCall {
         factory_(factory),
         service_handler_(service_handler),
         handle_request_function_(handle_request_function),
-        stream_(std::make_shared<grpc_impl::ServerAsyncReaderWriter<Reply, Request>>(&context_)),
+        stream_(&context_),
         io_service_(io_service) {}
 
   CallState GetState() const override { return state_; }
@@ -433,28 +433,32 @@ class ServerStreamCallImpl : public ServerStreamCall {
   /// queue before calling `Write` again. We should put reply into the buffer to avoid
   /// calling `Write` before getting previous tag from completion queue.
   void Write(std::shared_ptr<Reply> reply) {
-    absl::MutexLock lock(&write_mutex_);
+    write_mutex_.Lock();
     if (ready_to_write_) {
       ready_to_write_ = false;
       write_mutex_.Unlock();
-      stream_->Write(*reply, reinterpret_cast<void *>(reply_tag_));
+      stream_.Write(*reply, reinterpret_cast<void *>(reply_tag_));
     } else {
       pending_replies_.emplace(std::move(reply));
+      write_mutex_.Unlock();
     }
   }
 
   void WriteNextReply() {
-    std::lock_guard<std::mutex> lock(write_mutex_);
+    write_mutex_.Lock();
     if (pending_replies_.empty()) {
       ready_to_write_ = true;
+      write_mutex_.Unlock();
     } else {
       ready_to_write_ = false;
       auto request = pending_replies_.front();
       pending_replies_.pop();
       write_mutex_.Unlock();
-      stream_->Write(*request, reinterpret_cast<void *>(reply_tag_));
+      stream_.Write(*request, reinterpret_cast<void *>(reply_tag_));
     }
   }
+
+  void SetRequestTag(ServerCallTag *tag) { tag_ = tag; }
 
   void SetReplyTag(ServerCallTag *reply_tag) { reply_tag_ = reply_tag; }
 
@@ -476,7 +480,7 @@ class ServerStreamCallImpl : public ServerStreamCall {
   void HandleRequestImpl(std::shared_ptr<Request> request) {
     auto reply = std::make_shared<Reply>();
     (service_handler_.*handle_request_function_)(
-        request, reply.get(),
+        *request, reply.get(),
         [this, reply]() {
           // Send reply to client.
           Write(reply);
@@ -484,7 +488,7 @@ class ServerStreamCallImpl : public ServerStreamCall {
   }
 
   void ReadNextRequest() {
-    stream_->Read(&request_, reinterpret_cast<void *>(tag_));
+    stream_.Read(request_.get(), reinterpret_cast<void *>(tag_));
   }
 
  private:
@@ -499,14 +503,14 @@ class ServerStreamCallImpl : public ServerStreamCall {
   ServiceHandler &service_handler_;
 
   /// Pointer to the service handler function.
-  HandleRequestFunction<ServiceHandler, Request, Reply> handle_request_function_;
+  HandleStreamRequestFunction<ServiceHandler, Request, Reply> handle_request_function_;
 
   /// Context for the request, allowing to tweak aspects of it such as the use
   /// of compression, authentication, as well as to send metadata back to the client.
   grpc::ServerContext context_;
 
   /// Async reader writer.
-  std::unique_ptr<grpc_impl::ClientAsyncReaderWriter<Request, Reply>> stream_;
+  grpc_impl::ServerAsyncReaderWriter<Reply, Request> stream_;
 
   /// The event loop.
   boost::asio::io_service &io_service_;
@@ -569,12 +573,12 @@ class ServerStreamCallFactoryImpl : public ServerCallFactory {
   /// \param[in] cq The `CompletionQueue`.
   /// \param[in] io_service The event loop.
   ServerStreamCallFactoryImpl(
-     boost::asio::io_service &io_service,
-      const std::unique_ptr<grpc::ServerCompletionQueue> &cq, AsyncService &service,
+      AsyncService &service,
       RequestStreamCallFunction<GrpcService, Request, Reply> request_call_function,
       ServiceHandler &service_handler,
-      HandleStreamRequestFunction<ServiceHandler, Request, Reply>
-          handle_request_function)
+      HandleStreamRequestFunction<ServiceHandler, Request, Reply> handle_request_function,
+      const std::unique_ptr<grpc::ServerCompletionQueue> &cq,
+      boost::asio::io_service &io_service)
       : service_(service),
         request_call_function_(request_call_function),
         service_handler_(service_handler),
@@ -586,10 +590,10 @@ class ServerStreamCallFactoryImpl : public ServerCallFactory {
     auto call = std::make_shared<ServerStreamCallImpl<ServiceHandler, Request, Reply>>(
         *this, service_handler_, handle_request_function_, io_service_);
     auto tag = new ServerCallTag(call, false);
-    call->SetServerCallTag(tag);
+    call->SetRequestTag(tag);
     call->SetState(ServerStreamCall::CallState::CONNECTING);
     (service_.*request_call_function_)(
-        &call->context_, call->stream_.get(), cq_.get(), cq_.get(),
+        &call->context_, &(call->stream_), cq_.get(), cq_.get(),
         reinterpret_cast<void *>(tag));
   }
 

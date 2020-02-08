@@ -11,6 +11,9 @@
 namespace ray {
 namespace rpc {
 
+///
+/// Unary call macros.
+///
 // This macro wraps the logic to call a specific RPC method of a service,
 // to make it easier to implement a new RPC client.
 #define INVOKE_RPC_CALL(SERVICE, METHOD, request, callback, rpc_client) \
@@ -32,6 +35,25 @@ namespace rpc {
                      const ClientCallback<METHOD##Reply> &callback) SPECS { \
     return INVOKE_RPC_CALL(SERVICE, METHOD, request, callback, rpc_client); \
   }
+
+///
+/// Stream call macros.
+///
+// This macro wraps the logic to call a specific RPC method of a service,
+// to make it easier to implement a new RPC client.
+#define CREATE_STREAM_RPC_CALL(SERVICE, METHOD, callback, rpc_client, stream_call) \
+  ({                                                                    \
+    stream_call = rpc_client->CreateStream<METHOD##Request, METHOD##Reply>(     \
+        &SERVICE::Stub::PrepareAsync##METHOD, callback);       \
+  })
+
+// Define a void RPC client method.
+#define VOID_STREAM_RPC_CLIENT_METHOD(SERVICE, METHOD, stream_call, SPECS)        \
+  void METHOD(std::shared_ptr<METHOD##Request> request,                                    \
+              const ClientCallback<METHOD##Reply> &callback) SPECS {             \
+    stream_call->WriteRequest(request /*, callback */);                          \
+  }
+
 
 template <class GrpcService>
 class GrpcClient {
@@ -80,6 +102,26 @@ class GrpcClient {
     auto call = client_call_manager_.CreateCall<GrpcService, Request, Reply>(
         *stub_, prepare_async_function, request, callback);
     return call->GetStatus();
+  }
+
+  /// Create a new `ClientCall` and send request.
+  ///
+  /// \tparam Request Type of the request message.
+  /// \tparam Reply Type of the reply message.
+  ///
+  /// \param[in] prepare_async_function Pointer to the gRPC-generated
+  /// `FooService::Stub::PrepareAsyncBar` function.
+  /// \param[in] request The request message.
+  /// \param[in] callback The callback function that handles reply.
+  ///
+  /// \return Status.
+  template <class Request, class Reply>
+  std::shared_ptr<ClientStreamCallImpl<Request, Reply>> CreateStream(
+      const PrepareAsyncStreamFunction<GrpcService, Request, Reply> prepare_async_function,
+      const ClientCallback<Reply> &callback) {
+    auto call = client_call_manager_.CreateStreamCall<GrpcService, Request, Reply>(
+        *stub_, prepare_async_function, callback);
+    return call;
   }
 
  private:
