@@ -8,6 +8,7 @@
 
 #include "ray/common/grpc_util.h"
 #include "ray/common/status.h"
+#include "ray/rpc/stream_writer.h"
 
 namespace ray {
 namespace rpc {
@@ -396,7 +397,10 @@ class ServerStreamCallImpl : public ServerStreamCall {
         stream_(&context_),
         io_service_(io_service),
         request_(std::make_shared<Request>()),
-        ready_to_write_(true) {}
+        // ready_to_write_(true)
+        stream_writer_([this] (const Reply &reply){
+          stream_.Write(reply, reinterpret_cast<void *>(reply_tag_)); 
+        }) {}
 
   CallState GetState() const override { return state_; }
 
@@ -410,6 +414,9 @@ class ServerStreamCallImpl : public ServerStreamCall {
 
     // It's ready to read from cq.
     ReadNextRequest();
+
+    // This would mark ca as writable.
+    OnReplyWritten();
   }
 
   void HandleRequest() override {
@@ -435,29 +442,11 @@ class ServerStreamCallImpl : public ServerStreamCall {
   /// queue before calling `Write` again. We should put reply into the buffer to avoid
   /// calling `Write` before getting previous tag from completion queue.
   void Write(std::shared_ptr<Reply> reply) {
-    write_mutex_.Lock();
-    if (ready_to_write_) {
-      ready_to_write_ = false;
-      write_mutex_.Unlock();
-      stream_.Write(*reply, reinterpret_cast<void *>(reply_tag_));
-    } else {
-      pending_replies_.emplace(std::move(reply));
-      write_mutex_.Unlock();
-    }
+    stream_writer_.WriteStream(reply);
   }
 
   void WriteNextReply() {
-    write_mutex_.Lock();
-    if (pending_replies_.empty()) {
-      ready_to_write_ = true;
-      write_mutex_.Unlock();
-    } else {
-      ready_to_write_ = false;
-      auto request = pending_replies_.front();
-      pending_replies_.pop();
-      write_mutex_.Unlock();
-      stream_.Write(*request, reinterpret_cast<void *>(reply_tag_));
-    }
+    stream_writer_.OnStreamWritten();
   }
 
   void SetRequestTag(ServerCallTag *tag) { tag_ = tag; }
@@ -529,15 +518,7 @@ class ServerStreamCallImpl : public ServerStreamCall {
   /// Server call tag used to write reply.
   ServerCallTag *reply_tag_;
 
-  /// Mutex to protect ready_to_write_ and pending_requests_ fields.
-  absl::Mutex write_mutex_;
-
-  /// Whether it's ready to write to this stream.
-  bool ready_to_write_ GUARDED_BY(write_mutex_);
-
-  // Buffer for sending replies to the client. We need write the request into the queue
-  // when it is not ready to write.
-  std::queue<std::shared_ptr<Reply>> pending_replies_ GUARDED_BY(write_mutex_);
+  StreamWriter<Reply> stream_writer_;
 
   template <class T1, class T2, class T3, class T4>
   friend class ServerStreamCallFactoryImpl;

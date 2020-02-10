@@ -8,6 +8,7 @@
 
 #include "ray/common/grpc_util.h"
 #include "ray/common/status.h"
+#include "ray/rpc/stream_writer.h"
 
 #include <grpc/grpc.h>
 #include <grpcpp/grpcpp.h>
@@ -326,7 +327,10 @@ class ClientStreamCallImpl : public ClientStreamCall {
       // called when a tag with CONNECT state is received from cq.
       // Set it to false initially as we need to make sure the first tag
       // is received before writing to cq.
-      ready_to_write_(false),
+      // ready_to_write_(false),
+      stream_writer_([this] (const Request &request){
+          stream_->Write(request, reinterpret_cast<void *>(tag_)); 
+      }),
       start_(std::chrono::system_clock::now()),
       end_(std::chrono::system_clock::now()) {}
 
@@ -360,7 +364,7 @@ class ClientStreamCallImpl : public ClientStreamCall {
     // Also reply is required to have an status.
     ClientCallback<Reply> reply_callback;
     {
-      absl::MutexLock lock(&write_mutex_);
+      absl::MutexLock lock(&mutex_);
       auto iter = pending_callbacks_.find(reply->request_id());
       if (iter != pending_callbacks_.end()) {
         // std::cout << "matched reply " << reply->request_id() << std::endl;
@@ -384,59 +388,17 @@ class ClientStreamCallImpl : public ClientStreamCall {
 
   void WriteRequest(std::shared_ptr<Request> request,
       const ClientCallback<Reply> &callback) {
-    write_mutex_.Lock();
-    pending_callbacks_.emplace(std::make_pair(request->request_id(), callback));
 
-    if (ready_to_write_) {
-      ready_to_write_ = false;
-      write_mutex_.Unlock();
-/*
-      auto batch_count = 10000;
-      if (request->request_id() % batch_count == 0) {
-        end_ = std::chrono::system_clock::now();
-        std::chrono::duration<double> diff = end_ - start_;
-        // double gbps = 8.0 * onehm / diff.count() / 1e9;
-        double gbps = batch_count / diff.count() / 1000;
-        std::cout << gbps << " K, "
-                  << request->request_id() << std::endl;
-        start_ = end_;     
-      }
-*/
-      // std::cout << "WriteRequest " << request->request_id() << std::endl;
-      stream_->Write(*request, reinterpret_cast<void *>(tag_));
-    } else {
-      pending_requests_.emplace(request);
-      write_mutex_.Unlock();
+    {
+      absl::MutexLock lock(&mutex_);
+      pending_callbacks_.emplace(std::make_pair(request->request_id(), callback));
     }
+
+    stream_writer_.WriteStream(request);
   }
 
   void WriteNextRequest() override {
-
-
-    write_mutex_.Lock();
-    if (pending_requests_.empty()) {
-      ready_to_write_ = true;
-      write_mutex_.Unlock();
-    } else {
-      ready_to_write_ = false;
-      auto request = pending_requests_.front();
-      pending_requests_.pop();
-      write_mutex_.Unlock();
-/*
-      auto batch_count = 10000;
-      if (request->request_id() % batch_count == 0) {
-        end_ = std::chrono::system_clock::now();
-        std::chrono::duration<double> diff = end_ - start_;
-        // double gbps = 8.0 * onehm / diff.count() / 1e9;
-        double gbps = batch_count / diff.count() / 1000;
-        std::cout << gbps << " K, "
-                  << request->request_id() << std::endl;
-        start_ = end_;     
-      }
-*/
-      // std::cout << "WriteRequest " << request->request_id() << std::endl;
-      stream_->Write(*request, reinterpret_cast<void *>(tag_));
-    }
+    stream_writer_.OnStreamWritten();
   }
 
   void SetRequestTag(ClientCallTag *tag) override { tag_ = tag; }
@@ -461,19 +423,11 @@ class ClientStreamCallImpl : public ClientStreamCall {
   /// Tag for stream reply.
   ClientCallTag *reply_tag_;
 
-  /// Mutex to protect ready_to_write_ and pending_requests_ fields.
-  absl::Mutex write_mutex_;
-
-  /// Whether it's ready to write to this stream.
-  bool ready_to_write_ GUARDED_BY(write_mutex_);
-
-  // Buffer for sending requests to the server. We need write the request into the queue
-  // when it is not ready to write.
-  std::queue<std::shared_ptr<Request>> pending_requests_ GUARDED_BY(write_mutex_);
+  StreamWriter<Request> stream_writer_;
 
   /// Map from request id to the corresponding reply callback, which will be
   /// invoked when the reply is received for the request.
-  std::unordered_map<uint64_t, ClientCallback<Reply>> pending_callbacks_ GUARDED_BY(write_mutex_);
+  std::unordered_map<uint64_t, ClientCallback<Reply>> pending_callbacks_ GUARDED_BY(mutex_);
 
   /// gRPC status of this request.
   grpc::Status status_;
