@@ -41,17 +41,17 @@ namespace rpc {
 ///
 // This macro wraps the logic to call a specific RPC method of a service,
 // to make it easier to implement a new RPC client.
-#define CREATE_STREAM_RPC_CALL(SERVICE, METHOD, callback, rpc_client, stream_call) \
+#define CREATE_STREAM_RPC_CALL(SERVICE, METHOD, rpc_client, stream_call) \
   ({                                                                    \
     stream_call = rpc_client->CreateStream<METHOD##Request, METHOD##Reply>(     \
-        &SERVICE::Stub::PrepareAsync##METHOD, callback);       \
+        &SERVICE::Stub::PrepareAsync##METHOD);       \
   })
 
 // Define a void RPC client method.
 #define VOID_STREAM_RPC_CLIENT_METHOD(SERVICE, METHOD, stream_call, SPECS)        \
   void METHOD(std::shared_ptr<METHOD##Request> request,                                    \
               const ClientCallback<METHOD##Reply> &callback) SPECS {             \
-    stream_call->WriteRequest(request /*, callback */);                          \
+    stream_call->WriteRequest(request, callback);                                \
   }
 
 
@@ -117,10 +117,9 @@ class GrpcClient {
   /// \return Status.
   template <class Request, class Reply>
   std::shared_ptr<ClientStreamCallImpl<Request, Reply>> CreateStream(
-      const PrepareAsyncStreamFunction<GrpcService, Request, Reply> prepare_async_function,
-      const ClientCallback<Reply> &callback) {
+      const PrepareAsyncStreamFunction<GrpcService, Request, Reply> prepare_async_function) {
     auto call = client_call_manager_.CreateStreamCall<GrpcService, Request, Reply>(
-        *stub_, prepare_async_function, callback);
+        *stub_, prepare_async_function);
     return call;
   }
 

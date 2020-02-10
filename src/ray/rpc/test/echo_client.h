@@ -53,11 +53,11 @@ class EchoClient {
   }
 */
   // Create the stream call and try to connect to the server synchronously.
-  void StartStreamEcho(const ClientCallback<StreamEchoReply> &callback) {
+  void StartStreamEcho() {
     echo_stream_ =
         grpc_client_->
             CreateStream<StreamEchoRequest, StreamEchoReply>(
-                &EchoService::Stub::AsyncStreamEcho, callback);
+                &EchoService::Stub::PrepareAsyncStreamEcho);
   }
 /*
   /// Request for a stream message should be a synchronous call.

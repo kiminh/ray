@@ -34,7 +34,9 @@ class BenchmarkServer : public ray::rpc::EchoServiceHandler {
 public:
   BenchmarkServer(int port)
     : server_("benchmark_server", port),
-      grpc_service_(io_service_, *this) {}
+      grpc_service_(io_service_, *this),
+      start_(std::chrono::system_clock::now()),
+      end_(std::chrono::system_clock::now())  {}
 
   ~BenchmarkServer() {
     io_service_.stop();
@@ -43,7 +45,7 @@ public:
   /// Handle a `DebugEcho` request.
   void HandleEcho(const EchoRequest &request, EchoReply *reply,
                   SendReplyCallback send_reply_callback) override {
-    
+    cout << "server unary request: " << endl;
     reply->set_reply_message(request.request_message());                
     send_reply_callback(ray::Status::OK(), nullptr, nullptr);
   }
@@ -54,11 +56,21 @@ public:
       StreamEchoReply *reply,
       SendStreamReplyCallback send_reply_callback) override {
     
-    cout << "server received request: " << request.request_id() << endl;
+    auto batch_count = 10000;
+    if (request.request_id() % batch_count == 0) {
+      end_ = std::chrono::system_clock::now();
+      std::chrono::duration<double> diff = end_ - start_;
+      // double gbps = 8.0 * onehm / diff.count() / 1e9;
+      double gbps = batch_count / diff.count() / 1000;
+      std::cout << gbps << " K, "
+                << request.request_id() << std::endl;
+      start_ = end_;     
+    }
+
+    // cout << "server stream request: " << request.request_id() << endl;
     reply->set_request_id(request.request_id());
     reply->set_reply_message(request.request_message());                
     send_reply_callback();
-
   }
 
   void Run() {
@@ -76,6 +88,9 @@ private:
 
     /// Common rpc service for all worker modules.
   ray::rpc::EchoGrpcService grpc_service_;
+
+  std::chrono::system_clock::time_point start_;
+  std::chrono::system_clock::time_point end_;
 };
 
 int main(int argc, char **argv) {

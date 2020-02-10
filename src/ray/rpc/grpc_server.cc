@@ -148,6 +148,7 @@ void GrpcServer::ProcessStreamCall(ServerStreamCall *server_call,
   }
 }
 
+#if 1
 void GrpcServer::PollEventsFromCompletionQueue(int index) {
   void *got_tag;
   bool ok;
@@ -159,11 +160,11 @@ void GrpcServer::PollEventsFromCompletionQueue(int index) {
     auto call_type = call->GetType();
     switch (call_type) {
     case ServerCallType::UNARY:
-      std::cout << "unary call" << std::endl;
+      // std::cout << "unary call" << std::endl;
       ProcessUnaryCall(reinterpret_cast<ServerUnaryCall *>(call.get()), ok);
       break;
     case ServerCallType::STREAM:
-      std::cout << "stream call" << std::endl;
+      // std::cout << "stream call" << std::endl;
       ProcessStreamCall(reinterpret_cast<ServerStreamCall *>(call.get()), is_reply, ok);
       break;
     default:
@@ -173,6 +174,50 @@ void GrpcServer::PollEventsFromCompletionQueue(int index) {
     }
   }
 }
+
+#else 
+
+void GrpcServer::PollEventsFromCompletionQueue(int index) {
+  void *got_tag;
+  bool ok;
+  bool delete_call = false;
+  // Keep reading events from the `CompletionQueue` until it's shutdown.
+  while (cqs_[index]->Next(&got_tag, &ok)) {
+  auto server_call = reinterpret_cast<ServerUnaryCall *>(got_tag);
+    if (ok) {
+      switch (server_call->GetState()) {
+      case ServerUnaryCall::CallState::PENDING:
+        // We've received a new incoming request. Now this call object is used to
+        // track this request.
+        server_call->SetState(ServerUnaryCall::CallState::PROCESSING);
+        server_call->HandleRequest();
+        break;
+      case ServerUnaryCall::CallState::SENDING_REPLY:
+        // GRPC has sent reply successfully, invoking the callback.
+        server_call->OnReplySent();
+        // The rpc call has finished and can be deleted now.
+        delete_call = true;
+        break;
+      default:
+        RAY_LOG(FATAL) << "Shouldn't reach here.";
+        break;
+      }
+    } else {
+      // `ok == false` will occur in two situations:
+      // First, the server has been shut down, the server call's status is PENDING
+      // Second, server has sent reply to client and failed, the server call's status is
+      // SENDING_REPLY
+      if (server_call->GetState() == ServerUnaryCall::CallState::SENDING_REPLY) {
+        server_call->OnReplyFailed();
+      }
+      delete_call = true;
+    }
+    if (delete_call) {
+      delete server_call;
+    }
+  }
+}
+#endif
 
 }  // namespace rpc
 }  // namespace ray

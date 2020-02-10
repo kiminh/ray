@@ -395,7 +395,8 @@ class ServerStreamCallImpl : public ServerStreamCall {
         handle_request_function_(handle_request_function),
         stream_(&context_),
         io_service_(io_service),
-        request_(std::make_shared<Request>()) {}
+        request_(std::make_shared<Request>()),
+        ready_to_write_(true) {}
 
   CallState GetState() const override { return state_; }
 

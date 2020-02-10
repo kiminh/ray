@@ -239,7 +239,7 @@ class UnaryCallManager {
         // cases (e.g., test_wait will hang on shutdown without this check).
         break;
       } else if (status != grpc::CompletionQueue::TIMEOUT) {
-        std::cout << "received unary reply" << std::endl;
+        // std::cout << "received unary reply" << std::endl;
         auto tag = reinterpret_cast<ClientCallTag *>(got_tag);
         tag->GetCall()->SetReturnStatus();
         if (ok && !main_service_.stopped() && !shutdown_) {
@@ -318,16 +318,17 @@ class ClientStreamCallImpl : public ClientStreamCall {
   /// Constructor.
   ///
   /// \param[in] callback The callback function to handle the reply.
-  explicit ClientStreamCallImpl(const ClientCallback<Reply> &callback,
-                                boost::asio::io_service &io_service)
-    : callback_(callback), io_service_(io_service),
+  explicit ClientStreamCallImpl(boost::asio::io_service &io_service)
+    : io_service_(io_service),
       state_(ClientStreamCall::CallState::CONNECTING),
       reply_(std::make_shared<Reply>()),
       // NOTE this flag will be set to true when WriteNextRequest is
       // called when a tag with CONNECT state is received from cq.
       // Set it to false initially as we need to make sure the first tag
       // is received before writing to cq.
-      ready_to_write_(false) {}
+      ready_to_write_(false),
+      start_(std::chrono::system_clock::now()),
+      end_(std::chrono::system_clock::now()) {}
 
   Status GetStatus() override {
     absl::MutexLock lock(&mutex_);
@@ -357,9 +358,20 @@ class ClientStreamCallImpl : public ClientStreamCall {
     // To track request and reply, we can require Request & Reply
     // to have an identifier in order to match.
     // Also reply is required to have an status.
-    if (callback_ != nullptr) {
-      io_service_.post([this, reply, status] {
-        callback_(status, *reply);
+    ClientCallback<Reply> reply_callback;
+    {
+      absl::MutexLock lock(&write_mutex_);
+      auto iter = pending_callbacks_.find(reply->request_id());
+      if (iter != pending_callbacks_.end()) {
+        // std::cout << "matched reply " << reply->request_id() << std::endl;
+        reply_callback = iter->second;
+        pending_callbacks_.erase(iter);
+      }
+    }
+
+    if (reply_callback != nullptr) {
+      io_service_.post([reply_callback, reply] {
+        reply_callback(Status::OK(), *reply);
       });
     }
 
@@ -370,30 +382,59 @@ class ClientStreamCallImpl : public ClientStreamCall {
     stream_->Read(reply_.get(), reinterpret_cast<void *>(reply_tag_));
   }
 
-  void WriteRequest(std::shared_ptr<Request> request) {
-    absl::MutexLock lock(&write_mutex_);
+  void WriteRequest(std::shared_ptr<Request> request,
+      const ClientCallback<Reply> &callback) {
+    write_mutex_.Lock();
+    pending_callbacks_.emplace(std::make_pair(request->request_id(), callback));
+
     if (ready_to_write_) {
       ready_to_write_ = false;
-      // write_mutex_.Unlock();
-      std::cout << "WriteRequest " << request->request_id() << std::endl;
+      write_mutex_.Unlock();
+/*
+      auto batch_count = 10000;
+      if (request->request_id() % batch_count == 0) {
+        end_ = std::chrono::system_clock::now();
+        std::chrono::duration<double> diff = end_ - start_;
+        // double gbps = 8.0 * onehm / diff.count() / 1e9;
+        double gbps = batch_count / diff.count() / 1000;
+        std::cout << gbps << " K, "
+                  << request->request_id() << std::endl;
+        start_ = end_;     
+      }
+*/
+      // std::cout << "WriteRequest " << request->request_id() << std::endl;
       stream_->Write(*request, reinterpret_cast<void *>(tag_));
     } else {
       pending_requests_.emplace(request);
-      // write_mutex_.Unlock();
+      write_mutex_.Unlock();
     }
   }
 
   void WriteNextRequest() override {
-    absl::MutexLock lock(&write_mutex_);
+
+
+    write_mutex_.Lock();
     if (pending_requests_.empty()) {
       ready_to_write_ = true;
-      // write_mutex_.Unlock();
+      write_mutex_.Unlock();
     } else {
       ready_to_write_ = false;
       auto request = pending_requests_.front();
       pending_requests_.pop();
-      // write_mutex_.Unlock();
-      std::cout << "WriteRequest " << request->request_id() << std::endl;
+      write_mutex_.Unlock();
+/*
+      auto batch_count = 10000;
+      if (request->request_id() % batch_count == 0) {
+        end_ = std::chrono::system_clock::now();
+        std::chrono::duration<double> diff = end_ - start_;
+        // double gbps = 8.0 * onehm / diff.count() / 1e9;
+        double gbps = batch_count / diff.count() / 1000;
+        std::cout << gbps << " K, "
+                  << request->request_id() << std::endl;
+        start_ = end_;     
+      }
+*/
+      // std::cout << "WriteRequest " << request->request_id() << std::endl;
       stream_->Write(*request, reinterpret_cast<void *>(tag_));
     }
   }
@@ -403,10 +444,6 @@ class ClientStreamCallImpl : public ClientStreamCall {
   void SetReplyTag(ClientCallTag *tag) override { reply_tag_ = tag; }
 
  private:
-
-
-  /// The callback function to handle the reply.
-  ClientCallback<Reply> callback_;
 
   /// The io service to process replies.
   boost::asio::io_service &io_service_;
@@ -434,6 +471,10 @@ class ClientStreamCallImpl : public ClientStreamCall {
   // when it is not ready to write.
   std::queue<std::shared_ptr<Request>> pending_requests_ GUARDED_BY(write_mutex_);
 
+  /// Map from request id to the corresponding reply callback, which will be
+  /// invoked when the reply is received for the request.
+  std::unordered_map<uint64_t, ClientCallback<Reply>> pending_callbacks_ GUARDED_BY(write_mutex_);
+
   /// gRPC status of this request.
   grpc::Status status_;
 
@@ -452,6 +493,10 @@ class ClientStreamCallImpl : public ClientStreamCall {
   grpc::ClientContext context_;
 
   friend class StreamCallManager;
+
+  ///
+  std::chrono::system_clock::time_point start_;
+  std::chrono::system_clock::time_point end_;
 };
 
 /// Represents the generic signature of a `FooService::Stub::PrepareAsyncBar`
@@ -463,7 +508,7 @@ class ClientStreamCallImpl : public ClientStreamCall {
 template <class GrpcService, class Request, class Reply>
 using PrepareAsyncStreamFunction =
     std::unique_ptr<grpc_impl::ClientAsyncReaderWriter<Request, Reply>> (GrpcService::Stub::*)(
-        grpc::ClientContext *context, grpc::CompletionQueue *cq, void *tag);
+        grpc::ClientContext *context, grpc::CompletionQueue *cq);
 
 /// `ClientCallManager` is used to manage outgoing gRPC requests and the lifecycles of
 /// `ClientCall` objects.
@@ -506,10 +551,8 @@ class StreamCallManager {
   template <class GrpcService, class Request, class Reply>
   std::shared_ptr<ClientStreamCallImpl<Request, Reply>> CreateCall(
       typename GrpcService::Stub &stub,
-      const PrepareAsyncStreamFunction<GrpcService, Request, Reply> prepare_async_function,
-      const ClientCallback<Reply> &callback) {
-    auto call = std::make_shared<ClientStreamCallImpl<Request, Reply>>(
-        callback, main_service_);
+      const PrepareAsyncStreamFunction<GrpcService, Request, Reply> prepare_async_function) {
+    auto call = std::make_shared<ClientStreamCallImpl<Request, Reply>>(main_service_);
     auto tag = new ClientCallTag(call, /*is_reply=*/false);
     auto reply_tag = new ClientCallTag(call, /*is_reply=*/true);
     call->SetRequestTag(tag);
@@ -517,7 +560,8 @@ class StreamCallManager {
     // Send request.
     // Find the next completion queue to wait for response.
     call->stream_ = (stub.*prepare_async_function)(
-        &call->context_, &cq_, (void*)(tag));
+        &call->context_, &cq_);
+    call->stream_->StartCall((void*)(tag));
 
     return call;
   }
@@ -545,11 +589,10 @@ class StreamCallManager {
         // cases (e.g., test_wait will hang on shutdown without this check).
         break;
       } else if (status != grpc::CompletionQueue::TIMEOUT) {
-        std::cout << "received stream reply" << std::endl;
+        // std::cout << "received stream reply" << std::endl;
         auto tag = reinterpret_cast<ClientCallTag *>(got_tag);
         tag->GetCall()->SetReturnStatus();
         if (ok && !main_service_.stopped() && !shutdown_) {
-          
           if (tag->IsReply()) {
             tag->GetCall()->OnReplyReceived();
           } else {
@@ -616,10 +659,9 @@ class ClientCallManager {
  template <class GrpcService, class Request, class Reply>
   std::shared_ptr<ClientStreamCallImpl<Request, Reply>> CreateStreamCall(
       typename GrpcService::Stub &stub,
-      const PrepareAsyncStreamFunction<GrpcService, Request, Reply> prepare_async_function,
-      const ClientCallback<Reply> &callback) {
+      const PrepareAsyncStreamFunction<GrpcService, Request, Reply> prepare_async_function) {
     return stream_call_manager_.CreateCall<GrpcService, Request, Reply>(
-        stub, prepare_async_function, callback);
+        stub, prepare_async_function);
   }
 
  private:
