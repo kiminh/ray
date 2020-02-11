@@ -298,6 +298,18 @@ cc_binary(
     ],
 )
 
+# test server.
+cc_binary(
+    name = "benchmark_queue",
+    srcs = glob([
+        "src/ray/rpc/test/benchmark_queue.cc",
+    ]),
+    copts = COPTS,
+    deps = [
+        ":test_rpc",
+    ],
+)
+
 cc_library(
     name = "ray_common",
     srcs = glob(

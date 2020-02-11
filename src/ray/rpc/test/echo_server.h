@@ -43,7 +43,7 @@ class EchoGrpcService : public GrpcService {
     // Initialize the factory for `DebugEcho` requests.
     RPC_SERVICE_HANDLER(EchoService, Echo, 9999)
 
-    STREAM_RPC_SERVICE_HANDLER(EchoService, StreamEcho, 9999)
+    STREAM_RPC_SERVICE_HANDLER(EchoService, StreamEcho, 1)
     /*
     // Initialize the factory for `DebugStreamEcho` requests.
     std::unique_ptr<ServerCallFactory> debug_stream_echo_call_factory(
