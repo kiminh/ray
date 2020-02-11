@@ -46,7 +46,10 @@ public:
   /// Handle a `DebugEcho` request.
   void HandleEcho(const EchoRequest &request, EchoReply *reply,
                   SendReplyCallback send_reply_callback) override {
-    cout << "server unary request: " << endl;
+    MayReportPerf();
+
+    // cout << "server stream request: " << request.request_id() << endl;
+    reply->set_request_id(request.request_id());
     reply->set_reply_message(request.request_message());                
     send_reply_callback(ray::Status::OK(), nullptr, nullptr);
   }
@@ -56,19 +59,7 @@ public:
       const StreamEchoRequest &request,
       StreamEchoReply *reply,
       SendStreamReplyCallback send_reply_callback) override {
-    
-
-    count_ ++;
-    auto batch_count = 10000;
-    if (count_ % batch_count == 0) {
-      end_ = std::chrono::system_clock::now();
-      std::chrono::duration<double> diff = end_ - start_;
-      // double gbps = 8.0 * onehm / diff.count() / 1e9;
-      double gbps = batch_count / diff.count() / 1000;
-      std::cout << gbps << " K, "
-                << count_ << std::endl;
-      start_ = end_;     
-    }
+    MayReportPerf();
 
     // cout << "server stream request: " << request.request_id() << endl;
     reply->set_request_id(request.request_id());
@@ -85,6 +76,20 @@ public:
   }
 
 private:
+  void MayReportPerf() {
+    count_ ++;
+    auto batch_count = 10000;
+    if (count_ % batch_count == 0) {
+      end_ = std::chrono::system_clock::now();
+      std::chrono::duration<double> diff = end_ - start_;
+      // double gbps = 8.0 * onehm / diff.count() / 1e9;
+      double gbps = batch_count / diff.count() / 1000;
+      std::cout << gbps << " K, "
+                << count_ << std::endl;
+      start_ = end_;     
+    }
+  }
+
   boost::asio::io_service io_service_;
 
   ray::rpc::GrpcServer server_;

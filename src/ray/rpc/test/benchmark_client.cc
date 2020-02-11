@@ -32,18 +32,21 @@ volatile uint64_t received = 0;
 
 class BenchmarkClient {
 public:
-  explicit BenchmarkClient(const std::string &address, const int port)
+  explicit BenchmarkClient(const std::string &address, const int port, bool is_stream)
     : call_manager_(io_service_),
       test_client_(address, port, call_manager_),
       start_(std::chrono::system_clock::now()),
-      end_(std::chrono::system_clock::now())  {}
+      end_(std::chrono::system_clock::now()),
+      is_stream_(is_stream)  {}
 
   void Run(const std::string &str) {
 
     boost::asio::io_service::work work(io_service_);
     std::thread thread = std::thread(&BenchmarkClient::RunIOService, this);
-#if 1
-    test_client_.StartStreamEcho();
+
+    if (is_stream_) {
+      test_client_.StartStreamEcho();
+    }
 
     uint64_t request_id = 0;
     while (true) {
@@ -54,43 +57,46 @@ public:
       }
 
       // cout << "send request " << request_id << endl;
-      auto request = std::make_shared<StreamEchoRequest>();
-      request->set_request_id(++request_id);
-      request->set_request_message(str);
-      test_client_.StreamEcho(request, [this] (
-          const ray::Status &status, const StreamEchoReply &reply) {
+      if (is_stream_) {
+        auto request = std::make_shared<StreamEchoRequest>();
+        request->set_request_id(++request_id);
+        request->set_request_message(str);
+        test_client_.StreamEcho(request, [this] (
+            const ray::Status &status, const StreamEchoReply &reply) {
 
-      received = reply.request_id();
+          received = reply.request_id();
+          MayReportPerf(sent, received);
+        });
+      } else {
+        auto request = std::make_shared<EchoRequest>();
+        request->set_request_id(++request_id);
+        request->set_request_message(str);
+        test_client_.Echo(*request, [this] (
+            const ray::Status &status, const EchoReply &reply) {
 
-      auto batch_count = 10000;
-      if (reply.request_id() % batch_count == 0) {
-        end_ = std::chrono::system_clock::now();
-        std::chrono::duration<double> diff = end_ - start_;
-        // double gbps = 8.0 * onehm / diff.count() / 1e9;
-        double gbps = batch_count / diff.count() / 1000;
-        std::cout << gbps << " K, sent: " << sent
-                  << ", received: " << received << std::endl;
-        start_ = end_;     
+        // cout << "received unary reply, status: " << status.ok() << endl;
+          received = reply.request_id();
+          MayReportPerf(sent, received);
+        });
       }
-
-         //std::cout << "received reply " << reply.request_id() << std::endl;   
-      });
     }
-#else
- 
-
-    uint64_t request_id = 0;
-    while (true) {
-      cout << "send request " << ++request_id << endl;
-      auto request = std::make_shared<EchoRequest>();
-      request->set_request_message(str);
-      test_client_.Echo(*request, /* TODO:callback */ nullptr);
-    }
-#endif
   }
 
 private:
   
+  void MayReportPerf(uint64_t sent, uint64_t received) {
+    auto batch_count = 10000;
+    if (received % batch_count == 0) {
+      end_ = std::chrono::system_clock::now();
+      std::chrono::duration<double> diff = end_ - start_;
+      // double gbps = 8.0 * onehm / diff.count() / 1e9;
+      double gbps = batch_count / diff.count() / 1000;
+      std::cout << gbps << " K, sent: " << sent
+                << ", received: " << received << std::endl;
+      start_ = end_;     
+    }
+  }
+
   void RunIOService() { io_service_.run(); }
 
   boost::asio::io_service io_service_;
@@ -99,17 +105,25 @@ private:
 
   std::chrono::system_clock::time_point start_;
   std::chrono::system_clock::time_point end_;
+
+  bool is_stream_ = true;
 };
 
 int main(int argc, char **argv) {
   std::string ip = std::string(argv[1]);
   int port = std::stoi(argv[2]);
   size_t payload_size = std::stoi(argv[3]);
+  std::string mode = std::string(argv[4]);
+  bool is_stream = true;
+  if (mode == "unary") {
+    is_stream = false;
+  }
+
 
   std::string a;
   a.assign(payload_size, 'a');
 
-  BenchmarkClient client(ip, port);
+  BenchmarkClient client(ip, port, is_stream);
 
   client.Run(a);
 
