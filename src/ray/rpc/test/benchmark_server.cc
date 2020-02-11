@@ -36,7 +36,8 @@ public:
     : server_("benchmark_server", port),
       grpc_service_(io_service_, *this),
       start_(std::chrono::system_clock::now()),
-      end_(std::chrono::system_clock::now())  {}
+      end_(std::chrono::system_clock::now()),
+      count_(0)  {}
 
   ~BenchmarkServer() {
     io_service_.stop();
@@ -56,14 +57,16 @@ public:
       StreamEchoReply *reply,
       SendStreamReplyCallback send_reply_callback) override {
     
+
+    count_ ++;
     auto batch_count = 10000;
-    if (request.request_id() % batch_count == 0) {
+    if (count_ % batch_count == 0) {
       end_ = std::chrono::system_clock::now();
       std::chrono::duration<double> diff = end_ - start_;
       // double gbps = 8.0 * onehm / diff.count() / 1e9;
       double gbps = batch_count / diff.count() / 1000;
       std::cout << gbps << " K, "
-                << request.request_id() << std::endl;
+                << count_ << std::endl;
       start_ = end_;     
     }
 
@@ -91,6 +94,8 @@ private:
 
   std::chrono::system_clock::time_point start_;
   std::chrono::system_clock::time_point end_;
+
+  std::atomic<uint64_t> count_;
 };
 
 int main(int argc, char **argv) {
