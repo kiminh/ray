@@ -4,11 +4,14 @@ package ray.rpc;
 
 /// Messages defined in this file are only used for grpc test.
 message EchoRequest {
-  string request_message = 1;
+  // Request messsage.
+  uint64 request_id = 1;
+  string request_message = 2;
 }
 
 message EchoReply {
-  string reply_message = 1;
+  uint64 request_id = 1;
+  string reply_message = 2;
 }
 
 /// Messages defined in this file are only used for grpc test.

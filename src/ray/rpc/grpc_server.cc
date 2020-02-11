@@ -74,7 +74,7 @@ void GrpcServer::RegisterService(GrpcService &service) {
 }
 
 
-void GrpcServer::ProcessUnaryCall(
+void GrpcServer::ProcessUnaryCall(ServerCallTag *tag,
     ServerUnaryCall *server_call, bool ok) {
     bool delete_call = false;
   if (ok) {
@@ -106,7 +106,8 @@ void GrpcServer::ProcessUnaryCall(
     delete_call = true;
   }
   if (delete_call) {
-    delete server_call;
+    // delete server_call;
+    delete tag;
   }
 }
 
@@ -161,7 +162,7 @@ void GrpcServer::PollEventsFromCompletionQueue(int index) {
     switch (call_type) {
     case ServerCallType::UNARY:
       // std::cout << "unary call" << std::endl;
-      ProcessUnaryCall(reinterpret_cast<ServerUnaryCall *>(call.get()), ok);
+      ProcessUnaryCall(tag, reinterpret_cast<ServerUnaryCall *>(call.get()), ok);
       break;
     case ServerCallType::STREAM:
       // std::cout << "stream call" << std::endl;

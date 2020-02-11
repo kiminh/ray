@@ -95,7 +95,7 @@ class GrpcServer {
   void RegisterService(GrpcService &service);
 
  protected:
-  void ProcessUnaryCall(
+  void ProcessUnaryCall(ServerCallTag *tag,
     ServerUnaryCall *server_call, bool ok);
 
   void ProcessStreamCall(ServerStreamCall *server_call,
