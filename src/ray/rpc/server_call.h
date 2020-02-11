@@ -210,11 +210,16 @@ class ServerUnaryCallImpl : public ServerUnaryCall {
     }
   }
 
+  void SetTag(ServerCallTag *tag) { tag_ = tag; }
+
+  ServerCallTag *GetTag() const { return tag_; }
+  
  private:
   /// Tell gRPC to finish this request and send reply asynchronously.
   void SendReply(const Status &status) {
     state_ = CallState::SENDING_REPLY;
-    response_writer_.Finish(reply_, RayStatusToGrpcStatus(status), this);
+    RAY_CHECK(tag_ != nullptr);
+    response_writer_.Finish(reply_, RayStatusToGrpcStatus(status), tag_);
   }
 
   CallState state_;
@@ -243,6 +248,9 @@ class ServerUnaryCallImpl : public ServerUnaryCall {
 
   /// The reply message.
   Reply reply_;
+
+  /// Tag for the call.
+  ServerCallTag *tag_ = nullptr;
 
   /// The callback when sending reply successes.
   std::function<void()> send_reply_success_callback_ = nullptr;
@@ -301,13 +309,15 @@ class ServerCallFactoryImpl : public ServerCallFactory {
   void CreateCall() const override {
     // Create a new `ServerCall`. This object will eventually be deleted by
     // `GrpcServer::PollEventsFromCompletionQueue`.
-    auto call = new ServerUnaryCallImpl<ServiceHandler, Request, Reply>(
+    auto call = std::make_shared<ServerUnaryCallImpl<ServiceHandler, Request, Reply>>(
         *this, service_handler_, handle_request_function_, io_service_);
     /// Request gRPC runtime to starting accepting this kind of request, using the call as
     /// the tag.
+    auto tag = new ServerCallTag(call);
+    call->SetTag(tag);
     (service_.*request_call_function_)(&call->context_, &call->request_,
                                        &call->response_writer_, cq_.get(), cq_.get(),
-                                       call);
+                                       tag);
   }
 
  private:
