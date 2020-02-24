@@ -1,11 +1,38 @@
 #ifndef RAY_GCS_SERVICE_BASED_ACCESSOR_H
 #define RAY_GCS_SERVICE_BASED_ACCESSOR_H
 
+#include "src/ray/gcs/gcs_client/service_based_gcs_client.h"
 #include "src/ray/gcs/accessor.h"
 #include "src/ray/gcs/subscription_executor.h"
 
 namespace ray {
 namespace gcs {
+
+class Executor {
+ public:
+  Executor(ServiceBasedGcsClient *client_impl) {
+    client_impl_ = client_impl;
+  }
+
+  void execute(std::function<void()> operation) {
+    operation_ = operation;
+    operation();
+  }
+
+  void post_execute(Status status) const {
+    if (status.IsIOError()) {
+      RAY_LOG(INFO) << "post_execute begin reconnect..................................";
+      client_impl_->Reconnect();
+      RAY_LOG(INFO) << "post_execute end reconnect..................................";
+      operation_();
+    }
+  }
+
+ private:
+  std::function<void()> operation_;
+  ServiceBasedGcsClient *client_impl_;
+};
+
 
 class ServiceBasedGcsClient;
 

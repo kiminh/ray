@@ -33,6 +33,9 @@ namespace rpc {
 #define WORKER_INFO_SERVICE_RPC_HANDLER(HANDLER, CONCURRENCY) \
   RPC_SERVICE_HANDLER(WorkerInfoGcsService, HANDLER, CONCURRENCY)
 
+#define HEALTH_CHECK_SERVICE_RPC_HANDLER(HANDLER, CONCURRENCY) \
+  RPC_SERVICE_HANDLER(HealthCheckGcsService, HANDLER, CONCURRENCY)
+
 class JobInfoGcsServiceHandler {
  public:
   virtual ~JobInfoGcsServiceHandler() = default;
@@ -413,6 +416,42 @@ class WorkerInfoGrpcService : public GrpcService {
   WorkerInfoGcsServiceHandler &service_handler_;
 };
 
+class HealthCheckGcsServiceHandler {
+ public:
+  virtual ~HealthCheckGcsServiceHandler() = default;
+
+  virtual void HandlePing(const PingRequest &request,
+                          PingReply *reply,
+                          SendReplyCallback send_reply_callback) = 0;
+};
+
+/// The `GrpcService` for `HealthCheckGcsService`.
+class HealthCheckGrpcService : public GrpcService {
+ public:
+  /// Constructor.
+  ///
+  /// \param[in] handler The service handler that actually handle the requests.
+  explicit HealthCheckGrpcService(boost::asio::io_service &io_service,
+                                 HealthCheckGcsServiceHandler &handler)
+      : GrpcService(io_service), service_handler_(handler){};
+
+ protected:
+  grpc::Service &GetGrpcService() override { return service_; }
+
+  void InitServerCallFactories(
+      const std::unique_ptr<grpc::ServerCompletionQueue> &cq,
+      std::vector<std::pair<std::unique_ptr<ServerCallFactory>, int>>
+      *server_call_factories_and_concurrencies) override {
+    HEALTH_CHECK_SERVICE_RPC_HANDLER(Ping, 1);
+  }
+
+ private:
+  /// The grpc async service object.
+  HealthCheckGcsService::AsyncService service_;
+  /// The service handler that actually handle the requests.
+  HealthCheckGcsServiceHandler &service_handler_;
+};
+
 using JobInfoHandler = JobInfoGcsServiceHandler;
 using ActorInfoHandler = ActorInfoGcsServiceHandler;
 using NodeInfoHandler = NodeInfoGcsServiceHandler;
@@ -421,6 +460,7 @@ using TaskInfoHandler = TaskInfoGcsServiceHandler;
 using StatsHandler = StatsGcsServiceHandler;
 using ErrorInfoHandler = ErrorInfoGcsServiceHandler;
 using WorkerInfoHandler = WorkerInfoGcsServiceHandler;
+using HealthCheckHandler = HealthCheckGcsServiceHandler;
 
 }  // namespace rpc
 }  // namespace ray
