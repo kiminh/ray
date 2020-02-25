@@ -22,6 +22,8 @@ class RedisActorInfoAccessor : public ActorInfoAccessor {
 
   virtual ~RedisActorInfoAccessor() {}
 
+  Status GetAll(std::vector<ActorTableData> *actor_table_data_list) override;
+
   Status AsyncGet(const ActorID &actor_id,
                   const OptionalItemCallback<ActorTableData> &callback) override;
 

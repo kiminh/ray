@@ -11,6 +11,18 @@ namespace gcs {
 RedisActorInfoAccessor::RedisActorInfoAccessor(RedisGcsClient *client_impl)
     : client_impl_(client_impl), actor_sub_executor_(client_impl_->actor_table()) {}
 
+Status RedisActorInfoAccessor::GetAll(
+    std::vector<ActorTableData> *actor_table_data_list) {
+  RAY_CHECK(actor_table_data_list);
+  auto &actor_table = client_impl_->actor_table();
+  auto actor_id_list = actor_table.GetAllActorID();
+  actor_table_data_list->resize(actor_id_list.size());
+  for (size_t i = 0; i < actor_id_list.size(); ++i) {
+    RAY_CHECK_OK(actor_table.Get(actor_id_list[i], &(*actor_table_data_list)[i]));
+  }
+  return Status::OK();
+}
+
 Status RedisActorInfoAccessor::AsyncGet(
     const ActorID &actor_id, const OptionalItemCallback<ActorTableData> &callback) {
   RAY_CHECK(callback != nullptr);
