@@ -35,21 +35,22 @@ using SchedulingKey = std::tuple<SchedulingClass, std::vector<ObjectID>, ActorID
 // This class is thread-safe.
 class CoreWorkerDirectTaskSubmitter {
  public:
-  CoreWorkerDirectTaskSubmitter(rpc::Address rpc_address,
-                                std::shared_ptr<WorkerLeaseInterface> lease_client,
-                                rpc::ClientFactoryFn client_factory,
-                                LeaseClientFactoryFn lease_client_factory,
-                                std::shared_ptr<CoreWorkerMemoryStore> store,
-                                std::shared_ptr<TaskFinisherInterface> task_finisher,
-                                ClientID local_raylet_id, int64_t lease_timeout_ms)
+  explicit CoreWorkerDirectTaskSubmitter(
+      rpc::Address rpc_address, std::shared_ptr<WorkerLeaseInterface> lease_client,
+      rpc::ClientFactoryFn client_factory, LeaseClientFactoryFn lease_client_factory,
+      std::shared_ptr<CoreWorkerMemoryStore> store,
+      std::shared_ptr<TaskFinisherInterface> task_finisher, ClientID local_raylet_id,
+      int64_t lease_timeout_ms, std::shared_ptr<gcs::GcsClient> gcs_client)
       : rpc_address_(rpc_address),
         local_lease_client_(lease_client),
         client_factory_(client_factory),
         lease_client_factory_(lease_client_factory),
         resolver_(store, task_finisher),
         task_finisher_(task_finisher),
+        lease_timeout_ms_(lease_timeout_ms),
         local_raylet_id_(local_raylet_id),
-        lease_timeout_ms_(lease_timeout_ms) {}
+        gcs_client_(gcs_client),
+        gcs_actor_management_enabled_(getenv("RAY_GCS_SERVICE_ENABLED") != nullptr) {}
 
   /// Schedule a task for direct submission to a worker.
   ///
@@ -132,6 +133,10 @@ class CoreWorkerDirectTaskSubmitter {
   /// The local raylet ID. Used to make sure that we use the local lease client
   /// if a remote raylet tells us to spill the task back to the local raylet.
   const ClientID local_raylet_id_;
+
+  std::shared_ptr<gcs::GcsClient> gcs_client_;
+
+  const bool gcs_actor_management_enabled_;
 
   // Protects task submission state below.
   absl::Mutex mu_;

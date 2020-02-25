@@ -676,6 +676,8 @@ class NodeManager : public rpc::NodeManagerServiceHandler {
   /// Whether new schedule is enabled.
   const bool new_scheduler_enabled_;
 
+  const bool gcs_actor_management_enabled_;
+
   /// Whether to trigger global GC in the next heartbeat. This will broadcast
   /// a global GC message to all raylets except for this one.
   bool should_global_gc_ = false;
@@ -699,6 +701,9 @@ class NodeManager : public rpc::NodeManagerServiceHandler {
   std::deque<std::pair<ScheduleFn, Task>> tasks_to_schedule_;
   /// Queue of lease requests that should be scheduled onto workers.
   std::deque<std::pair<ScheduleFn, Task>> tasks_to_dispatch_;
+  /// The cache of the leased workers for actor creation task and it's indexer.
+  std::unordered_map<ActorID, std::shared_ptr<Worker>> leased_actor_workers_;
+  std::unordered_map<WorkerID, ActorID> leased_worker_actor_indexer_;
 
   /// Cache of gRPC clients to workers (not necessarily running on this node).
   /// Also includes the number of inflight requests to each worker - when this

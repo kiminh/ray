@@ -291,7 +291,8 @@ TEST(DirectTaskTransportTest, TestSubmitOneTask) {
   auto factory = [&](const rpc::Address &addr) { return worker_client; };
   auto task_finisher = std::make_shared<MockTaskFinisher>();
   CoreWorkerDirectTaskSubmitter submitter(address, raylet_client, factory, nullptr, store,
-                                          task_finisher, ClientID::Nil(), kLongTimeout);
+                                          task_finisher, ClientID::Nil(), kLongTimeout,
+                                          nullptr);
 
   std::unordered_map<std::string, double> empty_resources;
   ray::FunctionDescriptor empty_descriptor =
@@ -323,7 +324,8 @@ TEST(DirectTaskTransportTest, TestHandleTaskFailure) {
   auto factory = [&](const rpc::Address &addr) { return worker_client; };
   auto task_finisher = std::make_shared<MockTaskFinisher>();
   CoreWorkerDirectTaskSubmitter submitter(address, raylet_client, factory, nullptr, store,
-                                          task_finisher, ClientID::Nil(), kLongTimeout);
+                                          task_finisher, ClientID::Nil(), kLongTimeout,
+                                          nullptr);
   std::unordered_map<std::string, double> empty_resources;
   ray::FunctionDescriptor empty_descriptor =
       ray::FunctionDescriptorBuilder::BuildPython("", "", "", "");
@@ -348,7 +350,8 @@ TEST(DirectTaskTransportTest, TestConcurrentWorkerLeases) {
   auto factory = [&](const rpc::Address &addr) { return worker_client; };
   auto task_finisher = std::make_shared<MockTaskFinisher>();
   CoreWorkerDirectTaskSubmitter submitter(address, raylet_client, factory, nullptr, store,
-                                          task_finisher, ClientID::Nil(), kLongTimeout);
+                                          task_finisher, ClientID::Nil(), kLongTimeout,
+                                          nullptr);
   std::unordered_map<std::string, double> empty_resources;
   ray::FunctionDescriptor empty_descriptor =
       ray::FunctionDescriptorBuilder::BuildPython("", "", "", "");
@@ -394,7 +397,8 @@ TEST(DirectTaskTransportTest, TestReuseWorkerLease) {
   auto factory = [&](const rpc::Address &addr) { return worker_client; };
   auto task_finisher = std::make_shared<MockTaskFinisher>();
   CoreWorkerDirectTaskSubmitter submitter(address, raylet_client, factory, nullptr, store,
-                                          task_finisher, ClientID::Nil(), kLongTimeout);
+                                          task_finisher, ClientID::Nil(), kLongTimeout,
+                                          nullptr);
   std::unordered_map<std::string, double> empty_resources;
   ray::FunctionDescriptor empty_descriptor =
       ray::FunctionDescriptorBuilder::BuildPython("", "", "", "");
@@ -443,7 +447,8 @@ TEST(DirectTaskTransportTest, TestWorkerNotReusedOnError) {
   auto factory = [&](const rpc::Address &addr) { return worker_client; };
   auto task_finisher = std::make_shared<MockTaskFinisher>();
   CoreWorkerDirectTaskSubmitter submitter(address, raylet_client, factory, nullptr, store,
-                                          task_finisher, ClientID::Nil(), kLongTimeout);
+                                          task_finisher, ClientID::Nil(), kLongTimeout,
+                                          nullptr);
   std::unordered_map<std::string, double> empty_resources;
   ray::FunctionDescriptor empty_descriptor =
       ray::FunctionDescriptorBuilder::BuildPython("", "", "", "");
@@ -482,7 +487,8 @@ TEST(DirectTaskTransportTest, TestWorkerNotReturnedOnExit) {
   auto factory = [&](const rpc::Address &addr) { return worker_client; };
   auto task_finisher = std::make_shared<MockTaskFinisher>();
   CoreWorkerDirectTaskSubmitter submitter(address, raylet_client, factory, nullptr, store,
-                                          task_finisher, ClientID::Nil(), kLongTimeout);
+                                          task_finisher, ClientID::Nil(), kLongTimeout,
+                                          nullptr);
   std::unordered_map<std::string, double> empty_resources;
   ray::FunctionDescriptor empty_descriptor =
       ray::FunctionDescriptorBuilder::BuildPython("", "", "", "");
@@ -521,7 +527,7 @@ TEST(DirectTaskTransportTest, TestSpillback) {
   auto task_finisher = std::make_shared<MockTaskFinisher>();
   CoreWorkerDirectTaskSubmitter submitter(address, raylet_client, factory,
                                           lease_client_factory, store, task_finisher,
-                                          ClientID::Nil(), kLongTimeout);
+                                          ClientID::Nil(), kLongTimeout, nullptr);
   std::unordered_map<std::string, double> empty_resources;
   ray::FunctionDescriptor empty_descriptor =
       ray::FunctionDescriptorBuilder::BuildPython("", "", "", "");
@@ -572,7 +578,7 @@ TEST(DirectTaskTransportTest, TestSpillbackRoundTrip) {
   auto local_raylet_id = ClientID::FromRandom();
   CoreWorkerDirectTaskSubmitter submitter(address, raylet_client, factory,
                                           lease_client_factory, store, task_finisher,
-                                          local_raylet_id, kLongTimeout);
+                                          local_raylet_id, kLongTimeout, nullptr);
   std::unordered_map<std::string, double> empty_resources;
   ray::FunctionDescriptor empty_descriptor =
       ray::FunctionDescriptorBuilder::BuildPython("", "", "", "");
@@ -620,7 +626,8 @@ void TestSchedulingKey(const std::shared_ptr<CoreWorkerMemoryStore> store,
   auto factory = [&](const rpc::Address &addr) { return worker_client; };
   auto task_finisher = std::make_shared<MockTaskFinisher>();
   CoreWorkerDirectTaskSubmitter submitter(address, raylet_client, factory, nullptr, store,
-                                          task_finisher, ClientID::Nil(), kLongTimeout);
+                                          task_finisher, ClientID::Nil(), kLongTimeout,
+                                          nullptr);
 
   ASSERT_TRUE(submitter.SubmitTask(same1).ok());
   ASSERT_TRUE(submitter.SubmitTask(same2).ok());
@@ -723,7 +730,7 @@ TEST(DirectTaskTransportTest, TestWorkerLeaseTimeout) {
   auto task_finisher = std::make_shared<MockTaskFinisher>();
   CoreWorkerDirectTaskSubmitter submitter(address, raylet_client, factory, nullptr, store,
                                           task_finisher, ClientID::Nil(),
-                                          /*lease_timeout_ms=*/5);
+                                          /*lease_timeout_ms=*/5, nullptr);
   std::unordered_map<std::string, double> empty_resources;
   ray::FunctionDescriptor empty_descriptor =
       ray::FunctionDescriptorBuilder::BuildPython("", "", "", "");

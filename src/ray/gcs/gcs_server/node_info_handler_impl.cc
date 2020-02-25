@@ -1,4 +1,5 @@
 #include "node_info_handler_impl.h"
+#include "gcs_node_manager.h"
 #include "ray/util/logging.h"
 
 namespace ray {
@@ -9,6 +10,22 @@ void DefaultNodeInfoHandler::HandleRegisterNode(
     rpc::SendReplyCallback send_reply_callback) {
   ClientID node_id = ClientID::FromBinary(request.node_info().node_id());
   RAY_LOG(DEBUG) << "Registering node info, node id = " << node_id;
+  auto gcs_node_manager = gcs_node_manager_.lock();
+  if (gcs_node_manager == nullptr) {
+    RAY_LOG(DEBUG)
+        << "Failed to register node info as gcs node manager is invalid, node id = "
+        << node_id;
+    return;
+  }
+
+  auto node = gcs_node_manager->AddNode(request.node_info());
+  if (node == nullptr) {
+    RAY_LOG(WARNING) << "Failed to register node info as node " << node_id
+                     << " is already exist.";
+    return;
+  }
+  RAY_LOG(INFO) << "Succeed in adding node " << node_id << " with endpoint "
+                << node->GetEndpoint().to_string();
 
   auto on_done = [node_id, send_reply_callback](Status status) {
     if (!status.ok()) {

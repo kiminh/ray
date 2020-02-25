@@ -1,7 +1,7 @@
 #include "ray/core_worker/transport/direct_task_transport.h"
+#include <ray/gcs/gcs_client/service_based_gcs_client.h>
 
 #include "ray/core_worker/transport/dependency_resolver.h"
-#include "ray/core_worker/transport/direct_actor_transport.h"
 
 namespace ray {
 
@@ -9,6 +9,25 @@ Status CoreWorkerDirectTaskSubmitter::SubmitTask(TaskSpecification task_spec) {
   RAY_LOG(DEBUG) << "Submit task " << task_spec.TaskId();
   resolver_.ResolveDependencies(task_spec, [this, task_spec]() {
     RAY_LOG(DEBUG) << "Task dependencies resolved " << task_spec.TaskId();
+    if (gcs_actor_management_enabled_ && task_spec.IsActorCreationTask()) {
+      auto actor_id = task_spec.ActorCreationId();
+      rpc::CreateActorRequest request;
+      request.mutable_task_spec()->CopyFrom(task_spec.GetMessage());
+      auto service_based_client =
+          std::dynamic_pointer_cast<gcs::ServiceBasedGcsClient>(gcs_client_);
+      auto &gcs_rpc_client = service_based_client->GetGcsRpcClient();
+      RAY_LOG(INFO) << "Creating actor " << actor_id;
+      gcs_rpc_client.CreateActor(
+          request, [actor_id](const Status &status, const rpc::CreateActorReply &reply) {
+            if (status.ok()) {
+              RAY_LOG(INFO) << "Succeed in creating actor " << actor_id;
+            } else {
+              RAY_LOG(FATAL) << "Failed to create actor " << actor_id;
+            }
+          });
+      return;
+    }
+
     absl::MutexLock lock(&mu_);
     // Note that the dependencies in the task spec are mutated to only contain
     // plasma dependencies after ResolveDependencies finishes.

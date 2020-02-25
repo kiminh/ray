@@ -19,6 +19,7 @@ struct GcsServerConfig {
 };
 
 class GcsNodeManager;
+class GcsActorManager;
 
 /// The GcsServer will take over all requests from ServiceBasedGcsClient and transparent
 /// transmit the command to the backend reliable storage for the time being.
@@ -52,6 +53,9 @@ class GcsServer {
   /// Initialize the gcs node manager.
   /// The gcs node manager is responsible for detecting the activity or failure of nodes.
   virtual void InitGcsNodeManager();
+
+  /// Initialize the gcs node manager.
+  virtual void InitGcsActorManager();
 
   /// The job info handler
   virtual std::unique_ptr<rpc::JobInfoHandler> InitJobInfoHandler();
@@ -93,6 +97,8 @@ class GcsServer {
   boost::asio::io_context main_service_;
   /// The gcs node manager
   std::shared_ptr<GcsNodeManager> gcs_node_manager_;
+  /// The gcs actor manager
+  std::shared_ptr<GcsActorManager> gcs_actor_manager_;
   /// Job info handler and service
   std::unique_ptr<rpc::JobInfoHandler> job_info_handler_;
   std::unique_ptr<rpc::JobInfoGrpcService> job_info_service_;

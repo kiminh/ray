@@ -1,4 +1,5 @@
 #include "ray/core_worker/core_worker.h"
+#include <ray/gcs/gcs_client/service_based_gcs_client.h>
 
 #include "boost/fiber/all.hpp"
 #include "ray/common/ray_config.h"
@@ -87,7 +88,8 @@ CoreWorker::CoreWorker(const WorkerType worker_type, const Language language,
       task_execution_service_work_(task_execution_service_),
       task_execution_callback_(task_execution_callback),
       resource_ids_(new ResourceMappingType()),
-      grpc_service_(io_service_, *this) {
+      grpc_service_(io_service_, *this),
+      gcs_actor_management_enabled_(getenv("RAY_GCS_SERVICE_ENABLED") != nullptr) {
   // Initialize logging if log_dir is passed. Otherwise, it must be initialized
   // and cleaned up by the caller.
   if (log_dir_ != "") {
@@ -99,7 +101,11 @@ CoreWorker::CoreWorker(const WorkerType worker_type, const Language language,
   }
   RAY_LOG(INFO) << "Initializing worker " << worker_context_.GetWorkerID();
   // Initialize gcs client.
-  gcs_client_ = std::make_shared<gcs::RedisGcsClient>(gcs_options);
+  if (gcs_actor_management_enabled_) {
+    gcs_client_ = std::make_shared<gcs::ServiceBasedGcsClient>(gcs_options);
+  } else {
+    gcs_client_ = std::make_shared<gcs::RedisGcsClient>(gcs_options);
+  }
   RAY_CHECK_OK(gcs_client_->Connect(io_service_));
 
   actor_manager_ = std::unique_ptr<ActorManager>(new ActorManager(gcs_client_->Actors()));
@@ -232,14 +238,14 @@ CoreWorker::CoreWorker(const WorkerType worker_type, const Language language,
   direct_task_submitter_ =
       std::unique_ptr<CoreWorkerDirectTaskSubmitter>(new CoreWorkerDirectTaskSubmitter(
           rpc_address_, local_raylet_client_, client_factory,
-          [this](const std::string ip_address, int port) {
+          [this](const std::string &ip_address, int port) {
             auto grpc_client = rpc::NodeManagerWorkerClient::make(ip_address, port,
                                                                   *client_call_manager_);
             return std::shared_ptr<raylet::RayletClient>(
                 new raylet::RayletClient(std::move(grpc_client)));
           },
           memory_store_, task_manager_, local_raylet_id,
-          RayConfig::instance().worker_lease_timeout_milliseconds()));
+          RayConfig::instance().worker_lease_timeout_milliseconds(), gcs_client_));
   future_resolver_.reset(new FutureResolver(memory_store_, client_factory));
   // Unfortunately the raylet client has to be constructed after the receivers.
   if (direct_task_receiver_ != nullptr) {
@@ -882,7 +888,9 @@ bool CoreWorker::AddActorHandle(std::unique_ptr<ActorHandle> actor_handle) {
     // Register a callback to handle actor notifications.
     auto actor_notification_callback = [this](const ActorID &actor_id,
                                               const gcs::ActorTableData &actor_data) {
-      if (actor_data.state() == gcs::ActorTableData::RECONSTRUCTING) {
+      if (actor_data.state() == gcs::ActorTableData::PENDING) {
+        // The actor is creating and not yet ready, just ignore!
+      } else if (actor_data.state() == gcs::ActorTableData::RECONSTRUCTING) {
         absl::MutexLock lock(&actor_handles_mutex_);
         auto it = actor_handles_.find(actor_id);
         RAY_CHECK(it != actor_handles_.end());
@@ -1212,6 +1220,25 @@ void CoreWorker::HandlePushTask(const rpc::PushTaskRequest &request,
 
   task_queue_length_ += 1;
   task_execution_service_.post([=] {
+    if (gcs_actor_management_enabled_ &&
+        request.task_spec().type() == TaskType::ACTOR_CREATION_TASK) {
+      ActorID current_actor_id;
+      WorkerID current_worker_id;
+      {
+        absl::MutexLock lock(&mutex_);
+        current_actor_id = actor_id_;
+        current_worker_id = worker_context_.GetWorkerID();
+      }
+      if (!current_actor_id.IsNil()) {
+        auto to_be_created_actor_id = ActorID::FromBinary(
+            request.task_spec().actor_creation_task_spec().actor_id());
+        RAY_CHECK(current_actor_id == to_be_created_actor_id);
+        RAY_LOG(INFO) << "Worker " << current_worker_id
+                      << " is already associated with actor " << to_be_created_actor_id;
+        send_reply_callback(Status::OK(), nullptr, nullptr);
+        return;
+      }
+    }
     direct_task_receiver_->HandlePushTask(request, reply, send_reply_callback);
   });
 }

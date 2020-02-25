@@ -5,13 +5,19 @@
 #include "ray/rpc/gcs_server/gcs_rpc_server.h"
 
 namespace ray {
+
+namespace gcs {
+class GcsNodeManager;
+}
+
 namespace rpc {
 
 /// This implementation class of `NodeInfoHandler`.
 class DefaultNodeInfoHandler : public rpc::NodeInfoHandler {
  public:
-  explicit DefaultNodeInfoHandler(gcs::RedisGcsClient &gcs_client)
-      : gcs_client_(gcs_client) {}
+  explicit DefaultNodeInfoHandler(gcs::RedisGcsClient &gcs_client,
+                                  std::weak_ptr<gcs::GcsNodeManager> &&gcs_node_manager)
+      : gcs_client_(gcs_client), gcs_node_manager_(std::move(gcs_node_manager)) {}
 
   void HandleRegisterNode(const RegisterNodeRequest &request, RegisterNodeReply *reply,
                           SendReplyCallback send_reply_callback) override;
@@ -45,6 +51,7 @@ class DefaultNodeInfoHandler : public rpc::NodeInfoHandler {
 
  private:
   gcs::RedisGcsClient &gcs_client_;
+  std::weak_ptr<gcs::GcsNodeManager> gcs_node_manager_;
 };
 
 }  // namespace rpc

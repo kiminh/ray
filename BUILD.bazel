@@ -306,6 +306,8 @@ cc_library(
     deps = [
         ":gcs",
         ":gcs_service_rpc",
+        ":node_manager_rpc",
+        ":worker_rpc",
     ],
 )
 

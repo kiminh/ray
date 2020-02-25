@@ -788,6 +788,8 @@ class CoreWorker : public rpc::CoreWorkerServiceHandler {
   // Plasma notification manager
   std::unique_ptr<ObjectStoreNotificationManager> plasma_notifier_;
 
+  const bool gcs_actor_management_enabled_;
+
   friend class CoreWorkerTest;
 };
 

@@ -81,6 +81,8 @@ message GetActorCheckpointIDReply {
 
 // Service for actor info access.
 service ActorInfoGcsService {
+  // Create actor via gcs service
+  rpc CreateActor(CreateActorRequest) returns (CreateActorReply);
   // Get actor data from GCS Service.
   rpc GetActorInfo(GetActorInfoRequest) returns (GetActorInfoReply);
   // Register an actor to GCS Service.
