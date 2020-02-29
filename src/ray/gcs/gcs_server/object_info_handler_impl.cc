@@ -23,7 +23,7 @@ void DefaultObjectInfoHandler::HandleGetObjectLocations(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Objects().AsyncGetLocations(object_id, on_done);
+  Status status = object_info_accessor_->AsyncGetLocations(object_id, on_done);
   if (!status.ok()) {
     on_done(status, std::vector<rpc::ObjectTableData>());
   }
@@ -47,7 +47,7 @@ void DefaultObjectInfoHandler::HandleAddObjectLocation(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Objects().AsyncAddLocation(object_id, node_id, on_done);
+  Status status = object_info_accessor_->AsyncAddLocation(object_id, node_id, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -72,7 +72,7 @@ void DefaultObjectInfoHandler::HandleRemoveObjectLocation(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Objects().AsyncRemoveLocation(object_id, node_id, on_done);
+  Status status = object_info_accessor_->AsyncRemoveLocation(object_id, node_id, on_done);
   if (!status.ok()) {
     on_done(status);
   }

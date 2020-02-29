@@ -19,7 +19,7 @@ void DefaultErrorInfoHandler::HandleReportJobError(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Errors().AsyncReportJobError(error_table_data, on_done);
+  Status status = error_info_accessor_->AsyncReportJobError(error_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }

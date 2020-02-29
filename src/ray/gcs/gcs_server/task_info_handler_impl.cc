@@ -19,7 +19,7 @@ void DefaultTaskInfoHandler::HandleAddTask(const AddTaskRequest &request,
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Tasks().AsyncAdd(task_table_data, on_done);
+  Status status = task_info_accessor_->AsyncAdd(task_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -43,7 +43,7 @@ void DefaultTaskInfoHandler::HandleGetTask(const GetTaskRequest &request,
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Tasks().AsyncGet(task_id, on_done);
+  Status status = task_info_accessor_->AsyncGet(task_id, on_done);
   if (!status.ok()) {
     on_done(status, boost::none);
   }
@@ -62,7 +62,7 @@ void DefaultTaskInfoHandler::HandleDeleteTasks(const DeleteTasksRequest &request
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Tasks().AsyncDelete(task_ids, on_done);
+  Status status = task_info_accessor_->AsyncDelete(task_ids, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -86,7 +86,7 @@ void DefaultTaskInfoHandler::HandleAddTaskLease(const AddTaskLeaseRequest &reque
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Tasks().AsyncAddTaskLease(task_lease_data, on_done);
+  Status status = task_info_accessor_->AsyncAddTaskLease(task_lease_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -114,7 +114,7 @@ void DefaultTaskInfoHandler::HandleAttemptTaskReconstruction(
   };
 
   Status status =
-      gcs_client_.Tasks().AttemptTaskReconstruction(task_reconstruction_data, on_done);
+      task_info_accessor_->AttemptTaskReconstruction(task_reconstruction_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }

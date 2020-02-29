@@ -23,7 +23,7 @@ void DefaultActorInfoHandler::HandleGetActorInfo(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Actors().AsyncGet(actor_id, on_done);
+  Status status = actor_info_accessor_->AsyncGet(actor_id, on_done);
   if (!status.ok()) {
     on_done(status, boost::none);
   }
@@ -45,7 +45,7 @@ void DefaultActorInfoHandler::HandleRegisterActorInfo(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Actors().AsyncRegister(actor_table_data, on_done);
+  Status status = actor_info_accessor_->AsyncRegister(actor_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -67,7 +67,7 @@ void DefaultActorInfoHandler::HandleUpdateActorInfo(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Actors().AsyncUpdate(actor_id, actor_table_data, on_done);
+  Status status = actor_info_accessor_->AsyncUpdate(actor_id, actor_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -93,7 +93,8 @@ void DefaultActorInfoHandler::HandleAddActorCheckpoint(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Actors().AsyncAddCheckpoint(actor_checkpoint_data, on_done);
+  Status status =
+      actor_info_accessor_->AsyncAddCheckpoint(actor_checkpoint_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -119,7 +120,7 @@ void DefaultActorInfoHandler::HandleGetActorCheckpoint(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Actors().AsyncGetCheckpoint(checkpoint_id, on_done);
+  Status status = actor_info_accessor_->AsyncGetCheckpoint(checkpoint_id, on_done);
   if (!status.ok()) {
     on_done(status, boost::none);
   }
@@ -145,7 +146,7 @@ void DefaultActorInfoHandler::HandleGetActorCheckpointID(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Actors().AsyncGetCheckpointID(actor_id, on_done);
+  Status status = actor_info_accessor_->AsyncGetCheckpointID(actor_id, on_done);
   if (!status.ok()) {
     on_done(status, boost::none);
   }

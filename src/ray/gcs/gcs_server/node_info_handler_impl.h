@@ -1,6 +1,8 @@
 #ifndef RAY_GCS_NODE_INFO_HANDLER_IMPL_H
 #define RAY_GCS_NODE_INFO_HANDLER_IMPL_H
 
+#include "ray/gcs/gcs_storage_client/gcs_storage_accessor.h"
+#include "ray/gcs/gcs_storage_client/gcs_storage_client.h"
 #include "ray/gcs/redis_gcs_client.h"
 #include "ray/rpc/gcs_server/gcs_rpc_server.h"
 
@@ -10,8 +12,10 @@ namespace rpc {
 /// This implementation class of `NodeInfoHandler`.
 class DefaultNodeInfoHandler : public rpc::NodeInfoHandler {
  public:
-  explicit DefaultNodeInfoHandler(gcs::RedisGcsClient &gcs_client)
-      : gcs_client_(gcs_client) {}
+  explicit DefaultNodeInfoHandler(gcs::GcsStorageClient &gcs_storage_client) {
+    node_info_accessor_ = std::unique_ptr<gcs::GcsStorageNodeInfoAccessor>(
+        new gcs::GcsStorageNodeInfoAccessor(gcs_storage_client));
+  }
 
   void HandleRegisterNode(const RegisterNodeRequest &request, RegisterNodeReply *reply,
                           SendReplyCallback send_reply_callback) override;
@@ -44,7 +48,7 @@ class DefaultNodeInfoHandler : public rpc::NodeInfoHandler {
                              SendReplyCallback send_reply_callback) override;
 
  private:
-  gcs::RedisGcsClient &gcs_client_;
+  std::unique_ptr<gcs::GcsStorageNodeInfoAccessor> node_info_accessor_;
 };
 
 }  // namespace rpc

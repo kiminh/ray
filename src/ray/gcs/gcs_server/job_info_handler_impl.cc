@@ -19,7 +19,7 @@ void DefaultJobInfoHandler::HandleAddJob(const rpc::AddJobRequest &request,
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Jobs().AsyncAdd(job_table_data, on_done);
+  Status status = job_info_accessor_->AsyncAdd(job_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -40,7 +40,7 @@ void DefaultJobInfoHandler::HandleMarkJobFinished(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Jobs().AsyncMarkFinished(job_id, on_done);
+  Status status = job_info_accessor_->AsyncMarkFinished(job_id, on_done);
   if (!status.ok()) {
     on_done(status);
   }

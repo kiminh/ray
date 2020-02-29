@@ -1,7 +1,8 @@
 #ifndef RAY_GCS_ACTOR_INFO_HANDLER_IMPL_H
 #define RAY_GCS_ACTOR_INFO_HANDLER_IMPL_H
 
-#include "ray/gcs/redis_gcs_client.h"
+#include "ray/gcs/gcs_storage_client/gcs_storage_accessor.h"
+#include "ray/gcs/gcs_storage_client/gcs_storage_client.h"
 #include "ray/rpc/gcs_server/gcs_rpc_server.h"
 
 namespace ray {
@@ -10,8 +11,10 @@ namespace rpc {
 /// This implementation class of `ActorInfoHandler`.
 class DefaultActorInfoHandler : public rpc::ActorInfoHandler {
  public:
-  explicit DefaultActorInfoHandler(gcs::RedisGcsClient &gcs_client)
-      : gcs_client_(gcs_client) {}
+  explicit DefaultActorInfoHandler(gcs::GcsStorageClient &gcs_storage_client) {
+    actor_info_accessor_ = std::unique_ptr<gcs::GcsStorageActorInfoAccessor>(
+        new gcs::GcsStorageActorInfoAccessor(gcs_storage_client));
+  }
 
   void HandleGetActorInfo(const GetActorInfoRequest &request, GetActorInfoReply *reply,
                           SendReplyCallback send_reply_callback) override;
@@ -37,7 +40,7 @@ class DefaultActorInfoHandler : public rpc::ActorInfoHandler {
                                   SendReplyCallback send_reply_callback) override;
 
  private:
-  gcs::RedisGcsClient &gcs_client_;
+  std::unique_ptr<gcs::GcsStorageActorInfoAccessor> actor_info_accessor_;
 };
 
 }  // namespace rpc

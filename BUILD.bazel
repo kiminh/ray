@@ -301,6 +301,28 @@ cc_binary(
 )
 
 cc_library(
+    name = "gcs_storage_client_lib",
+    srcs = glob(
+        [
+            "src/ray/gcs/gcs_storage_client/*.cc",
+        ],
+        exclude = [
+            "src/ray/gcs/gcs_storage_client/test/*.cc",
+        ],
+    ),
+    hdrs = glob(
+        [
+            "src/ray/gcs/gcs_storage_client/*.h",
+        ],
+    ),
+    copts = COPTS,
+    deps = [
+        ":ray_common",
+        ":gcs",
+    ],
+)
+
+cc_library(
     name = "gcs_server_lib",
     srcs = glob(
         [
@@ -320,6 +342,7 @@ cc_library(
     deps = [
         ":gcs",
         ":gcs_service_rpc",
+        ":gcs_storage_client_lib",
     ],
 )
 
