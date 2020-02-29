@@ -20,7 +20,7 @@ void DefaultStatsHandler::HandleAddProfileData(const AddProfileDataRequest &requ
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Stats().AsyncAddProfileData(profile_table_data, on_done);
+  Status status = stats_info_accessor_->AsyncAddProfileData(profile_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }

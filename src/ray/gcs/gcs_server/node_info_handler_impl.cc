@@ -18,7 +18,7 @@ void DefaultNodeInfoHandler::HandleRegisterNode(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Nodes().AsyncRegister(request.node_info(), on_done);
+  Status status = node_info_accessor_->AsyncRegister(request.node_info(), on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -39,7 +39,7 @@ void DefaultNodeInfoHandler::HandleUnregisterNode(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Nodes().AsyncUnregister(node_id, on_done);
+  Status status = node_info_accessor_->AsyncUnregister(node_id, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -62,7 +62,7 @@ void DefaultNodeInfoHandler::HandleGetAllNodeInfo(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Nodes().AsyncGetAll(on_done);
+  Status status = node_info_accessor_->AsyncGetAll(on_done);
   if (!status.ok()) {
     on_done(status, std::vector<rpc::GcsNodeInfo>());
   }
@@ -85,7 +85,7 @@ void DefaultNodeInfoHandler::HandleReportHeartbeat(
 
   auto heartbeat_data = std::make_shared<rpc::HeartbeatTableData>();
   heartbeat_data->CopyFrom(request.heartbeat());
-  Status status = gcs_client_.Nodes().AsyncReportHeartbeat(heartbeat_data, on_done);
+  Status status = node_info_accessor_->AsyncReportHeartbeat(heartbeat_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -109,7 +109,7 @@ void DefaultNodeInfoHandler::HandleReportBatchHeartbeat(
   auto heartbeat_batch_data = std::make_shared<rpc::HeartbeatBatchTableData>();
   heartbeat_batch_data->CopyFrom(request.heartbeat_batch());
   Status status =
-      gcs_client_.Nodes().AsyncReportBatchHeartbeat(heartbeat_batch_data, on_done);
+      node_info_accessor_->AsyncReportBatchHeartbeat(heartbeat_batch_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -140,7 +140,7 @@ void DefaultNodeInfoHandler::HandleGetResources(const GetResourcesRequest &reque
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Nodes().AsyncGetResources(node_id, on_done);
+  Status status = node_info_accessor_->AsyncGetResources(node_id, on_done);
   if (!status.ok()) {
     on_done(status, boost::none);
   }
@@ -167,7 +167,7 @@ void DefaultNodeInfoHandler::HandleUpdateResources(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = gcs_client_.Nodes().AsyncUpdateResources(node_id, resources, on_done);
+  Status status = node_info_accessor_->AsyncUpdateResources(node_id, resources, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -191,7 +191,7 @@ void DefaultNodeInfoHandler::HandleDeleteResources(
   };
 
   Status status =
-      gcs_client_.Nodes().AsyncDeleteResources(node_id, resource_names, on_done);
+      node_info_accessor_->AsyncDeleteResources(node_id, resource_names, on_done);
   if (!status.ok()) {
     on_done(status);
   }

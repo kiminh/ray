@@ -1,6 +1,8 @@
 #ifndef RAY_GCS_OBJECT_INFO_HANDLER_IMPL_H
 #define RAY_GCS_OBJECT_INFO_HANDLER_IMPL_H
 
+#include "ray/gcs/gcs_storage_client/gcs_storage_accessor.h"
+#include "ray/gcs/gcs_storage_client/gcs_storage_client.h"
 #include "ray/gcs/redis_gcs_client.h"
 #include "ray/rpc/gcs_server/gcs_rpc_server.h"
 
@@ -10,8 +12,10 @@ namespace rpc {
 /// This implementation class of `ObjectInfoHandler`.
 class DefaultObjectInfoHandler : public rpc::ObjectInfoHandler {
  public:
-  explicit DefaultObjectInfoHandler(gcs::RedisGcsClient &gcs_client)
-      : gcs_client_(gcs_client) {}
+  explicit DefaultObjectInfoHandler(gcs::GcsStorageClient &gcs_storage_client) {
+    object_info_accessor_ = std::unique_ptr<gcs::GcsStorageObjectInfoAccessor>(
+        new gcs::GcsStorageObjectInfoAccessor(gcs_storage_client));
+  }
 
   void HandleGetObjectLocations(const GetObjectLocationsRequest &request,
                                 GetObjectLocationsReply *reply,
@@ -26,7 +30,7 @@ class DefaultObjectInfoHandler : public rpc::ObjectInfoHandler {
                                   SendReplyCallback send_reply_callback) override;
 
  private:
-  gcs::RedisGcsClient &gcs_client_;
+  std::unique_ptr<gcs::GcsStorageObjectInfoAccessor> object_info_accessor_;
 };
 
 }  // namespace rpc
