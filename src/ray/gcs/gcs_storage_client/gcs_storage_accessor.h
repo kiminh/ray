@@ -14,7 +14,8 @@ namespace gcs {
 /// GcsStorageActorInfoAccessor uses persist storage as the backend storage.
 class GcsStorageActorInfoAccessor {
  public:
-  explicit GcsStorageActorInfoAccessor(GcsStorageClient &client_impl);
+  explicit GcsStorageActorInfoAccessor(GcsStorageClient &client_impl)
+      : client_impl_(client_impl) {}
 
   virtual ~GcsStorageActorInfoAccessor() {}
 
@@ -56,7 +57,8 @@ class GcsStorageActorInfoAccessor {
 /// GcsStorageJobInfoAccessor uses persist storage as the backend storage.
 class GcsStorageJobInfoAccessor {
  public:
-  explicit GcsStorageJobInfoAccessor(GcsStorageClient &client_impl);
+  explicit GcsStorageJobInfoAccessor(GcsStorageClient &client_impl)
+      : client_impl_(client_impl) {}
 
   virtual ~GcsStorageJobInfoAccessor() {}
 
@@ -73,7 +75,8 @@ class GcsStorageJobInfoAccessor {
 /// GcsStorageTaskInfoAccessor uses persist storage as the backend storage.
 class GcsStorageTaskInfoAccessor {
  public:
-  explicit GcsStorageTaskInfoAccessor(GcsStorageClient &client_impl);
+  explicit GcsStorageTaskInfoAccessor(GcsStorageClient &client_impl)
+      : client_impl_(client_impl) {}
 
   virtual ~GcsStorageTaskInfoAccessor() {}
 
@@ -100,7 +103,8 @@ class GcsStorageTaskInfoAccessor {
 /// GcsStorageObjectInfoAccessor uses persist storage as the backend storage.
 class GcsStorageObjectInfoAccessor {
  public:
-  explicit GcsStorageObjectInfoAccessor(GcsStorageClient &client_impl);
+  explicit GcsStorageObjectInfoAccessor(GcsStorageClient &client_impl)
+      : client_impl_(client_impl) {}
 
   virtual ~GcsStorageObjectInfoAccessor() {}
 
@@ -121,7 +125,8 @@ class GcsStorageObjectInfoAccessor {
 /// GcsStorageNodeInfoAccessor uses persist storage as the backend storage.
 class GcsStorageNodeInfoAccessor {
  public:
-  explicit GcsStorageNodeInfoAccessor(GcsStorageClient &client_impl);
+  explicit GcsStorageNodeInfoAccessor(GcsStorageClient &client_impl)
+      : client_impl_(client_impl) {}
 
   virtual ~GcsStorageNodeInfoAccessor() {}
 
@@ -158,7 +163,8 @@ class GcsStorageNodeInfoAccessor {
 /// GcsStorageErrorInfoAccessor uses persist storage as the backend storage.
 class GcsStorageErrorInfoAccessor {
  public:
-  explicit GcsStorageErrorInfoAccessor(GcsStorageClient &client_impl);
+  explicit GcsStorageErrorInfoAccessor(GcsStorageClient &client_impl)
+      : client_impl_(client_impl) {}
 
   virtual ~GcsStorageErrorInfoAccessor() = default;
 
@@ -173,7 +179,8 @@ class GcsStorageErrorInfoAccessor {
 /// GcsStorageStatsInfoAccessor uses persist storage as the backend storage.
 class GcsStorageStatsInfoAccessor {
  public:
-  explicit GcsStorageStatsInfoAccessor(GcsStorageClient &client_impl);
+  explicit GcsStorageStatsInfoAccessor(GcsStorageClient &client_impl)
+      : client_impl_(client_impl) {}
 
   virtual ~GcsStorageStatsInfoAccessor() = default;
 
@@ -188,7 +195,8 @@ class GcsStorageStatsInfoAccessor {
 /// GcsStorageWorkerInfoAccessor uses persist storage as the backend storage.
 class GcsStorageWorkerInfoAccessor {
  public:
-  explicit GcsStorageWorkerInfoAccessor(GcsStorageClient &client_impl);
+  explicit GcsStorageWorkerInfoAccessor(GcsStorageClient &client_impl)
+      : client_impl_(client_impl) {}
 
   virtual ~GcsStorageWorkerInfoAccessor() = default;
 

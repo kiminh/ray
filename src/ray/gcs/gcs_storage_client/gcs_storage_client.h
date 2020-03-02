@@ -32,6 +32,8 @@ class GcsStorageClient {
 
   virtual Status GetAll(const std::string &index, const GetAllCallback &callback);
 
+  // TODO: Scan
+
   virtual Status Set(const std::string &key, const std::string &value,
                      const SetCallback &callback);
 
@@ -39,6 +41,9 @@ class GcsStorageClient {
                      const std::string &value, const SetCallback &callback);
 
   virtual Status Delete(const std::string &key, const DeleteCallback &callback);
+
+  virtual Status Delete(const std::string &index, const std::string &key,
+                        const DeleteCallback &callback);
 
   virtual Status Delete(const std::vector<std::string> &keys,
                         const DeleteCallback &callback);

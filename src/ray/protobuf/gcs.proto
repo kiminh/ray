@@ -285,6 +285,19 @@ message WorkerFailureData {
   int64 timestamp = 3;
 }
 
+message ResourceItem {
+  string key = 1;
+  ResourceTableData value = 2;
+}
+
+message ResourceMap {
+  repeated ResourceItem items = 1;
+}
+
+message ObjectTableDataVector {
+  repeated ObjectTableData items = 1;
+}
+
 // This enum type is used as object's metadata to indicate the object's creating
 // task has failed because of a certain error.
 // TODO(hchen): We may want to make these errors more specific. E.g., we may want

@@ -34,6 +34,11 @@ Status GcsStorageRedisClient::Delete(const std::string &key,
   return Status::OK();
 }
 
+Status GcsStorageRedisClient::Delete(const std::string &index, const std::string &key,
+                                     const DeleteCallback &callback) {
+  return Status::OK();
+}
+
 Status GcsStorageRedisClient::Delete(const std::vector<std::string> &keys,
                                      const DeleteCallback &callback) {
   return Status::OK();

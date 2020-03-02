@@ -54,6 +54,17 @@ SetCallback CreateCallbackOfSet(const StatusCallback &callback,
   return on_done;
 }
 
+DeleteCallback CreateCallbackOfDelete(const StatusCallback &callback,
+                                      const std::string error_info) {
+  auto on_done = [callback, error_info](const Status &status) {
+    if (callback != nullptr) {
+      Status result = status.ok() ? status : Status::Invalid(error_info);
+      callback(result);
+    }
+  };
+  return on_done;
+}
+
 template <typename Data>
 GetCallback CreateCallbackOfGet(const OptionalItemCallback<Data> &callback,
                                 const std::string error_info) {
@@ -69,9 +80,6 @@ GetCallback CreateCallbackOfGet(const OptionalItemCallback<Data> &callback,
   };
   return on_done;
 }
-
-GcsStorageActorInfoAccessor::GcsStorageActorInfoAccessor(GcsStorageClient &client_impl)
-    : client_impl_(client_impl) {}
 
 Status GcsStorageActorInfoAccessor::AsyncGet(
     const ActorID &actor_id, const OptionalItemCallback<ActorTableData> &callback) {
@@ -107,12 +115,17 @@ Status GcsStorageActorInfoAccessor::AsyncAddCheckpoint(
     const StatusCallback &callback) {
   ActorCheckpointID checkpoint_id =
       ActorCheckpointID::FromBinary(data_ptr->checkpoint_id());
-  auto on_done = [callback, checkpoint_id, data_ptr, this](const Status &status) {
+  auto checkpoint_set_done = [callback, checkpoint_id, data_ptr,
+                              this](const Status &status) {
     if (status.ok()) {
       ActorID actor_id = ActorID::FromBinary(data_ptr->actor_id());
-      Status status = AsyncAddCheckpointID(actor_id, checkpoint_id, callback);
-      if (!status.ok()) {
-        callback(status);
+      auto checkpoint_id_set_done =
+          CreateCallbackOfSet(callback, "Adding checkpoint id failed.");
+      Status checkpoint_id_set_status =
+          client_impl_.Set(kActorCheckpointIdPrefix + actor_id.Binary(),
+                           checkpoint_id.Binary(), checkpoint_id_set_done);
+      if (!checkpoint_id_set_status.ok()) {
+        callback(checkpoint_id_set_status);
       }
     } else {
       callback(Status::Invalid("Adding checkpoint failed."));
@@ -120,7 +133,7 @@ Status GcsStorageActorInfoAccessor::AsyncAddCheckpoint(
   };
 
   return client_impl_.Set(kActorCheckpointPrefix + data_ptr->actor_id(),
-                          Serialize(data_ptr), on_done);
+                          Serialize(data_ptr), checkpoint_set_done);
 }
 
 Status GcsStorageActorInfoAccessor::AsyncGetCheckpoint(
@@ -139,17 +152,6 @@ Status GcsStorageActorInfoAccessor::AsyncGetCheckpointID(
   return client_impl_.Get(kActorCheckpointIdPrefix + actor_id.Binary(), on_done);
 }
 
-Status GcsStorageActorInfoAccessor::AsyncAddCheckpointID(
-    const ActorID &actor_id, const ActorCheckpointID &checkpoint_id,
-    const StatusCallback &callback) {
-  auto on_done = CreateCallbackOfSet(callback, "Adding checkpoint id failed.");
-  return client_impl_.Set(kActorCheckpointIdPrefix + actor_id.Binary(),
-                          checkpoint_id.Binary(), on_done);
-}
-
-GcsStorageJobInfoAccessor::GcsStorageJobInfoAccessor(GcsStorageClient &client_impl)
-    : client_impl_(client_impl) {}
-
 Status GcsStorageJobInfoAccessor::AsyncAdd(const std::shared_ptr<JobTableData> &data_ptr,
                                            const StatusCallback &callback) {
   auto on_done = CreateCallbackOfSet(callback, "Adding job failed.");
@@ -158,16 +160,12 @@ Status GcsStorageJobInfoAccessor::AsyncAdd(const std::shared_ptr<JobTableData> &
 
 Status GcsStorageJobInfoAccessor::AsyncMarkFinished(const JobID &job_id,
                                                     const StatusCallback &callback) {
-  // TODO: GET AND SET??
   std::shared_ptr<JobTableData> data_ptr =
       CreateJobTableData(job_id, /*is_dead*/ true, /*time_stamp*/ std::time(nullptr),
                          /*node_manager_address*/ "", /*driver_pid*/ -1);
   auto on_done = CreateCallbackOfSet(callback, "Marking job finished failed.");
   return client_impl_.Set(kJobPrefix + data_ptr->job_id(), Serialize(data_ptr), on_done);
 }
-
-GcsStorageTaskInfoAccessor::GcsStorageTaskInfoAccessor(GcsStorageClient &client_impl)
-    : client_impl_(client_impl) {}
 
 Status GcsStorageTaskInfoAccessor::AsyncAdd(
     const std::shared_ptr<TaskTableData> &data_ptr, const StatusCallback &callback) {
@@ -189,13 +187,7 @@ Status GcsStorageTaskInfoAccessor::AsyncDelete(const std::vector<TaskID> &task_i
   for (TaskID task_id : task_ids) {
     keys.push_back(kTaskPrefix + task_id.Binary());
   }
-
-  auto on_done = [callback](const Status &status) {
-    if (callback) {
-      callback(status);
-    }
-  };
-
+  auto on_done = CreateCallbackOfDelete(callback, "Deleting task failed.");
   return client_impl_.Delete(keys, on_done);
 }
 
@@ -214,25 +206,23 @@ Status GcsStorageTaskInfoAccessor::AttemptTaskReconstruction(
                           Serialize(data_ptr), on_done);
 }
 
-GcsStorageObjectInfoAccessor::GcsStorageObjectInfoAccessor(GcsStorageClient &client_impl)
-    : client_impl_(client_impl) {}
-
 Status GcsStorageObjectInfoAccessor::AsyncGetLocations(
     const ObjectID &object_id, const MultiItemCallback<ObjectTableData> &callback) {
   RAY_CHECK(callback != nullptr);
   auto on_done = [callback](const Status &status,
                             const boost::optional<std::string> &data) {
     std::vector<ObjectTableData> result;
-    if (status.ok()) {
-      if (data) {
-        // TODO: get vector from string
-        //      ObjectTableData object_table_data;
-        //      object_table_data.ParseFromString(*data);
+    if (status.ok() && data) {
+      rpc::ObjectTableDataVector pb_data;
+      pb_data.ParseFromString(*data);
+      for (int index = 0; index < pb_data.items_size(); ++index) {
+        auto item = pb_data.items(index);
+        result.push_back(item);
       }
-      callback(Status::OK(), result);
-    } else {
-      callback(Status::Invalid("Getting object location failed."), result);
     }
+    Status statusRet =
+        status.ok() ? status : Status::Invalid("Getting object location failed.");
+    callback(statusRet, result);
   };
 
   return client_impl_.Get(kObjectPrefix + object_id.Binary(), on_done);
@@ -241,54 +231,97 @@ Status GcsStorageObjectInfoAccessor::AsyncGetLocations(
 Status GcsStorageObjectInfoAccessor::AsyncAddLocation(const ObjectID &object_id,
                                                       const ClientID &node_id,
                                                       const StatusCallback &callback) {
-  std::shared_ptr<ObjectTableData> data_ptr = std::make_shared<ObjectTableData>();
-  data_ptr->set_manager(node_id.Binary());
-  auto on_done = CreateCallbackOfSet(callback, "Adding object location failed.");
-  return client_impl_.Set(kObjectPrefix + object_id.Binary(), Serialize(data_ptr),
-                          on_done);
+  auto get_done = [this, object_id, node_id, callback](
+                      Status status, const std::vector<ObjectTableData> &result) {
+    if (status.ok()) {
+      std::vector<ObjectTableData> data_result(result);
+      ObjectTableData object_table_data;
+      object_table_data.set_manager(node_id.Binary());
+      data_result.push_back(object_table_data);
+
+      rpc::ObjectTableDataVector pb_data;
+      for (ObjectTableData data : data_result) {
+        pb_data.add_items()->CopyFrom(data);
+      }
+
+      std::string value;
+      pb_data.SerializeToString(&value);
+      auto set_done = CreateCallbackOfSet(callback, "Adding object location failed.");
+      Status set_status =
+          client_impl_.Set(kObjectPrefix + object_id.Binary(), value, set_done);
+      if (!set_status.ok()) {
+        callback(set_status);
+      }
+    } else {
+      callback(status);
+    }
+  };
+  return AsyncGetLocations(object_id, get_done);
 }
 
 Status GcsStorageObjectInfoAccessor::AsyncRemoveLocation(const ObjectID &object_id,
                                                          const ClientID &node_id,
                                                          const StatusCallback &callback) {
-  auto on_done = [callback](const Status &status) {
-    if (callback != nullptr) {
-      Status result =
-          status.ok() ? status : Status::Invalid("Removing object location failed.");
-      callback(result);
+  auto get_done = [this, object_id, node_id, callback](
+                      Status status, const std::vector<ObjectTableData> &result) {
+    if (status.ok()) {
+      std::vector<ObjectTableData> data_result(result);
+      data_result.erase(remove_if(data_result.begin(), data_result.end(),
+                                  [node_id](ObjectTableData data) {
+                                    return data.manager() == node_id.Binary();
+                                  }),
+                        data_result.end());
+
+      rpc::ObjectTableDataVector pb_data;
+      for (ObjectTableData data : data_result) {
+        pb_data.add_items()->CopyFrom(data);
+      }
+
+      std::string value;
+      pb_data.SerializeToString(&value);
+      auto set_done = CreateCallbackOfSet(callback, "Adding object location failed.");
+      (void)client_impl_.Set(kObjectPrefix + object_id.Binary(), value, set_done);
+    } else {
+      callback(status);
     }
   };
-
-  return client_impl_.Delete(kObjectPrefix + object_id.Binary(), on_done);
+  return AsyncGetLocations(object_id, get_done);
 }
-
-GcsStorageNodeInfoAccessor::GcsStorageNodeInfoAccessor(GcsStorageClient &client_impl)
-    : client_impl_(client_impl) {}
 
 Status GcsStorageNodeInfoAccessor::AsyncRegister(const GcsNodeInfo &node_info,
                                                  const StatusCallback &callback) {
   auto on_done = CreateCallbackOfSet(callback, "Registering node failed.");
   std::string value;
   node_info.SerializeToString(&value);
-  return client_impl_.Set(kNodePrefix + node_info.node_id(), value, on_done);
+  return client_impl_.Set(kNodePrefix, node_info.node_id(), value, on_done);
 }
 
 Status GcsStorageNodeInfoAccessor::AsyncUnregister(const ClientID &node_id,
                                                    const StatusCallback &callback) {
-  auto on_done = [callback](const Status &status) {
-    if (callback != nullptr) {
-      Status result =
-          status.ok() ? status : Status::Invalid("Unregistering node failed.");
-      callback(result);
-    }
-  };
-
-  return client_impl_.Delete(kNodePrefix + node_id.Binary(), on_done);
+  auto on_done = CreateCallbackOfDelete(callback, "Unregistering node failed.");
+  return client_impl_.Delete(kNodePrefix, node_id.Binary(), on_done);
 }
 
 Status GcsStorageNodeInfoAccessor::AsyncGetAll(
     const MultiItemCallback<GcsNodeInfo> &callback) {
-  return Status::OK();
+  RAY_CHECK(callback != nullptr);
+  auto on_done = [callback](const Status &status,
+                            const std::vector<std::string> &data) {
+    std::vector<GcsNodeInfo> result;
+    if (status.ok()) {
+      for (std::string item : data) {
+        GcsNodeInfo node_info;
+        node_info.ParseFromString(item);
+        result.push_back(node_info);
+      }
+    }
+
+    Status statusRet =
+        status.ok() ? status : Status::Invalid("Getting all actor failed.");
+    callback(statusRet, result);
+  };
+
+  return client_impl_.GetAll(kNodePrefix, on_done);
 }
 
 Status GcsStorageNodeInfoAccessor::AsyncReportHeartbeat(
@@ -311,17 +344,20 @@ Status GcsStorageNodeInfoAccessor::AsyncGetResources(
   RAY_CHECK(callback != nullptr);
   auto on_done = [callback](const Status &status,
                             const boost::optional<std::string> &data) {
-    if (status.ok()) {
-      if (data) {
-        // TODO:数据转成map
-        boost::optional<NodeInfoAccessor::ResourceMap> result;
-        callback(Status::OK(), result);
-      } else {
-        callback(Status::OK(), boost::none);
+    boost::optional<NodeInfoAccessor::ResourceMap> result;
+    if (status.ok() && data) {
+      rpc::ResourceMap pb_data;
+      pb_data.ParseFromString(*data);
+      NodeInfoAccessor::ResourceMap resources;
+      for (int index = 0; index < pb_data.items_size(); ++index) {
+        auto item = pb_data.items(index);
+        resources[item.key()] = std::make_shared<rpc::ResourceTableData>(item.value());
       }
-    } else {
-      callback(Status::Invalid("Getting node resources failed."), boost::none);
+      result = resources;
     }
+    Status statusRet =
+        status.ok() ? status : Status::Invalid("Getting node resources failed.");
+    callback(statusRet, result);
   };
 
   return client_impl_.Get(kNodeResourcePrefix + node_id.Binary(), on_done);
@@ -330,24 +366,26 @@ Status GcsStorageNodeInfoAccessor::AsyncGetResources(
 Status GcsStorageNodeInfoAccessor::AsyncUpdateResources(
     const ClientID &node_id, const NodeInfoAccessor::ResourceMap &resources,
     const StatusCallback &callback) {
+  rpc::ResourceMap pb_data;
+  for (auto iter = resources.begin(); iter != resources.end(); ++iter) {
+    rpc::ResourceItem item;
+    item.set_key(iter->first);
+    item.mutable_value()->CopyFrom(*(iter->second));
+    pb_data.add_items()->CopyFrom(item);
+  }
+
+  std::string value;
+  pb_data.SerializeToString(&value);
   auto on_done = CreateCallbackOfSet(callback, "Updating resources failed.");
-  // TODO:实现map
-  //  std::string value;
-  //  data_ptr->SerializeToString(&value);
-  //  return client_impl_.Set(kNodeResourcePrefix + node_id.Binary(), value, on_success,
-  //  on_failure);
-  return Status::OK();
+  return client_impl_.Set(kNodeResourcePrefix + node_id.Binary(), value, on_done);
 }
 
 Status GcsStorageNodeInfoAccessor::AsyncDeleteResources(
     const ClientID &node_id, const std::vector<std::string> &resource_names,
     const StatusCallback &callback) {
-  // TODO: get and set
-  return Status::OK();
+  auto on_done = CreateCallbackOfDelete(callback, "Deleting node failed.");
+  return client_impl_.Delete(kNodePrefix + node_id.Binary(), on_done);
 }
-
-GcsStorageErrorInfoAccessor::GcsStorageErrorInfoAccessor(GcsStorageClient &client_impl)
-    : client_impl_(client_impl) {}
 
 Status GcsStorageErrorInfoAccessor::AsyncReportJobError(
     const std::shared_ptr<ErrorTableData> &data_ptr, const StatusCallback &callback) {
@@ -356,18 +394,12 @@ Status GcsStorageErrorInfoAccessor::AsyncReportJobError(
                           on_done);
 }
 
-GcsStorageStatsInfoAccessor::GcsStorageStatsInfoAccessor(GcsStorageClient &client_impl)
-    : client_impl_(client_impl) {}
-
 Status GcsStorageStatsInfoAccessor::AsyncAddProfileData(
     const std::shared_ptr<ProfileTableData> &data_ptr, const StatusCallback &callback) {
   auto on_done = CreateCallbackOfSet(callback, "Adding profile failed.");
   return client_impl_.Set(kProfilePrefix + UniqueID::FromRandom().Binary(),
                           Serialize(data_ptr), on_done);
 }
-
-GcsStorageWorkerInfoAccessor::GcsStorageWorkerInfoAccessor(GcsStorageClient &client_impl)
-    : client_impl_(client_impl) {}
 
 Status GcsStorageWorkerInfoAccessor::AsyncReportWorkerFailure(
     const std::shared_ptr<WorkerFailureData> &data_ptr, const StatusCallback &callback) {
