@@ -28,6 +28,9 @@ class GcsStorageRedisClient : public GcsStorageClient {
 
   Status Delete(const std::string &key, const DeleteCallback &callback) override;
 
+  Status Delete(const std::string &index, const std::string &key,
+                const DeleteCallback &callback) override;
+
   Status Delete(const std::vector<std::string> &keys,
                 const DeleteCallback &callback) override;
 
