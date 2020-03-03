@@ -24,8 +24,9 @@ void GcsServer::Start() {
   InitBackendClient();
 
   // Init storage client.
-  GcsStorageClientConfig options;
-  gcs_storage_client_ = std::make_shared<GcsStorageRedisClient>(options);
+  GcsStorageRedisClientConfig config(config_.redis_address, config_.redis_port,
+                                     config_.redis_password, config_.is_test);
+  gcs_storage_client_ = std::make_shared<GcsStorageRedisClient>(config);
 
   // Register rpc service.
   job_info_handler_ = InitJobInfoHandler();

@@ -40,16 +40,6 @@ class GcsStorageActorInfoAccessor {
       const OptionalItemCallback<ActorCheckpointIdData> &callback);
 
  private:
-  /// Add checkpoint id to GCS asynchronously.
-  ///
-  /// \param actor_id The ID of actor that the checkpoint belongs to.
-  /// \param checkpoint_id The ID of checkpoint that will be added to GCS.
-  /// \return Status
-  Status AsyncAddCheckpointID(const ActorID &actor_id,
-                              const ActorCheckpointID &checkpoint_id,
-                              const StatusCallback &callback);
-
- private:
   GcsStorageClient &client_impl_;
 };
 
