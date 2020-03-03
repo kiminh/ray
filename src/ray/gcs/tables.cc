@@ -39,6 +39,18 @@ namespace ray {
 
 namespace gcs {
 
+class DataId {
+ public:
+  DataId(const std::string &id) { this->id = id; }
+
+  const void *Data() const { return id.c_str(); }
+
+  int Size() const { return id.size(); }
+
+ private:
+  std::string id;
+};
+
 template <typename ID, typename Data>
 Status Log<ID, Data>::Append(const JobID &job_id, const ID &id,
                              const std::shared_ptr<Data> &data,

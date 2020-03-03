@@ -319,6 +319,7 @@ cc_library(
     deps = [
         ":ray_common",
         ":gcs",
+#        ":gcs_cc_proto",
     ],
 )
 
