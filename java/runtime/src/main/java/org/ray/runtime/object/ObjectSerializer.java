@@ -7,7 +7,7 @@ import org.ray.api.exception.RayWorkerException;
 import org.ray.api.exception.UnreconstructableException;
 import org.ray.api.id.ObjectId;
 import org.ray.runtime.generated.Gcs.ErrorType;
-import org.ray.runtime.util.Serializer;
+import org.ray.runtime.serializer.Serializer;
 
 /**
  * Serialize to and deserialize from {@link NativeRayObject}. Metadata is generated during
@@ -51,12 +51,12 @@ public class ObjectSerializer {
       } else if (Arrays.equals(meta, UNRECONSTRUCTABLE_EXCEPTION_META)) {
         return new UnreconstructableException(objectId);
       } else if (Arrays.equals(meta, TASK_EXECUTION_EXCEPTION_META)) {
-        return Serializer.decode(data, classLoader);
+        return Serializer.decode(data, objectId.getType(), classLoader);
       }
       throw new IllegalArgumentException("Unrecognized metadata " + Arrays.toString(meta));
     } else {
       // If data is not null, deserialize the Java object.
-      return Serializer.decode(data, classLoader);
+      return Serializer.decode(data, objectId.getType(), classLoader);
     }
   }
 
@@ -74,10 +74,10 @@ public class ObjectSerializer {
       // indicate it's raw binary. So that this object can also be read by Python.
       return new NativeRayObject((byte[]) object, RAW_TYPE_META);
     } else if (object instanceof RayTaskException) {
-      return new NativeRayObject(Serializer.encode(object),
+      return new NativeRayObject(Serializer.encode(object, null),
           TASK_EXECUTION_EXCEPTION_META);
     } else {
-      return new NativeRayObject(Serializer.encode(object), null);
+      return new NativeRayObject(Serializer.encode(object, null), null);
     }
   }
 }

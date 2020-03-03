@@ -2,8 +2,10 @@ package org.ray.api.test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+
 import java.util.List;
 import java.util.Map;
+
 import org.ray.api.Ray;
 import org.ray.api.TestUtils;
 import org.ray.api.TestUtils.LargeObject;
@@ -98,7 +100,8 @@ public class RayCallTest extends BaseTest {
     LargeObject largeObject = new LargeObject();
     Assert.assertNotNull(Ray.call(RayCallTest::testLargeObject, largeObject).get());
 
-    ObjectId randomObjectId = ObjectId.fromRandom();
+    // We don't know the return type.
+    ObjectId randomObjectId = ObjectId.fromRandom(Integer.class);
     Ray.call(RayCallTest::testNoReturn, randomObjectId);
     Assert.assertEquals(((int) Ray.get(randomObjectId)), 1);
   }

@@ -70,10 +70,10 @@ public class ArgumentsBuilder {
   /**
    * Convert list of NativeRayObject to real function arguments.
    */
-  public static Object[] unwrap(List<NativeRayObject> args, ClassLoader classLoader) {
+  public static Object[] unwrap(List<NativeRayObject> args, Class<?>[] types, ClassLoader classLoader) {
     Object[] realArgs = new Object[args.size()];
     for (int i = 0; i < args.size(); i++) {
-      realArgs[i] = ObjectSerializer.deserialize(args.get(i), null, classLoader);
+      realArgs[i] = ObjectSerializer.deserialize(args.get(i), ObjectId.fromType(types[i]), classLoader);
     }
     return realArgs;
   }

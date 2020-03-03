@@ -21,7 +21,7 @@ public interface TaskSubmitter {
    * @return Ids of the return objects.
    */
   List<ObjectId> submitTask(FunctionDescriptor functionDescriptor, List<FunctionArg> args,
-      int numReturns, CallOptions options);
+      Class<?>[] returnTypes, CallOptions options);
 
   /**
    * Create an actor.
@@ -43,5 +43,5 @@ public interface TaskSubmitter {
    * @return Ids of the return objects.
    */
   List<ObjectId> submitActorTask(RayActor actor, FunctionDescriptor functionDescriptor,
-      List<FunctionArg> args, int numReturns, CallOptions options);
+      List<FunctionArg> args, Class<?>[] returnTypes, CallOptions options);
 }
