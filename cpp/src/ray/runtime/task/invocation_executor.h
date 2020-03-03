@@ -1,6 +1,6 @@
 #pragma once
 
-#include "task_spec.h"
+#include <ray/runtime/task_spec.h>
 
 namespace ray {
 

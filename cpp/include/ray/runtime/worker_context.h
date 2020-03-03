@@ -3,7 +3,7 @@
 
 #include <ray/api/ray_config.h>
 #include <ray/api/uniqueId.h>
-#include "../task/task_spec.h"
+#include "task_spec.h"
 
 namespace ray {
 

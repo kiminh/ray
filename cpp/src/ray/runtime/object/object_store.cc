@@ -1,5 +1,5 @@
 
-#include "object_store.h"
+#include <ray/runtime/object_store.h>
 
 #include <memory>
 #include <utility>

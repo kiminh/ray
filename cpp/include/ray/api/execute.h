@@ -4,7 +4,7 @@
 
 namespace ray {
 
-// class Arguments;
+  // class Arguments;
 
 // 0 args
 template <typename RT>

@@ -4,17 +4,21 @@
 #include <mutex>
 
 #include <ray/api/blob.h>
-#include <ray/api/ray_api.h>
+// #include <ray/api/ray_api.h>
 #include <ray/api/ray_config.h>
+#include <ray/api/ray_config.h>
+#include <ray/api/wait_result.h>
 #include <ray/util/type_util.h>
-#include "./context/worker_context.h"
-#include "./object/object_store.h"
-#include "./task/task_executer.h"
-#include "./task/task_submitter.h"
 
 namespace ray {
 
-class RayRuntime : public RayApi {
+class Worker;
+class TaskSubmitter;
+class TaskExcuter;
+class TaskSpec;
+class ObjectStore;
+
+class RayRuntime {
   friend class Ray;
 
  private:
@@ -40,10 +44,22 @@ class RayRuntime : public RayApi {
 
   del_unique_ptr< ::ray::blob> get(const UniqueId &objectId);
 
+  template <typename T>
+  static RayObject<T> put(const T &obj);
+
+  template <typename T>
+  static std::shared_ptr<T> get(const RayObject<T> &object);
+
+  template <typename T>
+  static std::vector<std::shared_ptr<T>> get(const std::vector<RayObject<T>> &objects);
+
+  template <typename T>
+  WaitResult<T> wait(const std::vector<RayObject<T>> &objects, int num_objects, int64_t timeout_ms);
+
   std::unique_ptr<UniqueId> call(remote_function_ptr_holder &fptr,
                                  std::vector< ::ray::blob> &&args);
 
-  std::unique_ptr<UniqueId> create(remote_function_ptr_holder &fptr,
+  virtual std::unique_ptr<UniqueId> create(remote_function_ptr_holder &fptr,
                                    std::vector< ::ray::blob> &&args);
 
   std::unique_ptr<UniqueId> call(const remote_function_ptr_holder &fptr,
@@ -66,4 +82,35 @@ class RayRuntime : public RayApi {
 
   void execute(const TaskSpec &taskSpec);
 };
+}
+
+// --------- inline implementation ------------
+#include <ray/runtime/object_store.h>
+#include <ray/runtime/worker_context.h>
+#include <ray/runtime/task_executer.h>
+#include <ray/runtime/task_submitter.h>
+#include <ray/runtime/task_spec.h>
+
+namespace ray {
+
+template <typename T>
+RayObject<T> RayRuntime::put(const T &obj) {
+  return _ins->_objectStore->put(obj);
+}
+
+template <typename T>
+std::shared_ptr<T>  RayRuntime::get(const RayObject<T> &object) {
+  return _ins->_objectStore->get(object);
+}
+
+template <typename T>
+std::vector<std::shared_ptr<T>> RayRuntime::get(const std::vector<RayObject<T>> &objects) {
+  return _ins->_objectStore->get(objects);
+}
+
+template <typename T>
+WaitResult<T> RayRuntime::wait(const std::vector<RayObject<T>> &objects, int num_objects, int64_t timeout_ms) {
+  return _ins->_objectStore->wait(objects, num_objects, timeout_ms);
+}
+
 }  // namespace ray

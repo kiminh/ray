@@ -23,23 +23,34 @@ class RayObject {
 
   const UniqueId &id() const;
 
-  std::unique_ptr<T> get() const;
+  std::shared_ptr<T> get() const;
 
   bool operator==(const RayObject<T> &object) const;
+
+  // template <typename T>
+  // static std::vector<UniqueId> rayObjectVector2UniqueId(const std::vector<RayOject<T>> &&rayObjects);
+
+  // template <typename T>
+  // static std::vector<UniqueId> rayObjectVector2UniqueId(const std::vector<RayOject<T>> &rayObjects);
+
+  // template <typename T>
+  // static std::vector<RayOject<T>> uniqueIdVector2RayObject(const std::vector<UniqueId> &&uniqueIds);
 
  private:
   UniqueId _id;
 
   template <typename TO>
-  std::unique_ptr<TO> doGet() const;
+  std::shared_ptr<TO> doGet() const;
 };
 
 }  // namespace ray
 
 // ---------- implementation ----------
-#include <ray/api.h>
+// #include <ray/api.h>
 
 namespace ray {
+
+//class Ray;
 
 template <typename T>
 RayObject<T>::RayObject() {}
@@ -70,16 +81,17 @@ const UniqueId &RayObject<T>::id() const {
 }
 
 template <typename T>
-inline std::unique_ptr<T> RayObject<T>::get() const {
+inline std::shared_ptr<T> RayObject<T>::get() const {
   return doGet<T>();
 }
 
 template <typename T>
 template <typename TO>
-inline std::unique_ptr<TO> RayObject<T>::doGet() const {
-  std::unique_ptr<TO> pObj(new TO);
-  Ray::get(_id, *pObj);
-  return pObj;
+inline std::shared_ptr<TO> RayObject<T>::doGet() const {
+  // const RayObject<TO> object(_id);
+  // return Ray::get(object);
+  std::shared_ptr<TO> result;
+  return result;
 }
 
 template <typename T>

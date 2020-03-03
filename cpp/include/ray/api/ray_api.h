@@ -1,36 +1,39 @@
 
-#pragma once
+// #pragma once
 
-#include <ray/api/blob.h>
-#include <cstdint>
-#include <memory>
-#include <typeinfo>
-#include <vector>
+// #include <ray/api/blob.h>
+// #include <cstdint>
+// #include <memory>
+// #include <typeinfo>
+// #include <vector>
 
-#include "ray/api/uniqueId.h"
-#include "ray/util/type_util.h"
+// #include "ray/api/uniqueId.h"
+// #include "ray/util/type_util.h"
+// #include "ray/api/wait_result.h"
 
-namespace ray {
+// namespace ray {
 
-struct member_function_ptr_holder {
-  uintptr_t value[2];
-};
+// struct member_function_ptr_holder {
+//   uintptr_t value[2];
+// };
 
-struct remote_function_ptr_holder {
-  uintptr_t value[2];
-};
+// struct remote_function_ptr_holder {
+//   uintptr_t value[2];
+// };
 
-class RayApi {
- public:
-  virtual std::unique_ptr<UniqueId> put(std::vector< ::ray::blob> &&data) = 0;
-  virtual del_unique_ptr< ::ray::blob> get(const UniqueId &id) = 0;
-
-  virtual std::unique_ptr<UniqueId> call(remote_function_ptr_holder &fptr,
-                                         std::vector< ::ray::blob> &&args) = 0;
-  virtual std::unique_ptr<UniqueId> create(remote_function_ptr_holder &fptr,
-                                           std::vector< ::ray::blob> &&args) = 0;
-  virtual std::unique_ptr<UniqueId> call(const remote_function_ptr_holder &fptr,
-                                         const UniqueId &actor,
-                                         std::vector< ::ray::blob> &&args) = 0;
-};
-}  // namespace ray
+// class RayApi {
+//  public:
+//   virtual std::unique_ptr<UniqueId> put(std::vector< ::ray::blob> &&data) = 0;
+//   virtual del_unique_ptr< ::ray::blob> get(const UniqueId &id) = 0;
+//   template <typename T>
+//   virtual WaitResult<T> wait(const std::vector<RayObject<T>> &&ids, int num_objects,
+//                           int64_t timeout_ms) = 0;
+//   virtual std::unique_ptr<UniqueId> call(remote_function_ptr_holder &fptr,
+//                                          std::vector< ::ray::blob> &&args) = 0;
+//   virtual std::unique_ptr<UniqueId> create(remote_function_ptr_holder &fptr,
+//                                            std::vector< ::ray::blob> &&args) = 0;
+//   virtual std::unique_ptr<UniqueId> call(const remote_function_ptr_holder &fptr,
+//                                          const UniqueId &actor,
+//                                          std::vector< ::ray::blob> &&args) = 0;
+// };
+// }  // namespace ray

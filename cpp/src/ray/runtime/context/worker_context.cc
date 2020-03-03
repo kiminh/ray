@@ -1,5 +1,5 @@
 
-#include "worker_context.h"
+#include <ray/runtime/worker_context.h>
 
 namespace ray {
 

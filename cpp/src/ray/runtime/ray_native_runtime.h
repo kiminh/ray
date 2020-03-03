@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "ray_runtime.h"
+#include <ray/runtime/ray_runtime.h>
 
 namespace ray {
 

@@ -1,9 +1,8 @@
 
-#include "ray_runtime.h"
-
 #include <cassert>
 
 #include <ray/api.h>
+#include <ray/runtime/ray_runtime.h>
 #include <ray/api/ray_mode.h>
 #include "../agent.h"
 #include "ray_dev_runtime.h"

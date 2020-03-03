@@ -4,7 +4,7 @@
 
 namespace ray {
 
-/* tmp impl, mast define in cc source file of dylib */
+/* Use for locate remote function address in single process mode */
 extern uintptr_t dylib_base_addr;
 
 extern "C" void Ray_agent_init();

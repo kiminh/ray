@@ -4,7 +4,7 @@
 #include <ray/api/uniqueId.h>
 #include <ray/core.h>
 #include <unordered_map>
-#include "ray_runtime.h"
+#include <ray/runtime/ray_runtime.h>
 
 namespace ray {
 

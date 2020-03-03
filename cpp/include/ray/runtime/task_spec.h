@@ -23,6 +23,7 @@ class TaskSpec {
   UniqueId functionId;
   std::vector< ::ray::blob> args;
   std::list<std::unique_ptr<UniqueId> > returnIds;
+  //std::vector<std::unique_ptr<UniqueId> > returnIds;
 
   TaskSpec();
 

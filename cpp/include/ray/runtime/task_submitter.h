@@ -2,7 +2,8 @@
 
 #include <memory>
 
-#include <ray/api/ray_api.h>
+// #include "../ray_runtime.h"
+#include <ray/util/type_util.h>
 #include "invocation_spec.h"
 
 namespace ray {

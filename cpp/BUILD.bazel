@@ -61,6 +61,21 @@ cc_binary(
 )
 
 cc_binary(
+    name = "libexample.dylib",
+    testonly = 1,
+    srcs = [
+        "src/example/example.cc",
+        "src/example/example.h"
+        ],
+    deps = [
+        "ray_api",
+        "libray_api_hdr",
+    ],
+    linkshared = 1,
+    linkstatic = 1,
+)
+
+cc_binary(
     name = "api_test",
     testonly = 1,
     srcs = [
