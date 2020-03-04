@@ -129,7 +129,9 @@ public class MultiThreadingTest extends BaseTest {
       testMultiThreading();
     } catch (Exception e) {
       System.out.println("-----------------------------catched exception:" + e);
-      System.exit(1);
+      e.printStackTrace();
+      System.out.println("-----------------------------catched exception:" + e);
+      System.exit(0);
     }
   }
 
@@ -142,7 +144,9 @@ public class MultiThreadingTest extends BaseTest {
       Assert.assertEquals("ok", obj.get());
     } catch (Exception e) {
       System.out.println("-----------------------------catched exception:" + e);
-      System.exit(1);
+      e.printStackTrace();
+      System.out.println("-----------------------------catched exception:" + e);
+      System.exit(0);
     }
   }
 
