@@ -81,7 +81,7 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
         for (TaskSpec task : tasks) {
           Set<ObjectId> unreadyObjects = getUnreadyObjects(task);
           if (unreadyObjects.isEmpty()) {
-            submitTaskSpec(task, null);
+            submitTaskSpec(task);
           }
         }
       }
@@ -178,14 +178,13 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
 
   @Override
   public List<ObjectId> submitTask(FunctionDescriptor functionDescriptor, List<FunctionArg> args,
-                                   Class<?>[] returnTypes, CallOptions options) {
-    int numReturns = returnTypes.length;
+                                   int numReturns, CallOptions options) {
     Preconditions.checkState(numReturns <= 1);
     TaskSpec taskSpec = getTaskSpecBuilder(TaskType.NORMAL_TASK, functionDescriptor, args)
         .setNumReturns(numReturns)
         .build();
-    submitTaskSpec(taskSpec, returnTypes);
-    return getReturnIds(taskSpec, returnTypes);
+    submitTaskSpec(taskSpec);
+    return getReturnIds(taskSpec);
   }
 
   @Override
@@ -198,19 +197,18 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
             .setActorId(ByteString.copyFrom(actorId.toByteBuffer()))
             .build())
         .build();
-    submitTaskSpec(taskSpec, null);
-    return new LocalModeRayActor(actorId, getReturnIds(taskSpec, null).get(0));
+    submitTaskSpec(taskSpec);
+    return new LocalModeRayActor(actorId, getReturnIds(taskSpec).get(0));
   }
 
   @Override
   public List<ObjectId> submitActorTask(
       RayActor actor, FunctionDescriptor functionDescriptor,
-      List<FunctionArg> args, Class<?>[] returnTypes, CallOptions options) {
-    int numReturns = returnTypes.length;
+      List<FunctionArg> args, int numReturns, CallOptions options) {
     Preconditions.checkState(numReturns <= 1);
     TaskSpec.Builder builder = getTaskSpecBuilder(TaskType.ACTOR_TASK, functionDescriptor, args);
     List<ObjectId> returnIds = getReturnIds(
-        TaskId.fromBytes(builder.getTaskId().toByteArray()), numReturns + 1, returnTypes);
+        TaskId.fromBytes(builder.getTaskId().toByteArray()), numReturns + 1);
     TaskSpec taskSpec = builder
         .setNumReturns(numReturns + 1)
         .setActorTaskSpec(
@@ -221,7 +219,7 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
                         .getBytes()))
                 .build())
         .build();
-    submitTaskSpec(taskSpec, returnTypes);
+    submitTaskSpec(taskSpec);
     if (numReturns == 0) {
       return ImmutableList.of();
     } else {
@@ -253,7 +251,7 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
     return ActorId.fromBytes(actorId.toByteArray());
   }
 
-  private void submitTaskSpec(TaskSpec taskSpec, Class<?>[] returnTypes) {
+  private void submitTaskSpec(TaskSpec taskSpec) {
     LOGGER.debug("Submitting task: {}.", taskSpec);
     synchronized (taskAndObjectLock) {
       Set<ObjectId> unreadyObjects = getUnreadyObjects(taskSpec);
@@ -270,7 +268,7 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
           List<NativeRayObject> returnObjects = taskExecutor
               .execute(getJavaFunctionDescriptor(taskSpec).toList(), args);
           ((LocalModeWorkerContext) runtime.getWorkerContext()).setCurrentTask(null);
-          List<ObjectId> returnIds = getReturnIds(taskSpec, returnTypes);
+          List<ObjectId> returnIds = getReturnIds(taskSpec);
           for (int i = 0; i < returnIds.size(); i++) {
             NativeRayObject putObject;
             if (i >= returnObjects.size()) {
@@ -344,17 +342,17 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
     return functionArgs;
   }
 
-  private static List<ObjectId> getReturnIds(TaskSpec taskSpec, Class<?>[] returnTypes) {
+  private static List<ObjectId> getReturnIds(TaskSpec taskSpec) {
     return getReturnIds(TaskId.fromBytes(taskSpec.getTaskId().toByteArray()),
-        taskSpec.getNumReturns(), returnTypes);
+        taskSpec.getNumReturns());
   }
 
-  private static List<ObjectId> getReturnIds(TaskId taskId, long numReturns, Class<?>[] returnTypes) {
+  private static List<ObjectId> getReturnIds(TaskId taskId, long numReturns) {
     List<ObjectId> returnIds = new ArrayList<>();
     for (int i = 0; i < numReturns; i++) {
       returnIds.add(ObjectId.fromByteBuffer(
           (ByteBuffer) ByteBuffer.allocate(ObjectId.LENGTH).put(taskId.getBytes())
-              .putInt(TaskId.LENGTH, i + 1).position(0), returnTypes == null ? null: returnTypes[i]));
+              .putInt(TaskId.LENGTH, i + 1).position(0)));
     }
     return returnIds;
   }

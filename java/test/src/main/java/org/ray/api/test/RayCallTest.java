@@ -101,9 +101,9 @@ public class RayCallTest extends BaseTest {
     Assert.assertNotNull(Ray.call(RayCallTest::testLargeObject, largeObject).get());
 
     // We don't know the return type.
-    ObjectId randomObjectId = ObjectId.fromRandom(Integer.class);
+    ObjectId randomObjectId = ObjectId.fromRandom();
     Ray.call(RayCallTest::testNoReturn, randomObjectId);
-    Assert.assertEquals(((int) Ray.get(randomObjectId)), 1);
+    Assert.assertEquals(((int) Ray.get(randomObjectId, Integer.class)), 1);
   }
 
   @RayRemote

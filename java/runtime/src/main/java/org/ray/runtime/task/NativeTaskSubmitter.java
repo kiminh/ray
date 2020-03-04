@@ -26,13 +26,10 @@ public class NativeTaskSubmitter implements TaskSubmitter {
 
   @Override
   public List<ObjectId> submitTask(FunctionDescriptor functionDescriptor, List<FunctionArg> args,
-                                   Class<?>[] returnTypes, CallOptions options) {
+                                   int numReturns, CallOptions options) {
     List<byte[]> returnIds = nativeSubmitTask(nativeCoreWorkerPointer, functionDescriptor, args,
-        returnTypes.length, options);
-    int numReturns = returnTypes.length;
-    Preconditions.checkState(returnIds.size() == numReturns && returnIds.size() <= 1);
-    Class<?> returnType = returnTypes.length == 1 ? returnTypes[0]: Object.class;
-    return returnIds.stream().map((byte[] x) -> new ObjectId(x, returnType)).collect(Collectors.toList());
+        numReturns, options);
+    return returnIds.stream().map(ObjectId::new).collect(Collectors.toList());
   }
 
   @Override
@@ -47,15 +44,12 @@ public class NativeTaskSubmitter implements TaskSubmitter {
   @Override
   public List<ObjectId> submitActorTask(
       RayActor actor, FunctionDescriptor functionDescriptor,
-      List<FunctionArg> args, Class<?>[] returnTypes, CallOptions options) {
+      List<FunctionArg> args, int numReturns, CallOptions options) {
     Preconditions.checkState(actor instanceof NativeRayActor);
     List<byte[]> returnIds = nativeSubmitActorTask(nativeCoreWorkerPointer,
-        actor.getId().getBytes(), functionDescriptor, args, returnTypes.length,
+        actor.getId().getBytes(), functionDescriptor, args, numReturns,
         options);
-    int numReturns = returnTypes.length;
-    Preconditions.checkState(returnIds.size() == numReturns && returnIds.size() <= 1);
-    Class<?> returnType = returnTypes.length == 1 ? returnTypes[0]: Object.class;
-    return returnIds.stream().map((byte[] x) -> new ObjectId(x, returnType)).collect(Collectors.toList());
+    return returnIds.stream().map(ObjectId::new).collect(Collectors.toList());
   }
 
   private static native List<byte[]> nativeSubmitTask(

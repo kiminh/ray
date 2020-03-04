@@ -66,18 +66,18 @@ public abstract class AbstractRayRuntime implements RayRuntime {
   @Override
   public <T> RayObject<T> put(T obj) {
     ObjectId objectId = objectStore.put(obj);
-    return new RayObjectImpl<>(objectId);
+    return new RayObjectImpl<>(objectId, obj.getClass());
   }
 
   @Override
-  public <T> T get(ObjectId objectId) throws RayException {
-    List<T> ret = get(ImmutableList.of(objectId));
+  public <T> T get(ObjectId objectId, Class<?> objectType) throws RayException {
+    List<T> ret = get(ImmutableList.of(objectId), objectType);
     return ret.get(0);
   }
 
   @Override
-  public <T> List<T> get(List<ObjectId> objectIds) {
-    return objectStore.get(objectIds);
+  public <T> List<T> get(List<ObjectId> objectIds, Class<?> elementType) {
+    return objectStore.get(objectIds, elementType);
   }
 
   @Override
@@ -181,12 +181,12 @@ public abstract class AbstractRayRuntime implements RayRuntime {
     List<FunctionArg> functionArgs = ArgumentsBuilder
         .wrap(args, functionDescriptor.getLanguage(), /*isDirectCall*/false);
     List<ObjectId> returnIds = taskSubmitter.submitTask(functionDescriptor,
-        functionArgs, returnTypes, options);
+        functionArgs, numReturns, options);
     Preconditions.checkState(returnIds.size() == numReturns && returnIds.size() <= 1);
     if (returnIds.isEmpty()) {
       return null;
     } else {
-      return new RayObjectImpl(returnIds.get(0));
+      return new RayObjectImpl(returnIds.get(0), returnTypes[0]);
     }
   }
 
@@ -196,12 +196,12 @@ public abstract class AbstractRayRuntime implements RayRuntime {
     List<FunctionArg> functionArgs = ArgumentsBuilder
         .wrap(args, functionDescriptor.getLanguage(), isDirectCall(rayActor));
     List<ObjectId> returnIds = taskSubmitter.submitActorTask(rayActor,
-        functionDescriptor, functionArgs, returnTypes, null);
+        functionDescriptor, functionArgs, numReturns, null);
     Preconditions.checkState(returnIds.size() == numReturns && returnIds.size() <= 1);
     if (returnIds.isEmpty()) {
       return null;
     } else {
-      return new RayObjectImpl(returnIds.get(0));
+      return new RayObjectImpl(returnIds.get(0), returnTypes[0]);
     }
   }
 

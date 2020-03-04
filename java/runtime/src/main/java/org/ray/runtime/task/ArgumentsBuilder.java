@@ -73,7 +73,7 @@ public class ArgumentsBuilder {
   public static Object[] unwrap(List<NativeRayObject> args, Class<?>[] types, ClassLoader classLoader) {
     Object[] realArgs = new Object[args.size()];
     for (int i = 0; i < args.size(); i++) {
-      realArgs[i] = ObjectSerializer.deserialize(args.get(i), ObjectId.fromType(types[i]), classLoader);
+      realArgs[i] = ObjectSerializer.deserialize(args.get(i), null, types[i], classLoader);
     }
     return realArgs;
   }

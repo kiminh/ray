@@ -35,7 +35,7 @@ public class ObjectSerializer {
    * @param classLoader The classLoader of the object.
    * @return The deserialized object.
    */
-  public static Object deserialize(NativeRayObject nativeRayObject, ObjectId objectId,
+  public static Object deserialize(NativeRayObject nativeRayObject, ObjectId objectId, Class<?> objectType,
       ClassLoader classLoader) {
     byte[] meta = nativeRayObject.metadata;
     byte[] data = nativeRayObject.data;
@@ -51,12 +51,12 @@ public class ObjectSerializer {
       } else if (Arrays.equals(meta, UNRECONSTRUCTABLE_EXCEPTION_META)) {
         return new UnreconstructableException(objectId);
       } else if (Arrays.equals(meta, TASK_EXECUTION_EXCEPTION_META)) {
-        return Serializer.decode(data, objectId.getType(), classLoader);
+        return Serializer.decode(data, objectType, classLoader);
       }
       throw new IllegalArgumentException("Unrecognized metadata " + Arrays.toString(meta));
     } else {
       // If data is not null, deserialize the Java object.
-      return Serializer.decode(data, objectId.getType(), classLoader);
+      return Serializer.decode(data, objectType, classLoader);
     }
   }
 

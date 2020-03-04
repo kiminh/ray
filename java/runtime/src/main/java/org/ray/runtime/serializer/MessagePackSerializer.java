@@ -9,9 +9,9 @@ import org.msgpack.value.*;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigInteger;
-import java.util.Map;
 
 
+// We can't pack List / Map by MessagePack, because we don't know the type class when unpacking.
 public class MessagePackSerializer {
   private final static byte languageSpecificExtensionId = 101;
 
@@ -47,17 +47,6 @@ public class MessagePackSerializer {
       for (int i = 0; i < length; ++i) {
         pack(Array.get(object, i), packer, classLoader);
       }
-      // We can't pack Map by MessagePack, because we don't know the key / value type class when unpacking.
-//    } else if (object instanceof Map) {
-//      packer.packMapHeader(((Map) object).size());
-//      ((Map) object).forEach((k, v) -> {
-//        try {
-//          pack(k, packer, classLoader);
-//          pack(v, packer, classLoader);
-//        } catch (Exception ex) {
-//          throw new RuntimeException(ex);
-//        }
-//      });
     } else {
       byte[] payload;
       if (classLoader == null) {
