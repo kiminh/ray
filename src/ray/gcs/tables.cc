@@ -732,13 +732,13 @@ Status TaskLeaseTable::Subscribe(const JobID &job_id, const ClientID &client_id,
   return Table<TaskID, TaskLeaseData>::Subscribe(job_id, client_id, on_subscribe, done);
 }
 
-std::vector<ActorID> ActorTable::GetAllActorID() {
+std::vector<ActorID> SyncGetAllActorID(redisContext *redis_context,
+                                       const std::string &table_prefix) {
   std::vector<ActorID> actor_id_list;
-  const auto &table_prefix = TablePrefix_Name(TablePrefix::ACTOR);
   size_t cursor = 0;
   do {
-    auto redis_context = client_->primary_context()->sync_context();
-    auto r = redisCommand(redis_context, "SCAN %d match ACTOR* count 100", cursor);
+    auto r = redisCommand(redis_context, "SCAN %d match %s* count 100", cursor,
+                          table_prefix.c_str());
     auto reply = reinterpret_cast<redisReply *>(r);
     RAY_CHECK(reply != nullptr && reply->type == REDIS_REPLY_ARRAY);
     RAY_CHECK(reply->elements == 2);
@@ -766,6 +766,11 @@ std::vector<ActorID> ActorTable::GetAllActorID() {
   return actor_id_list;
 }
 
+std::vector<ActorID> ActorTable::GetAllActorID() {
+  auto redis_context = client_->primary_context()->sync_context();
+  return SyncGetAllActorID(redis_context, TablePrefix_Name(prefix_));
+}
+
 Status ActorTable::Get(const ray::ActorID &actor_id,
                        ray::rpc::ActorTableData *actor_table_data) {
   RAY_CHECK(actor_table_data != nullptr);
@@ -782,6 +787,23 @@ Status ActorTable::Get(const ray::ActorID &actor_id,
 
   RAY_CHECK(data_list.size() == 1);
   actor_table_data->ParseFromString(data_list.front());
+  return Status::OK();
+}
+
+std::vector<ActorID> RawActorTable::GetAllActorID() {
+  auto redis_context = client_->primary_context()->sync_context();
+  return SyncGetAllActorID(redis_context, TablePrefix_Name(prefix_));
+}
+
+Status RawActorTable::Get(const ray::ActorID &actor_id,
+                          ray::rpc::ActorTableData *actor_table_data) {
+  RAY_CHECK(actor_table_data != nullptr);
+  auto key = TablePrefix_Name(prefix_) + actor_id.Binary();
+  auto reply = GetRedisContext(actor_id)->RunArgvSync({"GET", key});
+  if (!reply || reply->IsNil()) {
+    return Status::IOError("Failed to get actor data by actor_id " + actor_id.Hex());
+  }
+  actor_table_data->ParseFromString(reply->ReadAsString());
   return Status::OK();
 }
 
@@ -834,6 +856,7 @@ template class Log<UniqueID, ProfileTableData>;
 template class Table<ActorCheckpointID, ActorCheckpointData>;
 template class Table<ActorID, ActorCheckpointIdData>;
 template class Table<WorkerID, WorkerFailureData>;
+template class Table<ActorID, ActorTableData>;
 
 template class Log<ClientID, ResourceTableData>;
 template class Hash<ClientID, ResourceTableData>;

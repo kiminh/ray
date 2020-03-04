@@ -75,16 +75,39 @@ class ServiceBasedActorInfoAccessor : public ActorInfoAccessor {
       const ActorID &actor_id,
       const OptionalItemCallback<rpc::ActorCheckpointIdData> &callback) override;
 
+ protected:
+  ClientID subscribe_id_;
+
  private:
   ServiceBasedGcsClient *client_impl_;
-
-  ClientID subscribe_id_;
 
   typedef SubscriptionExecutor<ActorID, ActorTableData, ActorTable>
       ActorSubscriptionExecutor;
   ActorSubscriptionExecutor actor_sub_executor_;
 
   Sequencer<ActorID> sequencer_;
+};
+
+class ServiceBasedRawActorInfoAccessor : public ServiceBasedActorInfoAccessor {
+ public:
+  explicit ServiceBasedRawActorInfoAccessor(ServiceBasedGcsClient *client_impl);
+
+  virtual ~ServiceBasedRawActorInfoAccessor() = default;
+
+  Status AsyncSubscribeAll(
+      const SubscribeCallback<ActorID, rpc::ActorTableData> &subscribe,
+      const StatusCallback &done) override;
+
+  Status AsyncSubscribe(const ActorID &actor_id,
+                        const SubscribeCallback<ActorID, rpc::ActorTableData> &subscribe,
+                        const StatusCallback &done) override;
+
+  Status AsyncUnsubscribe(const ActorID &actor_id, const StatusCallback &done) override;
+
+ private:
+  typedef SubscriptionExecutor<ActorID, ActorTableData, RawActorTable>
+      ActorSubscriptionExecutor;
+  ActorSubscriptionExecutor raw_actor_sub_executor_;
 };
 
 /// \class ServiceBasedNodeInfoAccessor

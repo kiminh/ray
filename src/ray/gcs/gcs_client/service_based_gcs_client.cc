@@ -32,7 +32,11 @@ Status ServiceBasedGcsClient::Connect(boost::asio::io_service &io_service) {
       new rpc::GcsRpcClient(address.first, address.second, *client_call_manager_));
 
   job_accessor_.reset(new ServiceBasedJobInfoAccessor(this));
-  actor_accessor_.reset(new ServiceBasedActorInfoAccessor(this));
+  if (RayConfig::instance().raw_actor_table_enabled()) {
+    actor_accessor_.reset(new ServiceBasedRawActorInfoAccessor(this));
+  } else {
+    actor_accessor_.reset(new ServiceBasedActorInfoAccessor(this));
+  }
   node_accessor_.reset(new ServiceBasedNodeInfoAccessor(this));
   task_accessor_.reset(new ServiceBasedTaskInfoAccessor(this));
   object_accessor_.reset(new ServiceBasedObjectInfoAccessor(this));

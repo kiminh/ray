@@ -63,8 +63,8 @@ Status ServiceBasedJobInfoAccessor::AsyncSubscribeToFinishedJobs(
 
 ServiceBasedActorInfoAccessor::ServiceBasedActorInfoAccessor(
     ServiceBasedGcsClient *client_impl)
-    : client_impl_(client_impl),
-      subscribe_id_(ClientID::FromRandom()),
+    : subscribe_id_(ClientID::FromRandom()),
+      client_impl_(client_impl),
       actor_sub_executor_(client_impl->GetRedisGcsClient().actor_table()) {}
 
 Status ServiceBasedActorInfoAccessor::AsyncGet(
@@ -241,6 +241,44 @@ Status ServiceBasedActorInfoAccessor::AsyncGetCheckpointID(
                        << ", actor id = " << actor_id;
       });
   return Status::OK();
+}
+
+ServiceBasedRawActorInfoAccessor::ServiceBasedRawActorInfoAccessor(
+    ServiceBasedGcsClient *client_impl)
+    : ServiceBasedActorInfoAccessor(client_impl),
+      raw_actor_sub_executor_(client_impl->GetRedisGcsClient().raw_actor_table()) {}
+
+Status ServiceBasedRawActorInfoAccessor::AsyncSubscribeAll(
+    const SubscribeCallback<ActorID, rpc::ActorTableData> &subscribe,
+    const StatusCallback &done) {
+  RAY_LOG(DEBUG) << "Subscribing register or update operations of actors.";
+  RAY_CHECK(subscribe != nullptr);
+  auto status =
+      raw_actor_sub_executor_.AsyncSubscribeAll(ClientID::Nil(), subscribe, done);
+  RAY_LOG(DEBUG) << "Finished subscribing register or update operations of actors.";
+  return status;
+}
+
+Status ServiceBasedRawActorInfoAccessor::AsyncSubscribe(
+    const ActorID &actor_id,
+    const SubscribeCallback<ActorID, rpc::ActorTableData> &subscribe,
+    const StatusCallback &done) {
+  RAY_LOG(DEBUG) << "Subscribing update operations of actor, actor id = " << actor_id;
+  RAY_CHECK(subscribe != nullptr) << "Failed to subscribe actor, actor id = " << actor_id;
+  auto status =
+      raw_actor_sub_executor_.AsyncSubscribe(subscribe_id_, actor_id, subscribe, done);
+  RAY_LOG(DEBUG) << "Finished subscribing update operations of actor, actor id = "
+                 << actor_id;
+  return status;
+}
+
+Status ServiceBasedRawActorInfoAccessor::AsyncUnsubscribe(const ActorID &actor_id,
+                                                          const StatusCallback &done) {
+  RAY_LOG(DEBUG) << "Cancelling subscription to an actor, actor id = " << actor_id;
+  auto status = raw_actor_sub_executor_.AsyncUnsubscribe(subscribe_id_, actor_id, done);
+  RAY_LOG(DEBUG) << "Finished cancelling subscription to an actor, actor id = "
+                 << actor_id;
+  return status;
 }
 
 ServiceBasedNodeInfoAccessor::ServiceBasedNodeInfoAccessor(

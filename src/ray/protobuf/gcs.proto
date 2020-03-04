@@ -28,7 +28,8 @@ enum TablePrefix {
   NODE_RESOURCE = 17;
   DIRECT_ACTOR = 18;
   WORKER_FAILURE = 19;
-  TABLE_PREFIX_MAX = 20;
+  RAW_ACTOR = 20;
+  TABLE_PREFIX_MAX = 21;
 }
 
 // The channel that Add operations to the Table should be published on, if any.
@@ -48,7 +49,8 @@ enum TablePubsub {
   NODE_RESOURCE_PUBSUB = 12;
   DIRECT_ACTOR_PUBSUB = 13;
   WORKER_FAILURE_PUBSUB = 14;
-  TABLE_PUBSUB_MAX = 15;
+  RAW_ACTOR_PUBSUB = 15;
+  TABLE_PUBSUB_MAX = 16;
 }
 
 enum GcsChangeMode {
