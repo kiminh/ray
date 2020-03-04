@@ -1,4 +1,4 @@
-#include "gcs_storage_accessor.h"
+#include "gcs_table_storage.h"
 #include <boost/none.hpp>
 #include "gcs_storage_client.h"
 #include "ray/gcs/callback.h"
