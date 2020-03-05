@@ -1,4 +1,5 @@
 #include "job_info_handler_impl.h"
+#include "ray/gcs/pb_util.h"
 
 namespace ray {
 namespace rpc {
@@ -19,7 +20,8 @@ void DefaultJobInfoHandler::HandleAddJob(const rpc::AddJobRequest &request,
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = job_info_accessor_->AsyncAdd(job_table_data, on_done);
+  Status status =
+      gcs_table_storage_->JobTable().Put(job_id, job_id, job_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
@@ -40,7 +42,11 @@ void DefaultJobInfoHandler::HandleMarkJobFinished(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = job_info_accessor_->AsyncMarkFinished(job_id, on_done);
+  std::shared_ptr<JobTableData> job_table_data =
+      gcs::CreateJobTableData(job_id, /*is_dead*/ true, /*time_stamp*/ std::time(nullptr),
+                              /*node_manager_address*/ "", /*driver_pid*/ -1);
+  Status status =
+      gcs_table_storage_->JobTable().Put(job_id, job_id, job_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }

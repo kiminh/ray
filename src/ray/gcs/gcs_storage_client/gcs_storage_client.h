@@ -48,36 +48,33 @@ class GcsStorageClient {
 
   virtual void Disconnect();
 
-  virtual Status Put(const std::string &table, const std::string &key, const std::string &value,
+  virtual Status Put(const std::string &table, const std::string &key,
+                     const std::string &value, const SetCallback &callback);
+
+  virtual Status Put(const std::string &table, const std::string &index,
+                     const std::string &key, const std::string &value,
                      const SetCallback &callback);
 
   virtual Status Get(const std::string &table, const std::string &key,
                      const GetCallback &callback);
+
+  virtual Status GetByIndex(const std::string &table, const std::string &index,
+                            const std::string &key, const GetCallback &callback);
 
   virtual Status GetAll(const std::string &table, const GetAllCallback &callback);
 
   virtual Status Delete(const std::string &table, const std::string &key,
                         const DeleteCallback &callback);
 
+  virtual Status Delete(const std::string &table, const std::vector<std::string> &keys,
+                        const DeleteCallback &callback);
+
+  virtual Status DeleteByIndex(const std::string &table, const int &index,
+                               const std::string &key, const DeleteCallback &callback);
+
  private:
   /// Gcs storage client configuration
   GcsStorageClientConfig config_;
-};
-
-class GcsStorageHelperIndexClient : public GcsStorageClient {
- public:
-  GcsStorageHelperIndexClient(const GcsStorageClientConfig &config) : GcsStorageClient(config) {}
-
-  virtual Status Set(const std::string &table, const int &index, const std::string &key, const std::string &value,
-                     const SetCallback &callback);
-
-  virtual ~GcsStorageHelperIndexClient();
-
-  virtual Status GetByIndex(const std::string &table, const std::string &index, const std::string &key,
-                     const GetCallback &callback);
-
-  virtual Status DeleteByIndex(const std::string &table, const int &index, const std::string &key,
-                               const DeleteCallback &callback);
 };
 
 }  // namespace gcs

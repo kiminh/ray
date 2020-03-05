@@ -17,19 +17,28 @@ class GcsStorageRedisClient : public GcsStorageClient {
 
   void Disconnect() override;
 
-  Status Get(const int &index, const std::string &key,
-             const GetCallback &callback) override;
-
-  Status GetAll(const int &index, const GetAllCallback &callback) override;
-
-  Status Set(const int &index, const std::string &key, const std::string &value,
+  Status Put(const std::string &table, const std::string &key, const std::string &value,
              const SetCallback &callback) override;
 
-  Status Delete(const int &index, const std::string &key,
+  Status Put(const std::string &table, const std::string &index, const std::string &key,
+             const std::string &value, const SetCallback &callback) override;
+
+  Status Get(const std::string &table, const std::string &key,
+             const GetCallback &callback) override;
+
+  Status GetByIndex(const std::string &table, const std::string &index,
+                    const std::string &key, const GetCallback &callback) override;
+
+  Status GetAll(const std::string &table, const GetAllCallback &callback) override;
+
+  Status Delete(const std::string &table, const std::string &key,
                 const DeleteCallback &callback) override;
 
-  Status Delete(const int &index, const std::vector<std::string> &keys,
+  Status Delete(const std::string &table, const std::vector<std::string> &keys,
                 const DeleteCallback &callback) override;
+
+  Status DeleteByIndex(const std::string &table, const int &index, const std::string &key,
+                       const DeleteCallback &callback) override;
 
  private:
   /// Gcs storage client configuration

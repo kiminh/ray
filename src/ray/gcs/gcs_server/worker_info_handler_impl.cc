@@ -14,16 +14,20 @@ void DefaultWorkerInfoHandler::HandleReportWorkerFailure(
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to report worker failure, "
                      << worker_address.DebugString();
+    } else {
+      RAY_LOG(DEBUG) << "Finished reporting worker failure, "
+                     << worker_address.DebugString();
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status =
-      worker_info_accessor_->AsyncReportWorkerFailure(worker_failure_data, on_done);
+  WorkerID worker_id =
+      WorkerID::FromBinary(worker_failure_data->worker_address().worker_id());
+  Status status = gcs_table_storage_->WorkerFailureTable().Put(
+      JobID::Nil(), worker_id, worker_failure_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished reporting worker failure, " << worker_address.DebugString();
 }
 
 }  // namespace rpc

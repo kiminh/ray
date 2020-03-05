@@ -27,6 +27,7 @@ void GcsServer::Start() {
   GcsStorageRedisClientConfig config(config_.redis_address, config_.redis_port,
                                      config_.redis_password, config_.is_test);
   gcs_storage_client_ = std::make_shared<GcsStorageRedisClient>(config);
+  gcs_table_storage_ = std::make_shared<ray::gcs::GcsTableStorage>(gcs_storage_client_);
 
   // Register rpc service.
   job_info_handler_ = InitJobInfoHandler();
@@ -99,22 +100,22 @@ void GcsServer::InitBackendClient() {
 
 std::unique_ptr<rpc::JobInfoHandler> GcsServer::InitJobInfoHandler() {
   return std::unique_ptr<rpc::DefaultJobInfoHandler>(
-      new rpc::DefaultJobInfoHandler(*gcs_storage_client_));
+      new rpc::DefaultJobInfoHandler(gcs_table_storage_));
 }
 
 std::unique_ptr<rpc::ActorInfoHandler> GcsServer::InitActorInfoHandler() {
   return std::unique_ptr<rpc::DefaultActorInfoHandler>(
-      new rpc::DefaultActorInfoHandler(*gcs_storage_client_));
+      new rpc::DefaultActorInfoHandler(gcs_table_storage_));
 }
 
 std::unique_ptr<rpc::NodeInfoHandler> GcsServer::InitNodeInfoHandler() {
   return std::unique_ptr<rpc::DefaultNodeInfoHandler>(
-      new rpc::DefaultNodeInfoHandler(*gcs_storage_client_));
+      new rpc::DefaultNodeInfoHandler(gcs_table_storage_));
 }
 
 std::unique_ptr<rpc::ObjectInfoHandler> GcsServer::InitObjectInfoHandler() {
   return std::unique_ptr<rpc::DefaultObjectInfoHandler>(
-      new rpc::DefaultObjectInfoHandler(*gcs_storage_client_));
+      new rpc::DefaultObjectInfoHandler(gcs_table_storage_));
 }
 
 void GcsServer::StoreGcsServerAddressInRedis() {
@@ -149,22 +150,22 @@ void GcsServer::StoreGcsServerAddressInRedis() {
 
 std::unique_ptr<rpc::TaskInfoHandler> GcsServer::InitTaskInfoHandler() {
   return std::unique_ptr<rpc::DefaultTaskInfoHandler>(
-      new rpc::DefaultTaskInfoHandler(*gcs_storage_client_));
+      new rpc::DefaultTaskInfoHandler(gcs_table_storage_));
 }
 
 std::unique_ptr<rpc::StatsHandler> GcsServer::InitStatsHandler() {
   return std::unique_ptr<rpc::DefaultStatsHandler>(
-      new rpc::DefaultStatsHandler(*gcs_storage_client_));
+      new rpc::DefaultStatsHandler(gcs_table_storage_));
 }
 
 std::unique_ptr<rpc::ErrorInfoHandler> GcsServer::InitErrorInfoHandler() {
   return std::unique_ptr<rpc::DefaultErrorInfoHandler>(
-      new rpc::DefaultErrorInfoHandler(*gcs_storage_client_));
+      new rpc::DefaultErrorInfoHandler(gcs_table_storage_));
 }
 
 std::unique_ptr<rpc::WorkerInfoHandler> GcsServer::InitWorkerInfoHandler() {
   return std::unique_ptr<rpc::DefaultWorkerInfoHandler>(
-      new rpc::DefaultWorkerInfoHandler(*gcs_storage_client_));
+      new rpc::DefaultWorkerInfoHandler(gcs_table_storage_));
 }
 
 }  // namespace gcs

@@ -11,11 +11,16 @@ void DefaultObjectInfoHandler::HandleGetObjectLocations(
   RAY_LOG(DEBUG) << "Getting object locations, object id = " << object_id;
 
   auto on_done = [reply, object_id, send_reply_callback](
-                     Status status, const std::vector<rpc::ObjectTableData> &result) {
+                     Status status,
+                     const boost::optional<rpc::ObjectTableDataList> &result) {
     if (status.ok()) {
-      for (const rpc::ObjectTableData &object_table_data : result) {
-        reply->add_object_table_data_list()->CopyFrom(object_table_data);
+      if (result) {
+        for (int index = 0; index < result->items_size(); ++index) {
+          auto item = result->items(index);
+          reply->add_object_table_data_list()->CopyFrom(item);
+        }
       }
+      RAY_LOG(DEBUG) << "Finished getting object locations, object id = " << object_id;
     } else {
       RAY_LOG(ERROR) << "Failed to get object locations: " << status.ToString()
                      << ", object id = " << object_id;
@@ -23,12 +28,11 @@ void DefaultObjectInfoHandler::HandleGetObjectLocations(
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = object_info_accessor_->AsyncGetLocations(object_id, on_done);
+  Status status = gcs_table_storage_->ObjectTable().Get(object_id.TaskId().JobId(),
+                                                        object_id, on_done);
   if (!status.ok()) {
-    on_done(status, std::vector<rpc::ObjectTableData>());
+    on_done(status, boost::none);
   }
-
-  RAY_LOG(DEBUG) << "Finished getting object locations, object id = " << object_id;
 }
 
 void DefaultObjectInfoHandler::HandleAddObjectLocation(
@@ -39,21 +43,42 @@ void DefaultObjectInfoHandler::HandleAddObjectLocation(
   RAY_LOG(DEBUG) << "Adding object location, object id = " << object_id
                  << ", node id = " << node_id;
 
-  auto on_done = [object_id, node_id, send_reply_callback](Status status) {
-    if (!status.ok()) {
-      RAY_LOG(ERROR) << "Failed to add object location: " << status.ToString()
-                     << ", object id = " << object_id << ", node id = " << node_id;
+  auto on_done = [this, object_id, node_id, send_reply_callback](
+                     Status status,
+                     const boost::optional<rpc::ObjectTableDataList> &result) {
+    auto on_done = [object_id, node_id, send_reply_callback](Status status) {
+      if (status.ok()) {
+        RAY_LOG(DEBUG) << "Finished adding object location, object id = " << object_id
+                       << ", node id = " << node_id;
+      } else {
+        RAY_LOG(ERROR) << "Failed to add object location: " << status.ToString()
+                       << ", object id = " << object_id << ", node id = " << node_id;
+      }
+      send_reply_callback(status, nullptr, nullptr);
+    };
+
+    if (status.ok()) {
+      std::shared_ptr<rpc::ObjectTableDataList> data =
+          result ? std::make_shared<rpc::ObjectTableDataList>(*result)
+                 : std::make_shared<rpc::ObjectTableDataList>();
+      ObjectTableData object_table_data;
+      object_table_data.set_manager(node_id.Binary());
+      data->add_items()->CopyFrom(object_table_data);
+      status = gcs_table_storage_->ObjectTable().Put(object_id.TaskId().JobId(),
+                                                     object_id, data, on_done);
+      if (!status.ok()) {
+        on_done(status);
+      }
+    } else {
+      on_done(status);
     }
-    send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = object_info_accessor_->AsyncAddLocation(object_id, node_id, on_done);
+  Status status = gcs_table_storage_->ObjectTable().Get(object_id.TaskId().JobId(),
+                                                        object_id, on_done);
   if (!status.ok()) {
-    on_done(status);
+    on_done(status, boost::none);
   }
-
-  RAY_LOG(DEBUG) << "Finished adding object location, object id = " << object_id
-                 << ", node id = " << node_id;
 }
 
 void DefaultObjectInfoHandler::HandleRemoveObjectLocation(
@@ -64,21 +89,48 @@ void DefaultObjectInfoHandler::HandleRemoveObjectLocation(
   RAY_LOG(DEBUG) << "Removing object location, object id = " << object_id
                  << ", node id = " << node_id;
 
-  auto on_done = [object_id, node_id, send_reply_callback](Status status) {
-    if (!status.ok()) {
-      RAY_LOG(ERROR) << "Failed to remove object location: " << status.ToString()
-                     << ", object id = " << object_id << ", node id = " << node_id;
+  auto on_done = [this, object_id, node_id, send_reply_callback](
+                     Status status,
+                     const boost::optional<rpc::ObjectTableDataList> &result) {
+    auto on_done = [object_id, node_id, send_reply_callback](Status status) {
+      if (status.ok()) {
+        RAY_LOG(DEBUG) << "Finished removing object location, object id = " << object_id
+                       << ", node id = " << node_id;
+      } else {
+        RAY_LOG(ERROR) << "Failed to remove object location: " << status.ToString()
+                       << ", object id = " << object_id << ", node id = " << node_id;
+      }
+      send_reply_callback(status, nullptr, nullptr);
+    };
+
+    if (status.ok()) {
+      std::vector<ObjectTableData> objects = VectorFromProtobuf(result->items());
+      objects.erase(std::remove_if(objects.begin(), objects.end(),
+                                   [node_id](const ObjectTableData &data) {
+                                     return data.manager() == node_id.Binary();
+                                   }),
+                    objects.end());
+
+      std::shared_ptr<rpc::ObjectTableDataList> data =
+          std::make_shared<rpc::ObjectTableDataList>();
+      for (ObjectTableData object : objects) {
+        data->add_items()->CopyFrom(object);
+      }
+      status = gcs_table_storage_->ObjectTable().Put(object_id.TaskId().JobId(),
+                                                     object_id, data, on_done);
+      if (!status.ok()) {
+        on_done(status);
+      }
+    } else {
+      on_done(status);
     }
-    send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = object_info_accessor_->AsyncRemoveLocation(object_id, node_id, on_done);
+  Status status = gcs_table_storage_->ObjectTable().Get(object_id.TaskId().JobId(),
+                                                        object_id, on_done);
   if (!status.ok()) {
-    on_done(status);
+    on_done(status, boost::none);
   }
-
-  RAY_LOG(DEBUG) << "Finished removing object location, object id = " << object_id
-                 << ", node id = " << node_id;
 }
 
 }  // namespace rpc

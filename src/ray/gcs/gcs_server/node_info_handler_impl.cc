@@ -1,4 +1,5 @@
 #include "node_info_handler_impl.h"
+#include "ray/common/grpc_util.h"
 #include "ray/util/logging.h"
 
 namespace ray {
@@ -14,15 +15,17 @@ void DefaultNodeInfoHandler::HandleRegisterNode(
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to register node info: " << status.ToString()
                      << ", node id = " << node_id;
+    } else {
+      RAY_LOG(DEBUG) << "Finished registering node info, node id = " << node_id;
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = node_info_accessor_->AsyncRegister(request.node_info(), on_done);
+  Status status = gcs_table_storage_->NodeTable().Put(
+      JobID::Nil(), node_id, std::make_shared<GcsNodeInfo>(request.node_info()), on_done);
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished registering node info, node id = " << node_id;
 }
 
 void DefaultNodeInfoHandler::HandleUnregisterNode(
@@ -35,15 +38,16 @@ void DefaultNodeInfoHandler::HandleUnregisterNode(
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to unregister node info: " << status.ToString()
                      << ", node id = " << node_id;
+    } else {
+      RAY_LOG(DEBUG) << "Finished unregistering node info, node id = " << node_id;
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = node_info_accessor_->AsyncUnregister(node_id, on_done);
+  Status status = gcs_table_storage_->NodeTable().Delete(JobID::Nil(), node_id, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished unregistering node info, node id = " << node_id;
 }
 
 void DefaultNodeInfoHandler::HandleGetAllNodeInfo(
@@ -56,17 +60,17 @@ void DefaultNodeInfoHandler::HandleGetAllNodeInfo(
       for (const rpc::GcsNodeInfo &node_info : result) {
         reply->add_node_info_list()->CopyFrom(node_info);
       }
+      RAY_LOG(DEBUG) << "Finished getting all node info.";
     } else {
       RAY_LOG(ERROR) << "Failed to get all nodes info: " << status.ToString();
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = node_info_accessor_->AsyncGetAll(on_done);
+  Status status = gcs_table_storage_->NodeTable().GetAll(JobID::Nil(), on_done);
   if (!status.ok()) {
     on_done(status, std::vector<rpc::GcsNodeInfo>());
   }
-  RAY_LOG(DEBUG) << "Finished getting all node info.";
 }
 
 void DefaultNodeInfoHandler::HandleReportHeartbeat(
@@ -79,17 +83,19 @@ void DefaultNodeInfoHandler::HandleReportHeartbeat(
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to report heartbeat: " << status.ToString()
                      << ", node id = " << node_id;
+    } else {
+      RAY_LOG(DEBUG) << "Finished reporting heartbeat, node id = " << node_id;
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
   auto heartbeat_data = std::make_shared<rpc::HeartbeatTableData>();
   heartbeat_data->CopyFrom(request.heartbeat());
-  Status status = node_info_accessor_->AsyncReportHeartbeat(heartbeat_data, on_done);
+  Status status = gcs_table_storage_->HeartbeatTable().Put(JobID::Nil(), node_id,
+                                                           heartbeat_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished reporting heartbeat, node id = " << node_id;
 }
 
 void DefaultNodeInfoHandler::HandleReportBatchHeartbeat(
@@ -102,20 +108,20 @@ void DefaultNodeInfoHandler::HandleReportBatchHeartbeat(
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to report batch heartbeat: " << status.ToString()
                      << ", batch size = " << request.heartbeat_batch().batch_size();
+    } else {
+      RAY_LOG(DEBUG) << "Finished reporting batch heartbeat, batch size = "
+                     << request.heartbeat_batch().batch_size();
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
   auto heartbeat_batch_data = std::make_shared<rpc::HeartbeatBatchTableData>();
   heartbeat_batch_data->CopyFrom(request.heartbeat_batch());
-  Status status =
-      node_info_accessor_->AsyncReportBatchHeartbeat(heartbeat_batch_data, on_done);
+  Status status = gcs_table_storage_->HeartbeatBatchTable().Put(
+      JobID::Nil(), ClientID::Nil(), heartbeat_batch_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-
-  RAY_LOG(DEBUG) << "Finished reporting batch heartbeat, batch size = "
-                 << request.heartbeat_batch().batch_size();
 }
 
 void DefaultNodeInfoHandler::HandleGetResources(const GetResourcesRequest &request,
@@ -125,14 +131,13 @@ void DefaultNodeInfoHandler::HandleGetResources(const GetResourcesRequest &reque
   RAY_LOG(DEBUG) << "Getting node resources, node id = " << node_id;
 
   auto on_done = [node_id, reply, send_reply_callback](
-                     Status status,
-                     const boost::optional<gcs::NodeInfoAccessor::ResourceMap> &result) {
+                     Status status, const boost::optional<rpc::ResourceMap> &result) {
     if (status.ok()) {
       if (result) {
-        for (auto &resource : *result) {
-          (*reply->mutable_resources())[resource.first] = *resource.second;
-        }
+        reply->mutable_resources()->insert(result->items().begin(),
+                                           result->items().end());
       }
+      RAY_LOG(DEBUG) << "Finished getting node resources, node id = " << node_id;
     } else {
       RAY_LOG(ERROR) << "Failed to get node resources: " << status.ToString()
                      << ", node id = " << node_id;
@@ -140,12 +145,11 @@ void DefaultNodeInfoHandler::HandleGetResources(const GetResourcesRequest &reque
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = node_info_accessor_->AsyncGetResources(node_id, on_done);
+  Status status =
+      gcs_table_storage_->NodeResourceTable().Get(JobID::Nil(), node_id, on_done);
   if (!status.ok()) {
     on_done(status, boost::none);
   }
-
-  RAY_LOG(DEBUG) << "Finished getting node resources, node id = " << node_id;
 }
 
 void DefaultNodeInfoHandler::HandleUpdateResources(
@@ -153,26 +157,29 @@ void DefaultNodeInfoHandler::HandleUpdateResources(
     SendReplyCallback send_reply_callback) {
   ClientID node_id = ClientID::FromBinary(request.node_id());
   RAY_LOG(DEBUG) << "Updating node resources, node id = " << node_id;
+  auto on_done = [this, node_id, request, send_reply_callback](
+                     Status status, const boost::optional<rpc::ResourceMap> &result) {
+    if (status.ok()) {
+      // Get resources and update
+      auto resource_map = MapFromProtobuf(result->items());
+      for (auto resource : request.resources()) {
+        resource_map[resource.first] = resource.second;
+      }
 
-  gcs::NodeInfoAccessor::ResourceMap resources;
-  for (auto resource : request.resources()) {
-    resources[resource.first] = std::make_shared<rpc::ResourceTableData>(resource.second);
-  }
-
-  auto on_done = [node_id, send_reply_callback](Status status) {
-    if (!status.ok()) {
-      RAY_LOG(ERROR) << "Failed to update node resources: " << status.ToString()
+      UpdateResource(node_id, resource_map, send_reply_callback);
+      RAY_LOG(DEBUG) << "Finished updating node resources, node id = " << node_id;
+    } else {
+      send_reply_callback(status, nullptr, nullptr);
+      RAY_LOG(ERROR) << "Failed to get node resources: " << status.ToString()
                      << ", node id = " << node_id;
     }
-    send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = node_info_accessor_->AsyncUpdateResources(node_id, resources, on_done);
+  Status status =
+      gcs_table_storage_->NodeResourceTable().Get(JobID::Nil(), node_id, on_done);
   if (!status.ok()) {
-    on_done(status);
+    on_done(status, boost::none);
   }
-
-  RAY_LOG(DEBUG) << "Finished updating node resources, node id = " << node_id;
 }
 
 void DefaultNodeInfoHandler::HandleDeleteResources(
@@ -181,22 +188,46 @@ void DefaultNodeInfoHandler::HandleDeleteResources(
   ClientID node_id = ClientID::FromBinary(request.node_id());
   auto resource_names = VectorFromProtobuf(request.resource_name_list());
   RAY_LOG(DEBUG) << "Deleting node resources, node id = " << node_id;
+  auto on_done = [this, node_id, resource_names, send_reply_callback](
+                     Status status, const boost::optional<rpc::ResourceMap> &result) {
+    if (status.ok()) {
+      // Get resources and update
+      auto resource_map = MapFromProtobuf(result->items());
+      for (auto resource_name : resource_names) {
+        resource_map.erase(resource_name);
+      }
 
-  auto on_done = [node_id, send_reply_callback](Status status) {
-    if (!status.ok()) {
+      UpdateResource(node_id, resource_map, send_reply_callback);
+      RAY_LOG(DEBUG) << "Finished deleting node resources, node id = " << node_id;
+    } else {
+      send_reply_callback(status, nullptr, nullptr);
       RAY_LOG(ERROR) << "Failed to delete node resources: " << status.ToString()
                      << ", node id = " << node_id;
     }
-    send_reply_callback(status, nullptr, nullptr);
   };
 
   Status status =
-      node_info_accessor_->AsyncDeleteResources(node_id, resource_names, on_done);
+      gcs_table_storage_->NodeResourceTable().Get(JobID::Nil(), node_id, on_done);
+  if (!status.ok()) {
+    on_done(status, boost::none);
+  }
+}
+
+void DefaultNodeInfoHandler::UpdateResource(
+    const ClientID &node_id,
+    const std::unordered_map<std::string, rpc::ResourceTableData> &resource_map,
+    SendReplyCallback send_reply_callback) {
+  std::shared_ptr<rpc::ResourceMap> resources = std::make_shared<rpc::ResourceMap>();
+  resources->mutable_items()->insert(resource_map.begin(), resource_map.end());
+
+  auto on_done = [send_reply_callback](Status status) {
+    send_reply_callback(status, nullptr, nullptr);
+  };
+  Status status = gcs_table_storage_->NodeResourceTable().Put(JobID::Nil(), node_id,
+                                                              resources, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-
-  RAY_LOG(DEBUG) << "Finished deleting node resources, node id = " << node_id;
 }
 
 }  // namespace rpc

@@ -1,8 +1,8 @@
 #ifndef RAY_GCS_TASK_INFO_HANDLER_IMPL_H
 #define RAY_GCS_TASK_INFO_HANDLER_IMPL_H
 
-#include "ray/gcs/gcs_storage_client/gcs_table_storage.h"
 #include "ray/gcs/gcs_storage_client/gcs_storage_client.h"
+#include "ray/gcs/gcs_storage_client/gcs_table_storage.h"
 #include "ray/gcs/redis_gcs_client.h"
 #include "ray/rpc/gcs_server/gcs_rpc_server.h"
 
@@ -12,9 +12,9 @@ namespace rpc {
 /// This implementation class of `TaskInfoHandler`.
 class DefaultTaskInfoHandler : public rpc::TaskInfoHandler {
  public:
-  explicit DefaultTaskInfoHandler(gcs::GcsStorageClient &gcs_storage_client) {
-    task_info_accessor_ = std::unique_ptr<gcs::GcsStorageTaskInfoAccessor>(
-        new gcs::GcsStorageTaskInfoAccessor(gcs_storage_client));
+  explicit DefaultTaskInfoHandler(
+      const std::shared_ptr<gcs::GcsTableStorage> &gcs_table_storage) {
+    gcs_table_storage_ = gcs_table_storage;
   }
 
   void HandleAddTask(const AddTaskRequest &request, AddTaskReply *reply,
@@ -34,7 +34,7 @@ class DefaultTaskInfoHandler : public rpc::TaskInfoHandler {
                                        SendReplyCallback send_reply_callback) override;
 
  private:
-  std::unique_ptr<gcs::GcsStorageTaskInfoAccessor> task_info_accessor_;
+  std::shared_ptr<gcs::GcsTableStorage> gcs_table_storage_;
 };
 
 }  // namespace rpc
