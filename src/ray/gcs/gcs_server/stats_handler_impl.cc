@@ -16,16 +16,19 @@ void DefaultStatsHandler::HandleAddProfileData(const AddProfileDataRequest &requ
       RAY_LOG(ERROR) << "Failed to add profile data, component type = "
                      << request.profile_data().component_type()
                      << ", node id = " << node_id;
+    } else {
+      RAY_LOG(DEBUG) << "Finished adding profile data, component type = "
+                     << request.profile_data().component_type()
+                     << ", node id = " << node_id;
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = stats_info_accessor_->AsyncAddProfileData(profile_table_data, on_done);
+  Status status = gcs_table_storage_->ProfileTable().Put(
+      JobID::Nil(), UniqueID::FromRandom(), profile_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished adding profile data, component type = "
-                 << request.profile_data().component_type() << ", node id = " << node_id;
 }
 
 }  // namespace rpc

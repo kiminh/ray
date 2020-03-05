@@ -15,16 +15,18 @@ void DefaultErrorInfoHandler::HandleReportJobError(
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to report job error, job id = " << job_id
                      << ", type = " << type;
+    } else {
+      RAY_LOG(DEBUG) << "Finished reporting job error, job id = " << job_id
+                     << ", type = " << type;
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = error_info_accessor_->AsyncReportJobError(error_table_data, on_done);
+  Status status =
+      gcs_table_storage_->ErrorInfoTable().Put(job_id, job_id, error_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished reporting job error, job id = " << job_id
-                 << ", type = " << type;
 }
 
 }  // namespace rpc

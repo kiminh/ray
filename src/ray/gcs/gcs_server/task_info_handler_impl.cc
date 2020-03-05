@@ -15,16 +15,18 @@ void DefaultTaskInfoHandler::HandleAddTask(const AddTaskRequest &request,
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to add task, task id = " << task_id
                      << ", job id = " << job_id;
+    } else {
+      RAY_LOG(DEBUG) << "Finished adding task, task id = " << task_id
+                     << ", job id = " << job_id;
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = task_info_accessor_->AsyncAdd(task_table_data, on_done);
+  Status status =
+      gcs_table_storage_->TaskTable().Put(job_id, task_id, task_table_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished adding task, task id = " << task_id
-                 << ", job id = " << job_id;
 }
 
 void DefaultTaskInfoHandler::HandleGetTask(const GetTaskRequest &request,
@@ -37,17 +39,17 @@ void DefaultTaskInfoHandler::HandleGetTask(const GetTaskRequest &request,
     if (status.ok()) {
       RAY_DCHECK(result);
       reply->mutable_task_data()->CopyFrom(*result);
+      RAY_LOG(DEBUG) << "Finished getting task, task id = " << task_id;
     } else {
       RAY_LOG(ERROR) << "Failed to get task, task id = " << task_id;
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = task_info_accessor_->AsyncGet(task_id, on_done);
+  Status status = gcs_table_storage_->TaskTable().Get(task_id.JobId(), task_id, on_done);
   if (!status.ok()) {
     on_done(status, boost::none);
   }
-  RAY_LOG(DEBUG) << "Finished getting task, task id = " << task_id;
 }
 
 void DefaultTaskInfoHandler::HandleDeleteTasks(const DeleteTasksRequest &request,
@@ -58,15 +60,18 @@ void DefaultTaskInfoHandler::HandleDeleteTasks(const DeleteTasksRequest &request
   auto on_done = [task_ids, request, send_reply_callback](Status status) {
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to delete tasks, task id list size = " << task_ids.size();
+    } else {
+      RAY_LOG(DEBUG) << "Finished deleting tasks, task id list size = "
+                     << task_ids.size();
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = task_info_accessor_->AsyncDelete(task_ids, on_done);
+  JobID job_id = task_ids[0].JobId();
+  Status status = gcs_table_storage_->TaskTable().Delete(job_id, task_ids, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished deleting tasks, task id list size = " << task_ids.size();
 }
 
 void DefaultTaskInfoHandler::HandleAddTaskLease(const AddTaskLeaseRequest &request,
@@ -82,16 +87,18 @@ void DefaultTaskInfoHandler::HandleAddTaskLease(const AddTaskLeaseRequest &reque
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to add task lease, task id = " << task_id
                      << ", node id = " << node_id;
+    } else {
+      RAY_LOG(DEBUG) << "Finished adding task lease, task id = " << task_id
+                     << ", node id = " << node_id;
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status = task_info_accessor_->AsyncAddTaskLease(task_lease_data, on_done);
+  Status status = gcs_table_storage_->TaskLeaseTable().Put(task_id.JobId(), task_id,
+                                                           task_lease_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished adding task lease, task id = " << task_id
-                 << ", node id = " << node_id;
 }
 
 void DefaultTaskInfoHandler::HandleAttemptTaskReconstruction(
@@ -109,18 +116,20 @@ void DefaultTaskInfoHandler::HandleAttemptTaskReconstruction(
       RAY_LOG(ERROR) << "Failed to reconstruct task, reconstructions num = "
                      << request.task_reconstruction().num_reconstructions()
                      << ", node id = " << node_id;
+    } else {
+      RAY_LOG(DEBUG) << "Finished reconstructing task, reconstructions num = "
+                     << request.task_reconstruction().num_reconstructions()
+                     << ", node id = " << node_id;
     }
     send_reply_callback(status, nullptr, nullptr);
   };
 
-  Status status =
-      task_info_accessor_->AttemptTaskReconstruction(task_reconstruction_data, on_done);
+  TaskID task_id = TaskID::FromBinary(request.task_reconstruction().task_id());
+  Status status = gcs_table_storage_->TaskReconstructionTable().Put(
+      task_id.JobId(), task_id, task_reconstruction_data, on_done);
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished reconstructing task, reconstructions num = "
-                 << request.task_reconstruction().num_reconstructions()
-                 << ", node id = " << node_id;
 }
 
 }  // namespace rpc

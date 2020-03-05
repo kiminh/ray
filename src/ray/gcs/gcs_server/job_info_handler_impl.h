@@ -1,8 +1,8 @@
 #ifndef RAY_GCS_JOB_INFO_HANDLER_IMPL_H
 #define RAY_GCS_JOB_INFO_HANDLER_IMPL_H
 
-#include "ray/gcs/gcs_storage_client/gcs_table_storage.h"
 #include "ray/gcs/gcs_storage_client/gcs_storage_client.h"
+#include "ray/gcs/gcs_storage_client/gcs_table_storage.h"
 #include "ray/gcs/redis_gcs_client.h"
 #include "ray/rpc/gcs_server/gcs_rpc_server.h"
 
@@ -12,9 +12,9 @@ namespace rpc {
 /// This implementation class of `JobInfoHandler`.
 class DefaultJobInfoHandler : public rpc::JobInfoHandler {
  public:
-  explicit DefaultJobInfoHandler(gcs::GcsStorageClient &gcs_storage_client) {
-    job_info_accessor_ = std::unique_ptr<gcs::GcsStorageJobInfoAccessor>(
-        new gcs::GcsStorageJobInfoAccessor(gcs_storage_client));
+  explicit DefaultJobInfoHandler(
+      const std::shared_ptr<gcs::GcsTableStorage> &gcs_table_storage) {
+    gcs_table_storage_ = gcs_table_storage;
   }
 
   void HandleAddJob(const AddJobRequest &request, AddJobReply *reply,
@@ -25,7 +25,7 @@ class DefaultJobInfoHandler : public rpc::JobInfoHandler {
                              SendReplyCallback send_reply_callback) override;
 
  private:
-  std::unique_ptr<gcs::GcsStorageJobInfoAccessor> job_info_accessor_;
+  std::shared_ptr<gcs::GcsTableStorage> gcs_table_storage_;
 };
 
 }  // namespace rpc

@@ -16,67 +16,41 @@ Status GcsStorageRedisClient::Connect(boost::asio::io_service &io_service) {
 
 void GcsStorageRedisClient::Disconnect() { redis_gcs_client_->Disconnect(); }
 
-Status GcsStorageRedisClient::Get(const int &index, const std::string &key,
-                                  const GetCallback &callback) {
-  //  auto on_done = [callback](const std::vector<std::string> &data) {
-  //    boost::optional<std::string> result;
-  //    if (!data.empty()) {
-  //      result = data.back();
-  //    }
-  //    callback(Status::OK(), result);
-  //  };
-
-  Status status;
-  //  switch (index) {
-  //    case TablePrefix::ACTOR:
-  //      status = redis_gcs_client_->actor_table().Lookup(key, on_done);
-  //      break;
-  //    case TablePrefix::ACTOR_CHECKPOINT:
-  //      status = redis_gcs_client_->actor_checkpoint_table().Lookup(key, on_done);
-  //      break;
-  //    case TablePrefix::JOB:
-  //      status = redis_gcs_client_->job_table().Lookup(key, on_done);
-  //      break;
-  //  }
-  return status;
-}
-
-Status GcsStorageRedisClient::GetAll(const int &index, const GetAllCallback &callback) {
+Status GcsStorageRedisClient::Put(const std::string &table, const std::string &key,
+                                  const std::string &value, const SetCallback &callback) {
   return Status::OK();
 }
 
-Status GcsStorageRedisClient::Set(const int &index, const std::string &key,
-                                  const std::string &value, const SetCallback &callback) {
-  //  auto on_done = [callback](const Status &status) {
-  //    callback(status);
-  //  };
-
-  Status status;
-  //  switch (index) {
-  //    case TablePrefix::ACTOR:
-  //      status = redis_gcs_client_->actor_table().Append(key, value, on_done);
-  //      break;
-  //    case TablePrefix::ACTOR_CHECKPOINT:
-  //      status = redis_gcs_client_->actor_checkpoint_table().Add(key, value, on_done);
-  //      break;
-  //    case TablePrefix::ACTOR_CHECKPOINT_ID:
-  //      status = redis_gcs_client_->actor_checkpoint_id_table().Add(key, value,
-  //      on_done); break;
-  //    case TablePrefix::JOB:
-  //      status = redis_gcs_client_->job_table().Append(key, value, on_done);
-  //      break;
-  //  }
-  return status;
+Status GcsStorageRedisClient::Get(const std::string &table, const std::string &key,
+                                  const GetCallback &callback) {
+  return Status::OK();
 }
 
-Status GcsStorageRedisClient::Delete(const int &index, const std::string &key,
+Status GcsStorageRedisClient::GetByIndex(const std::string &table,
+                                         const std::string &index, const std::string &key,
+                                         const GetCallback &callback) {
+  return Status::OK();
+}
+
+Status GcsStorageRedisClient::GetAll(const std::string &table,
+                                     const GetAllCallback &callback) {
+  return Status::OK();
+}
+
+Status GcsStorageRedisClient::Delete(const std::string &table, const std::string &key,
                                      const DeleteCallback &callback) {
   return Status::OK();
 }
 
-Status GcsStorageRedisClient::Delete(const int &index,
+Status GcsStorageRedisClient::Delete(const std::string &table,
                                      const std::vector<std::string> &keys,
                                      const DeleteCallback &callback) {
+  return Status::OK();
+}
+
+Status GcsStorageRedisClient::DeleteByIndex(const std::string &table, const int &index,
+                                            const std::string &key,
+                                            const DeleteCallback &callback) {
   return Status::OK();
 }
 

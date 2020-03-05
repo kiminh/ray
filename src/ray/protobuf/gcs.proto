@@ -285,16 +285,11 @@ message WorkerFailureData {
   int64 timestamp = 3;
 }
 
-message ResourceItem {
-  string key = 1;
-  ResourceTableData value = 2;
-}
-
 message ResourceMap {
-  repeated ResourceItem items = 1;
+  map<string, ResourceTableData> items = 1;
 }
 
-message ObjectTableDataVector {
+message ObjectTableDataList {
   repeated ObjectTableData items = 1;
 }
 
