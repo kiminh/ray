@@ -2,10 +2,12 @@ package org.ray.api.test;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
+
 import org.apache.commons.io.FileUtils;
 import org.ray.api.Ray;
 import org.ray.api.RayActor;
@@ -52,6 +54,22 @@ public class CrossLanguageInvocationTest extends BaseMultiLanguageTest {
   public void testCallingPythonFunction() {
     RayObject res = Ray.callPy(PYTHON_MODULE, "py_func", "hello".getBytes());
     Assert.assertEquals(res.get(), "Response from Python: hello".getBytes());
+  }
+
+  @Test
+  public void testCrossLanguageSerialization() {
+    {
+      int[] input = new int[]{1, 2};
+      RayObject res = Ray.callPy(PYTHON_MODULE, "py_return_input", input);
+      Object[] r = (Object[]) res.get();
+      Assert.assertEquals(r.length, input.length);
+      Assert.assertEquals(((Number) r[0]).intValue(), input[0]);
+      Assert.assertEquals(((Number) r[1]).intValue(), input[1]);
+    }
+    {
+      RayObject res = Ray.callPy(PYTHON_MODULE, "py_return_java");
+      Assert.assertTrue((boolean)res.get());
+    }
   }
 
   @Test
@@ -102,6 +120,11 @@ public class CrossLanguageInvocationTest extends BaseMultiLanguageTest {
     Assert.assertEquals(res.get(), "3".getBytes());
   }
 
+  public static Object[] pack(int i, String s, float f, Object[] o) {
+    // This function will be called from test_cross_language_invocation.py
+    return new Object[]{i, s, f, o};
+  }
+
   public static byte[] bytesEcho(byte[] value) {
     // This function will be called from test_cross_language_invocation.py
     String valueStr = new String(value);
@@ -111,10 +134,10 @@ public class CrossLanguageInvocationTest extends BaseMultiLanguageTest {
 
   public static byte[] callPythonActorHandle(byte[] value) {
     // This function will be called from test_cross_language_invocation.py
-    NativeRayPyActor actor = (NativeRayPyActor)NativeRayActor.fromBytes(value);
+    NativeRayPyActor actor = (NativeRayPyActor) NativeRayActor.fromBytes(value);
     RayObject res = Ray.callPy(actor, "increase", "1".getBytes());
     Assert.assertEquals(res.get(), "3".getBytes());
-    return (byte[])res.get();
+    return (byte[]) res.get();
   }
 
   @RayRemote  // Python can create java actors without @RayRemote

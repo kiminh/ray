@@ -1,9 +1,6 @@
 package org.ray.runtime.serializer;
 
-import org.msgpack.core.MessageBufferPacker;
-import org.msgpack.core.MessagePack;
-import org.msgpack.core.MessagePacker;
-import org.msgpack.core.MessageUnpacker;
+import org.msgpack.core.*;
 import org.msgpack.value.*;
 
 import java.io.IOException;
@@ -14,11 +11,20 @@ import java.math.BigInteger;
 
 // We can't pack List / Map by MessagePack, because we don't know the type class when unpacking.
 public class MessagePackSerializer {
-  private final static byte languageCrossTypeExtensionId = 100;
-  private final static byte languageSpecificExtensionId = 101;
+  private final static byte CROSS_LANGUAGE_TYPE_EXTENSION_ID = 100;
+  private final static byte LANGUAGE_SPECIFIC_TYPE_EXTENSION_ID = 101;
+  private final static int MESSAGE_PACK_OFFSET = 9;
+
+  interface JavaSerializer {
+    void serialize(Object object, MessagePacker packer) throws IOException;
+  }
+
+  interface JavaDeserializer {
+    Object deserialize(ExtensionValue v);
+  }
 
 
-  private static void pack(Object object, MessagePacker packer, ClassLoader classLoader) throws IOException {
+  private static void pack(Object object, MessagePacker packer, JavaSerializer javaSerializer) throws IOException {
     if (object == null) {
       packer.packNil();
     } else if (object instanceof Byte) {
@@ -47,7 +53,7 @@ public class MessagePackSerializer {
       int length = Array.getLength(object);
       packer.packArrayHeader(length);
       for (int i = 0; i < length; ++i) {
-        pack(Array.get(object, i), packer, classLoader);
+        pack(Array.get(object, i), packer, javaSerializer);
       }
     } else {
       try {
@@ -61,24 +67,17 @@ public class MessagePackSerializer {
             toCrossData.invoke(object),
         };
         MessageBufferPacker crossTypePacker = MessagePack.newDefaultBufferPacker();
-        pack(data, crossTypePacker, classLoader);
+        pack(data, crossTypePacker, javaSerializer);
         byte[] payload = crossTypePacker.toByteArray();
-        packer.packExtensionTypeHeader(languageCrossTypeExtensionId, payload.length);
+        packer.packExtensionTypeHeader(CROSS_LANGUAGE_TYPE_EXTENSION_ID, payload.length);
         packer.addPayload(payload);
       } catch (Exception e) {
-        byte[] payload;
-        if (classLoader == null) {
-          payload = FSTSerializer.encode(object);
-        } else {
-          payload = FSTSerializer.encode(object, classLoader);
-        }
-        packer.packExtensionTypeHeader(languageSpecificExtensionId, payload.length);
-        packer.addPayload(payload);
+        javaSerializer.serialize(object, packer);
       }
     }
   }
 
-  private static Object unpack(Value v, Class<?> type, ClassLoader classLoader) {
+  private static Object unpack(Value v, Class<?> type, JavaDeserializer javaDeserializer) {
     switch (v.getValueType()) {
       case NIL:
         return null;
@@ -130,7 +129,7 @@ public class MessagePackSerializer {
           Object array = Array.newInstance(componentType, a.size());
           for (int i = 0; i < a.size(); ++i) {
             Value value = a.get(i);
-            Array.set(array, i, unpack(value, componentType, classLoader));
+            Array.set(array, i, unpack(value, componentType, javaDeserializer));
           }
           return array;
         } else {
@@ -139,11 +138,11 @@ public class MessagePackSerializer {
       case EXTENSION:
         ExtensionValue ev = v.asExtensionValue();
         byte extType = ev.getType();
-        if (extType == languageCrossTypeExtensionId) {
+        if (extType == CROSS_LANGUAGE_TYPE_EXTENSION_ID) {
           try {
             MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(ev.getData());
             Value crossValue = unpacker.unpackValue();
-            Object[] data = (Object[]) unpack(crossValue, Object[].class, classLoader);
+            Object[] data = (Object[]) unpack(crossValue, Object[].class, javaDeserializer);
             Integer crossTypeId = ((Number) data[0]).intValue();
             Object[] crossData = (Object[]) data[1];
             Class<?> crossType = CrossTypeManager.get(crossTypeId);
@@ -153,12 +152,8 @@ public class MessagePackSerializer {
           } catch (Exception e) {
             throw new RuntimeException(e);
           }
-        } else if (extType == languageSpecificExtensionId) {
-          if (classLoader == null) {
-            return FSTSerializer.decode(ev.getData());
-          } else {
-            return FSTSerializer.decode(ev.getData(), classLoader);
-          }
+        } else if (extType == LANGUAGE_SPECIFIC_TYPE_EXTENSION_ID) {
+          return javaDeserializer.deserialize(ev);
         } else {
           throw new IllegalArgumentException("expected " + type + ", actual extension type " + extType);
         }
@@ -166,11 +161,24 @@ public class MessagePackSerializer {
     throw new IllegalArgumentException("expected " + type + ", actual type " + v.getValueType());
   }
 
-  public static byte[] encode(Object obj, ClassLoader classLoader) {
+  public static byte[] encode(Object obj, Serializer.Meta meta, ClassLoader classLoader) {
     MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
     try {
-      pack(obj, packer, classLoader);
-      return packer.toByteArray();
+      packer.writePayload(new byte[MESSAGE_PACK_OFFSET]);
+      Serializer.Meta javaEncoderMeta = new Serializer.Meta();
+      pack(obj, packer, ((object, packer1) -> {
+        byte[] payload = FSTSerializer.encode(object, javaEncoderMeta, classLoader);
+        packer1.packExtensionTypeHeader(LANGUAGE_SPECIFIC_TYPE_EXTENSION_ID, payload.length);
+        packer1.addPayload(payload);
+        meta.isCrossLanguage = false;
+      }));
+      byte[] msgpackBytes = packer.toByteArray();
+      MessageBufferPacker headerPacker = MessagePack.newDefaultBufferPacker();
+      headerPacker.packLong(msgpackBytes.length - MESSAGE_PACK_OFFSET);
+      byte[] msgpackBytesLength = headerPacker.toByteArray();
+      Preconditions.checkState(msgpackBytesLength.length <= MESSAGE_PACK_OFFSET);
+      System.arraycopy(msgpackBytesLength, 0, msgpackBytes, 0, msgpackBytesLength.length);
+      return msgpackBytes;
     } catch (Exception e) {
       throw new RuntimeException(e);
     } finally {
@@ -182,10 +190,13 @@ public class MessagePackSerializer {
   @SuppressWarnings("unchecked")
   public static <T> T decode(byte[] bs, Class<?> type, ClassLoader classLoader) {
     try {
-      MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bs);
+      MessageUnpacker headerUnpacker = MessagePack.newDefaultUnpacker(bs, 0, MESSAGE_PACK_OFFSET);
+      Long msgpackBytesLength = headerUnpacker.unpackLong();
+      Preconditions.checkState(MESSAGE_PACK_OFFSET + msgpackBytesLength <= bs.length);
+      MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bs, MESSAGE_PACK_OFFSET, msgpackBytesLength.intValue());
       Value v = unpacker.unpackValue();
       type = type == null ? Object.class : type;
-      return (T) unpack(v, type, classLoader);
+      return (T) unpack(v, type, ((ExtensionValue ev) -> FSTSerializer.decode(ev.getData(), classLoader)));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
