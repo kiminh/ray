@@ -1,7 +1,7 @@
 #include "actor_info_handler_impl.h"
 #include "absl/time/clock.h"
 #include "ray/common/ray_config.h"
-#include "ray/gcs/gcs_storage_client/gcs_table_storage.h"
+#include "ray/gcs/gcs_server/gcs_table_storage.h"
 #include "ray/util/logging.h"
 
 namespace ray {
