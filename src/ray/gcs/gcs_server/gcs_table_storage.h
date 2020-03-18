@@ -4,8 +4,8 @@
 #include "ray/common/id.h"
 #include "ray/gcs/accessor.h"
 #include "ray/gcs/callback.h"
-#include "ray/gcs/gcs_storage_client/gcs_storage_client.h"
-#include "ray/gcs/subscription_executor.h"
+#include "ray/gcs/pb_util.h"
+#include "ray/gcs/store_client/store_client.h"
 
 namespace ray {
 namespace gcs {
@@ -29,7 +29,7 @@ static const std::string kWorkerFailureTable = "WORKER_FAILURE";
 template <typename KEY, typename VALUE>
 class GcsTable {
  public:
-  GcsTable(GcsStorageClient &client_impl) : client_impl_(client_impl) {}
+  GcsTable(StoreClient &store_client) : store_client_(store_client) {}
 
   virtual ~GcsTable() {}
 
@@ -52,66 +52,66 @@ class GcsTable {
   std::string table_name_;
 
  private:
-  GcsStorageClient &client_impl_;
+  StoreClient &store_client_;
 };
 
-class GcsJobTable : public GcsTable<JobID, JobTableData> {
+ class GcsJobTable : public GcsTable<JobID, rpc::JobTableData> {
  public:
-  GcsJobTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsJobTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kJobTable;
   }
 
   virtual ~GcsJobTable() {}
 };
 
-class GcsActorTable : public GcsTable<ActorID, ActorTableData> {
+class GcsActorTable : public GcsTable<ActorID, rpc::ActorTableData> {
  public:
-  GcsActorTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsActorTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kActorTable;
   }
 
   virtual ~GcsActorTable() {}
 };
 
-class GcsActorCheckpointTable : public GcsTable<ActorCheckpointID, ActorCheckpointData> {
+ class GcsActorCheckpointTable : public GcsTable<ActorCheckpointID, rpc::ActorCheckpointData> {
  public:
-  GcsActorCheckpointTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsActorCheckpointTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kActorCheckpointTable;
   }
 
   virtual ~GcsActorCheckpointTable() {}
 };
 
-class GcsActorCheckpointIdTable : public GcsTable<ActorID, ActorCheckpointIdData> {
+class GcsActorCheckpointIdTable : public GcsTable<ActorID, rpc::ActorCheckpointIdData> {
  public:
-  GcsActorCheckpointIdTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsActorCheckpointIdTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kActorCheckpointIdTable;
   }
 
   virtual ~GcsActorCheckpointIdTable() {}
 };
 
-class GcsTaskTable : public GcsTable<TaskID, TaskTableData> {
+class GcsTaskTable : public GcsTable<TaskID, rpc::TaskTableData> {
  public:
-  GcsTaskTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsTaskTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kTaskTable;
   }
 
   virtual ~GcsTaskTable() {}
 };
 
-class GcsTaskLeaseTable : public GcsTable<TaskID, TaskLeaseData> {
+class GcsTaskLeaseTable : public GcsTable<TaskID, rpc::TaskLeaseData> {
  public:
-  GcsTaskLeaseTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsTaskLeaseTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kTaskLeaseTable;
   }
 
   virtual ~GcsTaskLeaseTable() {}
 };
 
-class GcsTaskReconstructionTable : public GcsTable<TaskID, TaskReconstructionData> {
+class GcsTaskReconstructionTable : public GcsTable<TaskID, rpc::TaskReconstructionData> {
  public:
-  GcsTaskReconstructionTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsTaskReconstructionTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kTaskReconstructionTable;
   }
 
@@ -120,16 +120,16 @@ class GcsTaskReconstructionTable : public GcsTable<TaskID, TaskReconstructionDat
 
 class GcsObjectTable : public GcsTable<ObjectID, rpc::ObjectTableDataList> {
  public:
-  GcsObjectTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsObjectTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kObjectTable;
   }
 
   virtual ~GcsObjectTable() {}
 };
 
-class GcsNodeTable : public GcsTable<ClientID, GcsNodeInfo> {
+ class GcsNodeTable : public GcsTable<ClientID, rpc::GcsNodeInfo> {
  public:
-  GcsNodeTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsNodeTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kNodeTable;
   }
 
@@ -138,52 +138,52 @@ class GcsNodeTable : public GcsTable<ClientID, GcsNodeInfo> {
 
 class GcsNodeResourceTable : public GcsTable<ClientID, rpc::ResourceMap> {
  public:
-  GcsNodeResourceTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsNodeResourceTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kNodeResourceTable;
   }
 
   virtual ~GcsNodeResourceTable() {}
 };
 
-class GcsHeartbeatTable : public GcsTable<ClientID, HeartbeatTableData> {
+ class GcsHeartbeatTable : public GcsTable<ClientID, rpc::HeartbeatTableData> {
  public:
-  GcsHeartbeatTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsHeartbeatTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kHeartbeatTable;
   }
 
   virtual ~GcsHeartbeatTable() {}
 };
 
-class GcsHeartbeatBatchTable : public GcsTable<ClientID, HeartbeatBatchTableData> {
+ class GcsHeartbeatBatchTable : public GcsTable<ClientID, rpc::HeartbeatBatchTableData> {
  public:
-  GcsHeartbeatBatchTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsHeartbeatBatchTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kHeartbeatBatchTable;
   }
 
   virtual ~GcsHeartbeatBatchTable() {}
 };
 
-class GcsErrorInfoTable : public GcsTable<JobID, ErrorTableData> {
+ class GcsErrorInfoTable : public GcsTable<JobID, rpc::ErrorTableData> {
  public:
-  GcsErrorInfoTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsErrorInfoTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kErrorInfoTable;
   }
 
   virtual ~GcsErrorInfoTable() {}
 };
 
-class GcsProfileTable : public GcsTable<UniqueID, ProfileTableData> {
+class GcsProfileTable : public GcsTable<UniqueID, rpc::ProfileTableData> {
  public:
-  GcsProfileTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsProfileTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kProfileTable;
   }
 
   virtual ~GcsProfileTable() {}
 };
 
-class GcsWorkerFailureTable : public GcsTable<WorkerID, WorkerFailureData> {
+class GcsWorkerFailureTable : public GcsTable<WorkerID, rpc::WorkerFailureData> {
  public:
-  GcsWorkerFailureTable(GcsStorageClient &client_impl) : GcsTable(client_impl) {
+  GcsWorkerFailureTable(StoreClient &store_client) : GcsTable(store_client) {
     table_name_ = kWorkerFailureTable;
   }
 
@@ -192,8 +192,8 @@ class GcsWorkerFailureTable : public GcsTable<WorkerID, WorkerFailureData> {
 
 class GcsTableStorage {
  public:
-  GcsTableStorage(const std::shared_ptr<gcs::GcsStorageClient> &gcs_storage_client)
-      : gcs_storage_client_(gcs_storage_client) {}
+  GcsTableStorage(const std::shared_ptr<gcs::StoreClient> &store_client)
+      : store_client_(store_client) {}
 
   GcsJobTable &JobTable() {
     RAY_CHECK(job_table_ != nullptr);
@@ -271,7 +271,7 @@ class GcsTableStorage {
   }
 
  private:
-  std::shared_ptr<GcsStorageClient> gcs_storage_client_;
+  std::shared_ptr<StoreClient> store_client_;
 
   std::unique_ptr<GcsJobTable> job_table_;
   std::unique_ptr<GcsActorTable> actor_table_;

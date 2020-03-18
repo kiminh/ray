@@ -4,7 +4,7 @@
 #include <ray/gcs/redis_gcs_client.h>
 #include <ray/rpc/gcs_server/gcs_rpc_server.h>
 #include "ray/gcs/gcs_storage_client/gcs_storage_client.h"
-#include "ray/gcs/gcs_storage_client/gcs_table_storage.h"
+#include "ray/gcs/gcs_server/gcs_table_storage.h"
 
 namespace ray {
 namespace gcs {
