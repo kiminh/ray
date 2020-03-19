@@ -3,7 +3,6 @@
 
 #include <ray/gcs/redis_gcs_client.h>
 #include <ray/rpc/gcs_server/gcs_rpc_server.h>
-#include "ray/gcs/gcs_storage_client/gcs_storage_client.h"
 #include "ray/gcs/gcs_server/gcs_table_storage.h"
 
 namespace ray {
@@ -113,7 +112,7 @@ class GcsServer {
   std::unique_ptr<rpc::WorkerInfoGrpcService> worker_info_service_;
   /// Backend client
   std::shared_ptr<RedisGcsClient> redis_gcs_client_;
-  std::shared_ptr<GcsStorageClient> gcs_storage_client_;
+  std::shared_ptr<StoreClient> store_client_;
   std::shared_ptr<ray::gcs::GcsTableStorage> gcs_table_storage_;
   /// Gcs service init flag
   bool is_started_ = false;

@@ -192,8 +192,24 @@ class GcsWorkerFailureTable : public GcsTable<WorkerID, rpc::WorkerFailureData> 
 
 class GcsTableStorage {
  public:
-  GcsTableStorage(const std::shared_ptr<gcs::StoreClient> &store_client)
-      : store_client_(store_client) {}
+  explicit GcsTableStorage(const std::shared_ptr<gcs::StoreClient> &store_client)
+      : store_client_(store_client) {
+    job_table_.reset(new GcsJobTable(*store_client));
+    actor_table_.reset(new GcsActorTable(*store_client));
+    actor_checkpoint_table_.reset(new GcsActorCheckpointTable(*store_client));
+    actor_checkpoint_id_table_.reset(new GcsActorCheckpointIdTable(*store_client));
+    task_table_.reset(new GcsTaskTable(*store_client));
+    task_lease_table_.reset(new GcsTaskLeaseTable(*store_client));
+    task_reconstruction_table_.reset(new GcsTaskReconstructionTable(*store_client));
+    object_table_.reset(new GcsObjectTable(*store_client));
+    node_table_.reset(new GcsNodeTable(*store_client));
+    node_resource_table_.reset(new GcsNodeResourceTable(*store_client));
+    heartbeat_table_.reset(new GcsHeartbeatTable(*store_client));
+    heartbeat_batch_table_.reset(new GcsHeartbeatBatchTable(*store_client));
+    error_info_table_.reset(new GcsErrorInfoTable(*store_client));
+    profile_table_.reset(new GcsProfileTable(*store_client));
+    worker_failure_table_.reset(new GcsWorkerFailureTable(*store_client));
+  }
 
   GcsJobTable &JobTable() {
     RAY_CHECK(job_table_ != nullptr);
