@@ -1,7 +1,6 @@
 #ifndef RAY_GCS_OBJECT_INFO_HANDLER_IMPL_H
 #define RAY_GCS_OBJECT_INFO_HANDLER_IMPL_H
 
-#include "ray/gcs/gcs_storage_client/gcs_storage_client.h"
 #include "ray/gcs/gcs_server/gcs_table_storage.h"
 #include "ray/gcs/redis_gcs_client.h"
 #include "ray/rpc/gcs_server/gcs_rpc_server.h"

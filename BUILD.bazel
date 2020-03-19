@@ -341,7 +341,7 @@ cc_library(
     deps = [
         ":gcs",
         ":gcs_service_rpc",
-        ":gcs_storage_client_lib",
+        ":gcs_table_storage_lib",
     ],
 )
 
@@ -732,6 +732,22 @@ cc_test(
     ],
     deps = [
         ":gcs_server_lib",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "gcs_table_storage_test",
+    srcs = ["src/ray/gcs/gcs_server/test/gcs_table_storage_test.cc"],
+    args = ["$(location redis-server) $(location redis-cli) $(location libray_redis_module.so)"],
+    copts = COPTS,
+    data = [
+        "//:libray_redis_module.so",
+        "//:redis-cli",
+        "//:redis-server",
+    ],
+    deps = [
+        ":gcs_table_storage_lib",
         "@com_google_googletest//:gtest_main",
     ],
 )

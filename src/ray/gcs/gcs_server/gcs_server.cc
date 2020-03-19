@@ -4,10 +4,11 @@
 #include "job_info_handler_impl.h"
 #include "node_info_handler_impl.h"
 #include "object_info_handler_impl.h"
-#include "ray/gcs/gcs_storage_client/gcs_storage_redis_client.h"
-#include "stats_handler_impl.h"
+#include "gcs_table_storage.h"
 #include "task_info_handler_impl.h"
 #include "worker_info_handler_impl.h"
+#include "stats_handler_impl.h"
+#include "ray/gcs/store_client/redis_store_client.h"
 
 namespace ray {
 namespace gcs {
@@ -24,10 +25,10 @@ void GcsServer::Start() {
   InitBackendClient();
 
   // Init storage client.
-  GcsStorageRedisClientConfig config(config_.redis_address, config_.redis_port,
+  StoreClientOptions config(config_.redis_address, config_.redis_port,
                                      config_.redis_password, config_.is_test);
-  gcs_storage_client_ = std::make_shared<GcsStorageRedisClient>(config);
-  gcs_table_storage_ = std::make_shared<ray::gcs::GcsTableStorage>(gcs_storage_client_);
+  store_client_ = std::make_shared<RedisStoreClient>(config);
+  gcs_table_storage_ = std::make_shared<ray::gcs::GcsTableStorage>(store_client_);
 
   // Register rpc service.
   job_info_handler_ = InitJobInfoHandler();
