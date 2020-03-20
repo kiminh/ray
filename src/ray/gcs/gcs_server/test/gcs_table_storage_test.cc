@@ -298,24 +298,38 @@ TEST_F(GcsTableStorageTest, TestActorTableApi) {
   io_service_pool_.reset();
 }
 
-//TEST_F(GcsTableStorageTest, TestActorCheckpointTableApi) {
+TEST_F(GcsTableStorageTest, TestActorCheckpointTableApi) {
+  io_service_pool_ = std::make_shared<IOServicePool>(io_service_num_);
+  io_service_pool_->Run();
+
+  gcs::StoreClientOptions options("127.0.0.1", REDIS_SERVER_PORT, "", true);
+  store_client_ = std::make_shared<gcs::RedisStoreClient>(options);
+  Status status = store_client_->Connect(io_service_pool_);
+  RAY_CHECK_OK(status);
+
 //  gcs::GcsActorCheckpointTable table(store_client_.get());
-  //  JobID job_id = JobID::FromInt(1);
-  //  ActorID actor_id = ActorID::Of(job_id, RandomTaskId(), 0);
-  //  ActorCheckpointID checkpoint_id = ActorCheckpointID::FromRandom();
-  //
-  //  // Put.
-  //  Put(table, job_id, checkpoint_id, GenActorCheckpointData(actor_id, checkpoint_id));
-  //
-  //  // Get.
-  //  std::vector<rpc::ActorCheckpointData> values;
-  //  Get(table, job_id, checkpoint_id, values);
-  //  ASSERT_EQ(values.size(), 1);
-  //
-  //  // Get all.
-  //  GetAll(table, job_id, values);
-  //  ASSERT_EQ(values.size(), 1);
-//}
+//    JobID job_id = JobID::FromInt(1);
+//    ActorID actor_id = ActorID::Of(job_id, RandomTaskId(), 0);
+//    ActorCheckpointID checkpoint_id = ActorCheckpointID::FromRandom();
+//
+//    // Put.
+//    Put(table, job_id, checkpoint_id, GenActorCheckpointData(actor_id, checkpoint_id));
+//
+//    // Get.
+//    std::vector<rpc::ActorCheckpointData> values;
+//    Get(table, job_id, checkpoint_id, values);
+//    ASSERT_EQ(values.size(), 1);
+//
+//    // Get all.
+//    GetAll(table, job_id, values);
+//    ASSERT_EQ(values.size(), 1);
+//
+  store_client_->Disconnect();
+  io_service_pool_->Stop();
+
+  store_client_.reset();
+  io_service_pool_.reset();
+}
 
 // TEST_F(GcsTableStorageTest, TestActorCheckpointIdTableApi) {
 //  gcs::GcsActorCheckpointIdTable table(store_client_);
