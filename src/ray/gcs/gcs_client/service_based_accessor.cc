@@ -12,7 +12,7 @@ ServiceBasedJobInfoAccessor::ServiceBasedJobInfoAccessor(
 Status ServiceBasedJobInfoAccessor::AsyncAdd(
     const std::shared_ptr<JobTableData> &data_ptr, const StatusCallback &callback) {
   JobID job_id = JobID::FromBinary(data_ptr->job_id());
-  RAY_LOG(DEBUG) << "Adding job, job id = " << job_id
+  RAY_LOG(INFO) << "Adding job, job id = " << job_id
                  << ", driver pid = " << data_ptr->driver_pid();
   rpc::AddJobRequest request;
   request.mutable_data()->CopyFrom(*data_ptr);
@@ -22,7 +22,7 @@ Status ServiceBasedJobInfoAccessor::AsyncAdd(
         if (callback) {
           callback(status);
         }
-        RAY_LOG(DEBUG) << "Finished adding job, status = " << status
+        RAY_LOG(INFO) << "Finished adding job, status = " << status
                        << ", job id = " << job_id
                        << ", driver pid = " << data_ptr->driver_pid();
       });
@@ -31,7 +31,7 @@ Status ServiceBasedJobInfoAccessor::AsyncAdd(
 
 Status ServiceBasedJobInfoAccessor::AsyncMarkFinished(const JobID &job_id,
                                                       const StatusCallback &callback) {
-  RAY_LOG(DEBUG) << "Marking job state, job id = " << job_id;
+  RAY_LOG(INFO) << "Marking job state, job id = " << job_id;
   rpc::MarkJobFinishedRequest request;
   request.set_job_id(job_id.Binary());
   client_impl_->GetGcsRpcClient().MarkJobFinished(
@@ -40,7 +40,7 @@ Status ServiceBasedJobInfoAccessor::AsyncMarkFinished(const JobID &job_id,
         if (callback) {
           callback(status);
         }
-        RAY_LOG(DEBUG) << "Finished marking job state, status = " << status
+        RAY_LOG(INFO) << "Finished marking job state, status = " << status
                        << ", job id = " << job_id;
       });
   return Status::OK();

@@ -119,6 +119,7 @@ class GcsServer {
 
   /// Gcs service init flag
   bool is_started_ = false;
+  bool is_stopped = false;
 };
 
 }  // namespace gcs

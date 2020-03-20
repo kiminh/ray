@@ -33,7 +33,7 @@ void DefaultJobInfoHandler::HandleMarkJobFinished(
     const rpc::MarkJobFinishedRequest &request, rpc::MarkJobFinishedReply *reply,
     rpc::SendReplyCallback send_reply_callback) {
   JobID job_id = JobID::FromBinary(request.job_id());
-  RAY_LOG(DEBUG) << "Marking job state, job id = " << job_id;
+  RAY_LOG(INFO) << "Marking job state, job id = " << job_id;
   auto on_done = [job_id, reply, send_reply_callback](Status status) {
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to mark job state, job id = " << job_id;
@@ -50,7 +50,7 @@ void DefaultJobInfoHandler::HandleMarkJobFinished(
   if (!status.ok()) {
     on_done(status);
   }
-  RAY_LOG(DEBUG) << "Finished marking job state, job id = " << job_id;
+  RAY_LOG(INFO) << "Finished marking job state, job id = " << job_id;
 }
 }  // namespace rpc
 }  // namespace ray

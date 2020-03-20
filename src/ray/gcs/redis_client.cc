@@ -148,9 +148,9 @@ void RedisClient::Attach() {
 }
 
 void RedisClient::Disconnect() {
+  RAY_LOG(INFO) << "RedisClient disconnected." << this;
   RAY_CHECK(is_connected_);
   is_connected_ = false;
-  RAY_LOG(INFO) << "RedisClient disconnected.";
 }
 
 std::shared_ptr<RedisContext> RedisClient::GetRedisContext(const std::string &shard_key) {

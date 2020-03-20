@@ -87,14 +87,19 @@ void GcsServer::Start() {
 }
 
 void GcsServer::Stop() {
-  store_client_->Disconnect();
-  io_service_pool_->Stop();
+  if (!is_stopped) {
+    is_stopped = true;
+    RAY_LOG(INFO) << "Stopping gcs server.";
+    store_client_->Disconnect();
+    io_service_pool_->Stop();
 
-  // Shutdown the rpc server
-  rpc_server_.Shutdown();
+    // Shutdown the rpc server
+    rpc_server_.Shutdown();
 
-  // Stop the event loop.
-  main_service_.stop();
+    // Stop the event loop.
+    main_service_.stop();
+    RAY_LOG(INFO) << "Finished stopping gcs server.";
+  }
 }
 
 void GcsServer::InitBackendClient() {

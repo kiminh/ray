@@ -156,18 +156,22 @@ void DefaultNodeInfoHandler::HandleUpdateResources(
     const UpdateResourcesRequest &request, UpdateResourcesReply *reply,
     SendReplyCallback send_reply_callback) {
   ClientID node_id = ClientID::FromBinary(request.node_id());
-  RAY_LOG(DEBUG) << "Updating node resources, node id = " << node_id;
+  RAY_LOG(INFO) << "Updating node resources, node id = " << node_id;
   auto on_done = [this, node_id, request, send_reply_callback](
                      Status status, const boost::optional<rpc::ResourceMap> &result) {
     if (status.ok()) {
       // Get resources and update
-      auto resource_map = MapFromProtobuf(result->items());
-      for (auto resource : request.resources()) {
+      std::unordered_map<std::string, rpc::ResourceTableData> resource_map;
+      if (result) {
+        resource_map = MapFromProtobuf(result->items());
+      }
+
+      for (auto &resource : request.resources()) {
         resource_map[resource.first] = resource.second;
       }
 
       UpdateResource(node_id, resource_map, send_reply_callback);
-      RAY_LOG(DEBUG) << "Finished updating node resources, node id = " << node_id;
+      RAY_LOG(INFO) << "Finished updating node resources, node id = " << node_id;
     } else {
       send_reply_callback(status, nullptr, nullptr);
       RAY_LOG(ERROR) << "Failed to get node resources: " << status.ToString()
