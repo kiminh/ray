@@ -6,9 +6,28 @@
 #include "ray/gcs/callback.h"
 #include "ray/gcs/pb_util.h"
 #include "ray/gcs/store_client/store_client.h"
+#include "ray/protobuf/gcs.pb.h"
 
 namespace ray {
 namespace gcs {
+
+using rpc::ActorCheckpointData;
+using rpc::ActorCheckpointIdData;
+using rpc::ActorTableData;
+using rpc::ErrorTableData;
+using rpc::GcsNodeInfo;
+using rpc::HeartbeatBatchTableData;
+using rpc::HeartbeatTableData;
+using rpc::JobTableData;
+using rpc::ObjectTableData;
+using rpc::ObjectTableDataList;
+using rpc::ProfileTableData;
+using rpc::ResourceMap;
+using rpc::ResourceTableData;
+using rpc::TaskLeaseData;
+using rpc::TaskReconstructionData;
+using rpc::TaskTableData;
+using rpc::WorkerFailureData;
 
 static const std::string kJobTable = "JOB";
 static const std::string kActorTable = "ACTOR";
@@ -29,7 +48,7 @@ static const std::string kWorkerFailureTable = "WORKER_FAILURE";
 template <typename KEY, typename VALUE>
 class GcsTable {
  public:
-  GcsTable(StoreClient &store_client) : store_client_(store_client) {}
+  GcsTable(StoreClient *store_client) : store_client_(store_client) {}
 
   virtual ~GcsTable() {}
 
@@ -52,163 +71,134 @@ class GcsTable {
   std::string table_name_;
 
  private:
-  StoreClient &store_client_;
+  StoreClient *store_client_;
 };
 
- class GcsJobTable : public GcsTable<JobID, rpc::JobTableData> {
+class GcsJobTable : public GcsTable<JobID, JobTableData> {
  public:
-  GcsJobTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsJobTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kJobTable;
   }
-
-  virtual ~GcsJobTable() {}
 };
 
-class GcsActorTable : public GcsTable<ActorID, rpc::ActorTableData> {
+class GcsActorTable : public GcsTable<ActorID, ActorTableData> {
  public:
-  GcsActorTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsActorTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kActorTable;
   }
-
-  virtual ~GcsActorTable() {}
 };
 
- class GcsActorCheckpointTable : public GcsTable<ActorCheckpointID, rpc::ActorCheckpointData> {
+class GcsActorCheckpointTable : public GcsTable<ActorCheckpointID, ActorCheckpointData> {
  public:
-  GcsActorCheckpointTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsActorCheckpointTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kActorCheckpointTable;
   }
-
-  virtual ~GcsActorCheckpointTable() {}
 };
 
-class GcsActorCheckpointIdTable : public GcsTable<ActorID, rpc::ActorCheckpointIdData> {
+class GcsActorCheckpointIdTable : public GcsTable<ActorID, ActorCheckpointIdData> {
  public:
-  GcsActorCheckpointIdTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsActorCheckpointIdTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kActorCheckpointIdTable;
   }
-
-  virtual ~GcsActorCheckpointIdTable() {}
 };
 
-class GcsTaskTable : public GcsTable<TaskID, rpc::TaskTableData> {
+class GcsTaskTable : public GcsTable<TaskID, TaskTableData> {
  public:
-  GcsTaskTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsTaskTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kTaskTable;
   }
-
-  virtual ~GcsTaskTable() {}
 };
 
-class GcsTaskLeaseTable : public GcsTable<TaskID, rpc::TaskLeaseData> {
+class GcsTaskLeaseTable : public GcsTable<TaskID, TaskLeaseData> {
  public:
-  GcsTaskLeaseTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsTaskLeaseTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kTaskLeaseTable;
   }
-
-  virtual ~GcsTaskLeaseTable() {}
 };
 
-class GcsTaskReconstructionTable : public GcsTable<TaskID, rpc::TaskReconstructionData> {
+class GcsTaskReconstructionTable : public GcsTable<TaskID, TaskReconstructionData> {
  public:
-  GcsTaskReconstructionTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsTaskReconstructionTable(StoreClient *store_client)
+      : GcsTable(store_client) {
     table_name_ = kTaskReconstructionTable;
   }
-
-  virtual ~GcsTaskReconstructionTable() {}
 };
 
-class GcsObjectTable : public GcsTable<ObjectID, rpc::ObjectTableDataList> {
+class GcsObjectTable : public GcsTable<ObjectID, ObjectTableDataList> {
  public:
-  GcsObjectTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsObjectTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kObjectTable;
   }
-
-  virtual ~GcsObjectTable() {}
 };
 
- class GcsNodeTable : public GcsTable<ClientID, rpc::GcsNodeInfo> {
+class GcsNodeTable : public GcsTable<ClientID, GcsNodeInfo> {
  public:
-  GcsNodeTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsNodeTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kNodeTable;
   }
-
-  virtual ~GcsNodeTable() {}
 };
 
-class GcsNodeResourceTable : public GcsTable<ClientID, rpc::ResourceMap> {
+class GcsNodeResourceTable : public GcsTable<ClientID, ResourceMap> {
  public:
-  GcsNodeResourceTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsNodeResourceTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kNodeResourceTable;
   }
-
-  virtual ~GcsNodeResourceTable() {}
 };
 
- class GcsHeartbeatTable : public GcsTable<ClientID, rpc::HeartbeatTableData> {
+class GcsHeartbeatTable : public GcsTable<ClientID, HeartbeatTableData> {
  public:
-  GcsHeartbeatTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsHeartbeatTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kHeartbeatTable;
   }
-
-  virtual ~GcsHeartbeatTable() {}
 };
 
- class GcsHeartbeatBatchTable : public GcsTable<ClientID, rpc::HeartbeatBatchTableData> {
+class GcsHeartbeatBatchTable : public GcsTable<ClientID, HeartbeatBatchTableData> {
  public:
-  GcsHeartbeatBatchTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsHeartbeatBatchTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kHeartbeatBatchTable;
   }
-
-  virtual ~GcsHeartbeatBatchTable() {}
 };
 
- class GcsErrorInfoTable : public GcsTable<JobID, rpc::ErrorTableData> {
+class GcsErrorInfoTable : public GcsTable<JobID, ErrorTableData> {
  public:
-  GcsErrorInfoTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsErrorInfoTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kErrorInfoTable;
   }
-
-  virtual ~GcsErrorInfoTable() {}
 };
 
-class GcsProfileTable : public GcsTable<UniqueID, rpc::ProfileTableData> {
+class GcsProfileTable : public GcsTable<UniqueID, ProfileTableData> {
  public:
-  GcsProfileTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsProfileTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kProfileTable;
   }
-
-  virtual ~GcsProfileTable() {}
 };
 
-class GcsWorkerFailureTable : public GcsTable<WorkerID, rpc::WorkerFailureData> {
+class GcsWorkerFailureTable : public GcsTable<WorkerID, WorkerFailureData> {
  public:
-  GcsWorkerFailureTable(StoreClient &store_client) : GcsTable(store_client) {
+  explicit GcsWorkerFailureTable(StoreClient *store_client) : GcsTable(store_client) {
     table_name_ = kWorkerFailureTable;
   }
-
-  virtual ~GcsWorkerFailureTable() {}
 };
 
 class GcsTableStorage {
  public:
   explicit GcsTableStorage(const std::shared_ptr<gcs::StoreClient> &store_client)
       : store_client_(store_client) {
-    job_table_.reset(new GcsJobTable(*store_client));
-    actor_table_.reset(new GcsActorTable(*store_client));
-    actor_checkpoint_table_.reset(new GcsActorCheckpointTable(*store_client));
-    actor_checkpoint_id_table_.reset(new GcsActorCheckpointIdTable(*store_client));
-    task_table_.reset(new GcsTaskTable(*store_client));
-    task_lease_table_.reset(new GcsTaskLeaseTable(*store_client));
-    task_reconstruction_table_.reset(new GcsTaskReconstructionTable(*store_client));
-    object_table_.reset(new GcsObjectTable(*store_client));
-    node_table_.reset(new GcsNodeTable(*store_client));
-    node_resource_table_.reset(new GcsNodeResourceTable(*store_client));
-    heartbeat_table_.reset(new GcsHeartbeatTable(*store_client));
-    heartbeat_batch_table_.reset(new GcsHeartbeatBatchTable(*store_client));
-    error_info_table_.reset(new GcsErrorInfoTable(*store_client));
-    profile_table_.reset(new GcsProfileTable(*store_client));
-    worker_failure_table_.reset(new GcsWorkerFailureTable(*store_client));
+    job_table_.reset(new GcsJobTable(store_client.get()));
+    actor_table_.reset(new GcsActorTable(store_client.get()));
+    actor_checkpoint_table_.reset(new GcsActorCheckpointTable(store_client.get()));
+    actor_checkpoint_id_table_.reset(new GcsActorCheckpointIdTable(store_client.get()));
+    task_table_.reset(new GcsTaskTable(store_client.get()));
+    task_lease_table_.reset(new GcsTaskLeaseTable(store_client.get()));
+    task_reconstruction_table_.reset(new GcsTaskReconstructionTable(store_client.get()));
+    object_table_.reset(new GcsObjectTable(store_client.get()));
+    node_table_.reset(new GcsNodeTable(store_client.get()));
+    node_resource_table_.reset(new GcsNodeResourceTable(store_client.get()));
+    heartbeat_table_.reset(new GcsHeartbeatTable(store_client.get()));
+    heartbeat_batch_table_.reset(new GcsHeartbeatBatchTable(store_client.get()));
+    error_info_table_.reset(new GcsErrorInfoTable(store_client.get()));
+    profile_table_.reset(new GcsProfileTable(store_client.get()));
+    worker_failure_table_.reset(new GcsWorkerFailureTable(store_client.get()));
   }
 
   GcsJobTable &JobTable() {

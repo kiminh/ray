@@ -126,6 +126,7 @@ Status RedisStoreClient::AsyncGet(const std::string &table_name, const std::stri
   RAY_CHECK(callback != nullptr);
 
   std::string full_key = table_name + key;
+
   auto shard_context = redis_client_->GetPrimaryContext();
   return AsyncGetByKey(shard_context, full_key, callback);
 }
@@ -155,7 +156,6 @@ Status RedisStoreClient::AsyncDelete(const std::string &table_name,
                                      const std::string &key,
                                      const StatusCallback &callback) {
   std::string full_key = table_name + key;
-
   std::vector<std::string> args = {"DEL", full_key};
   auto shard_context = redis_client_->GetPrimaryContext();
   return AsyncDeleteKeys(shard_context, {full_key}, callback);
