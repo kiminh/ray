@@ -12,10 +12,25 @@ class GcsTableStorageTest : public gcs::StoreClientTestBase {
 
   virtual ~GcsTableStorageTest() {}
 
-  void InitStoreClient() override {
-    gcs::StoreClientOptions options("127.0.0.1", REDIS_SERVER_PORT, "", true);
-    store_client_ = std::make_shared<gcs::RedisStoreClient>(options);
+  virtual void SetUp() override {
+//    io_service_pool_ = std::make_shared<IOServicePool>(io_service_num_);
+//    io_service_pool_->Run();
+//
+//    gcs::StoreClientOptions options("127.0.0.1", REDIS_SERVER_PORT, "", true);
+//    store_client_ = std::make_shared<gcs::RedisStoreClient>(options);
+//    Status status = store_client_->Connect(io_service_pool_);
+//    RAY_CHECK_OK(status);
   }
+
+  virtual void TearDown() override {
+//    store_client_->Disconnect();
+//    io_service_pool_->Stop();
+//
+//    store_client_.reset();
+//    io_service_pool_.reset();
+  }
+
+  void InitStoreClient() override {}
 
  protected:
   std::shared_ptr<rpc::JobTableData> GenJobTableData(JobID job_id) {
@@ -204,6 +219,14 @@ class GcsTableStorageTest : public gcs::StoreClientTestBase {
 };
 
 TEST_F(GcsTableStorageTest, TestJobTableApi) {
+  io_service_pool_ = std::make_shared<IOServicePool>(io_service_num_);
+  io_service_pool_->Run();
+
+  gcs::StoreClientOptions options("127.0.0.1", REDIS_SERVER_PORT, "", true);
+  store_client_ = std::make_shared<gcs::RedisStoreClient>(options);
+  Status status = store_client_->Connect(io_service_pool_);
+  RAY_CHECK_OK(status);
+
   gcs::GcsJobTable table(store_client_.get());
   JobID job1_id = JobID::FromInt(1);
   JobID job2_id = JobID::FromInt(2);
@@ -230,33 +253,53 @@ TEST_F(GcsTableStorageTest, TestJobTableApi) {
   Delete(table, job2_id);
   GetAll(table, job2_id, values);
   ASSERT_EQ(values.size(), 0);
+
+  store_client_->Disconnect();
+  io_service_pool_->Stop();
+
+  store_client_.reset();
+  io_service_pool_.reset();
 }
 
 TEST_F(GcsTableStorageTest, TestActorTableApi) {
+  io_service_pool_ = std::make_shared<IOServicePool>(io_service_num_);
+  io_service_pool_->Run();
+
+  gcs::StoreClientOptions options("127.0.0.1", REDIS_SERVER_PORT, "", true);
+  store_client_ = std::make_shared<gcs::RedisStoreClient>(options);
+  Status status = store_client_->Connect(io_service_pool_);
+  RAY_CHECK_OK(status);
+
   gcs::GcsActorTable table(store_client_.get());
-  //  JobID job_id = JobID::FromInt(3);
-  //  ActorID actor_id = ActorID::Of(job_id, RandomTaskId(), 0);
-  //
-  //  // Put.
-  //  Put(table, job_id, actor_id, GenActorTableData(job_id, actor_id));
-  //
-  //  // Get.
-  //  std::vector<rpc::ActorTableData> values;
-  //  Get(table, job_id, actor_id, values);
-  //  ASSERT_EQ(values.size(), 1);
-  //
-  //  // Get all.
-  //  GetAll(table, job_id, values);
-  //  ASSERT_EQ(values.size(), 1);
-  //
-  //  // Delete.
-  //  Delete(table, job_id, actor_id);
-  //  Get(table, job_id, actor_id, values);
-  //  ASSERT_EQ(values.size(), 0);
+  JobID job_id = JobID::FromInt(3);
+  ActorID actor_id = ActorID::Of(job_id, RandomTaskId(), 0);
+
+  // Put.
+  Put(table, job_id, actor_id, GenActorTableData(job_id, actor_id));
+
+  // Get.
+  std::vector<rpc::ActorTableData> values;
+  Get(table, job_id, actor_id, values);
+  ASSERT_EQ(values.size(), 1);
+
+  // Get all.
+  GetAll(table, job_id, values);
+  ASSERT_EQ(values.size(), 1);
+
+  // Delete.
+  Delete(table, job_id, actor_id);
+  Get(table, job_id, actor_id, values);
+  ASSERT_EQ(values.size(), 0);
+
+  store_client_->Disconnect();
+  io_service_pool_->Stop();
+
+  store_client_.reset();
+  io_service_pool_.reset();
 }
 
-TEST_F(GcsTableStorageTest, TestActorCheckpointTableApi) {
-  gcs::GcsActorCheckpointTable table(store_client_.get());
+//TEST_F(GcsTableStorageTest, TestActorCheckpointTableApi) {
+//  gcs::GcsActorCheckpointTable table(store_client_.get());
   //  JobID job_id = JobID::FromInt(1);
   //  ActorID actor_id = ActorID::Of(job_id, RandomTaskId(), 0);
   //  ActorCheckpointID checkpoint_id = ActorCheckpointID::FromRandom();
@@ -272,7 +315,7 @@ TEST_F(GcsTableStorageTest, TestActorCheckpointTableApi) {
   //  // Get all.
   //  GetAll(table, job_id, values);
   //  ASSERT_EQ(values.size(), 1);
-}
+//}
 
 // TEST_F(GcsTableStorageTest, TestActorCheckpointIdTableApi) {
 //  gcs::GcsActorCheckpointIdTable table(store_client_);

@@ -96,6 +96,7 @@ class RedisServiceManagerForTest : public ::testing::Test {
     RAY_LOG(INFO) << "Stop redis command is: " << stop_redis_command;
     RAY_CHECK(system(stop_redis_command.c_str()) == 0);
     usleep(100 * 1000);
+    RAY_LOG(INFO) << "end TearDownTestCase.......................";
   }
 };
 

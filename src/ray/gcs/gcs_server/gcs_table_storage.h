@@ -50,7 +50,9 @@ class GcsTable {
  public:
   GcsTable(StoreClient *store_client) : store_client_(store_client) {}
 
-  virtual ~GcsTable() {}
+  virtual ~GcsTable() {
+    store_client_ = nullptr;
+  }
 
   Status Put(const JobID &job_id, const KEY &key, const std::shared_ptr<VALUE> &value,
              const StatusCallback &callback);
