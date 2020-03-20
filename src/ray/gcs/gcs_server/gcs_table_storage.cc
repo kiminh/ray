@@ -38,12 +38,12 @@ template <typename KEY, typename VALUE>
 Status GcsTable<KEY, VALUE>::Get(const JobID &job_id, const KEY &key,
                                  const OptionalItemCallback<VALUE> &callback) {
   RAY_LOG(INFO) << "Getting " << key << " from " << table_name_;
-  RAY_LOG(INFO) << "Getting str_key size = " << key.Binary().size();
   auto on_done = [callback](Status status, const boost::optional<std::string> &result) {
     if (result) {
       VALUE value;
       Deserialize(*result, &value);
       boost::optional<VALUE> data = value;
+//      callback(status, boost::none);
       callback(status, data);
     } else {
       callback(status, boost::none);
