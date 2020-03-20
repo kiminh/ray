@@ -43,7 +43,6 @@ Status GcsTable<KEY, VALUE>::Get(const JobID &job_id, const KEY &key,
       VALUE value;
       Deserialize(*result, &value);
       boost::optional<VALUE> data = value;
-//      callback(status, boost::none);
       callback(status, data);
     } else {
       callback(status, boost::none);

@@ -1,14 +1,14 @@
 #include "gcs_server.h"
 #include "actor_info_handler_impl.h"
 #include "error_info_handler_impl.h"
+#include "gcs_table_storage.h"
 #include "job_info_handler_impl.h"
 #include "node_info_handler_impl.h"
 #include "object_info_handler_impl.h"
-#include "gcs_table_storage.h"
+#include "ray/gcs/store_client/redis_store_client.h"
+#include "stats_handler_impl.h"
 #include "task_info_handler_impl.h"
 #include "worker_info_handler_impl.h"
-#include "stats_handler_impl.h"
-#include "ray/gcs/store_client/redis_store_client.h"
 
 namespace ray {
 namespace gcs {
@@ -25,9 +25,12 @@ void GcsServer::Start() {
   InitBackendClient();
 
   // Init storage client.
+  io_service_pool_ = std::make_shared<IOServicePool>(io_service_num_);
+  io_service_pool_->Run();
   StoreClientOptions config(config_.redis_address, config_.redis_port,
-                                     config_.redis_password, config_.is_test);
+                            config_.redis_password, config_.is_test);
   store_client_ = std::make_shared<RedisStoreClient>(config);
+  RAY_CHECK_OK(store_client_->Connect(io_service_pool_));
   gcs_table_storage_ = std::make_shared<ray::gcs::GcsTableStorage>(store_client_);
 
   // Register rpc service.
@@ -84,6 +87,9 @@ void GcsServer::Start() {
 }
 
 void GcsServer::Stop() {
+  store_client_->Disconnect();
+  io_service_pool_->Stop();
+
   // Shutdown the rpc server
   rpc_server_.Shutdown();
 

@@ -114,6 +114,9 @@ class GcsServer {
   std::shared_ptr<RedisGcsClient> redis_gcs_client_;
   std::shared_ptr<StoreClient> store_client_;
   std::shared_ptr<ray::gcs::GcsTableStorage> gcs_table_storage_;
+  size_t io_service_num_{2};
+  std::shared_ptr<IOServicePool> io_service_pool_;
+
   /// Gcs service init flag
   bool is_started_ = false;
 };
