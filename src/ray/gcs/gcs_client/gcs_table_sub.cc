@@ -18,7 +18,7 @@ Status GcsTableSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &cli
   RAY_LOG(INFO) << "Subscribing...........";
   auto context = redis_client_->GetPrimaryContext();
 
-  RedisCallback redis_callback = [](std::shared_ptr<CallbackReply> reply) {
+  RedisCallback redis_callback = [subscribe](std::shared_ptr<CallbackReply> reply) {
     RAY_LOG(INFO) << "hello world................";
     if (!reply->IsNil()) {
       RAY_LOG(INFO) << "!reply->IsNil()................";
@@ -28,11 +28,37 @@ Status GcsTableSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &cli
         RAY_LOG(INFO) << "data is empty.........";
       } else {
         RAY_LOG(INFO) << "data is = " << data;
+
+        if (subscribe != nullptr) {
+          // Parse the notification.
+          rpc::GcsEntry gcs_entry;
+          gcs_entry.ParseFromString(data);
+          ID id = ID::FromBinary(gcs_entry.id());
+          std::unordered_map<std::string, std::shared_ptr<Data>> data_map;
+          if (gcs_entry.change_mode() == rpc::GcsChangeMode::REMOVE) {
+            for (const auto &key : gcs_entry.entries()) {
+              data_map.emplace(key, std::shared_ptr<Data>());
+            }
+          } else {
+            RAY_CHECK(gcs_entry.entries_size() % 2 == 0);
+            for (int i = 0; i < gcs_entry.entries_size(); i += 2) {
+              const auto &key = gcs_entry.entries(i);
+              const auto value = std::make_shared<Data>();
+              value->ParseFromString(gcs_entry.entries(i + 1));
+              data_map.emplace(key, std::move(value));
+            }
+          }
+          MapNotification<std::string, Data> notification(gcs_entry.change_mode(),
+                                                          data_map);
+          std::vector<MapNotification<std::string, Data>> notification_vec;
+          notification_vec.emplace_back(std::move(notification));
+          subscribe(client_, id, notification_vec);
+        }
       }
     }
   };
   int64_t index;
-  RAY_CHECK_OK(context->SubscribeAsync(client_id, TablePubsub::JOB_PUBSUB, redis_callback, &index));
+  RAY_CHECK_OK(context->SubscribeAsync(client_id, pubsub_channel_, redis_callback, &index));
   return Status::OK();
 }
 
@@ -44,11 +70,8 @@ Status GcsTableSub<ID, Data>::Unsubscribe(const JobID &job_id, const ClientID &c
 
 template class GcsTableSub<JobID, JobTableData>;
 template class GcsTableSub<ActorID, ActorTableData>;
-template class GcsTableSub<ActorCheckpointID, ActorCheckpointData>;
-template class GcsTableSub<ActorID, ActorCheckpointIdData>;
 template class GcsTableSub<TaskID, TaskTableData>;
-template class GcsTableSub<TaskID, TaskLeaseData>;
-template class GcsTableSub<TaskID, TaskReconstructionData>;
+template class GcsTableSub<TaskID, boost::optional<TaskLeaseData>>;
 template class GcsTableSub<ObjectID, ObjectTableDataList>;
 template class GcsTableSub<ClientID, GcsNodeInfo>;
 template class GcsTableSub<ClientID, ResourceMap>;

@@ -70,73 +70,60 @@ class GcsActorTableSub : public GcsTableSub<ActorID, ActorTableData> {
   }
 };
 
-class GcsActorCheckpointTableSub : public GcsTableSub<ActorCheckpointID, ActorCheckpointData> {
- public:
-  explicit GcsActorCheckpointTableSub(std::shared_ptr<RedisClient> redis_client)
-      : GcsTableSub(redis_client) {
-  }
-};
-
-class GcsActorCheckpointIdTableSub : public GcsTableSub<ActorID, ActorCheckpointIdData> {
- public:
-  explicit GcsActorCheckpointIdTableSub(std::shared_ptr<RedisClient> redis_client)
-      : GcsTableSub(redis_client) {
-  }
-};
-
 class GcsTaskTableSub : public GcsTableSub<TaskID, TaskTableData> {
  public:
   explicit GcsTaskTableSub(std::shared_ptr<RedisClient> redis_client) : GcsTableSub(redis_client) {
+    pubsub_channel_ = TablePubsub::TASK_PUBSUB;
   }
 };
 
-class GcsTaskLeaseTableSub : public GcsTableSub<TaskID, TaskLeaseData> {
+class GcsTaskLeaseTableSub : public GcsTableSub<TaskID, boost::optional<TaskLeaseData>> {
  public:
   explicit GcsTaskLeaseTableSub(std::shared_ptr<RedisClient> redis_client)
       : GcsTableSub(redis_client) {
+    pubsub_channel_ = TablePubsub::TASK_LEASE_PUBSUB;
   }
 };
 
-class GcsTaskReconstructionTableSub : public GcsTableSub<TaskID, TaskReconstructionData> {
- public:
-  explicit GcsTaskReconstructionTableSub(std::shared_ptr<RedisClient> redis_client)
-      : GcsTableSub(redis_client) {
-  }
-};
-
-class GcsObjectTableSub : public GcsTableSub<ObjectID, ObjectTableDataList> {
+class GcsObjectTableSub : public GcsTableSub<ObjectID, ObjectChangeNotification> {
  public:
   explicit GcsObjectTableSub(std::shared_ptr<RedisClient> redis_client) : GcsTableSub(redis_client) {
+    pubsub_channel_ = TablePubsub::OBJECT_PUBSUB;
   }
 };
 
 class GcsNodeTableSub : public GcsTableSub<ClientID, GcsNodeInfo> {
  public:
   explicit GcsNodeTableSub(std::shared_ptr<RedisClient> redis_client) : GcsTableSub(redis_client) {
+    pubsub_channel_ = TablePubsub::CLIENT_PUBSUB;
   }
 };
 
-class GcsNodeResourceTableSub : public GcsTableSub<ClientID, ResourceMap> {
+class GcsNodeResourceTableSub : public GcsTableSub<ClientID, ResourceChangeNotification> {
  public:
   explicit GcsNodeResourceTableSub(std::shared_ptr<RedisClient> redis_client) : GcsTableSub(redis_client) {
+    pubsub_channel_ = TablePubsub::NODE_RESOURCE_PUBSUB;
   }
 };
 
 class GcsHeartbeatTableSub : public GcsTableSub<ClientID, HeartbeatTableData> {
  public:
   explicit GcsHeartbeatTableSub(std::shared_ptr<RedisClient> redis_client) : GcsTableSub(redis_client) {
+    pubsub_channel_ = TablePubsub::HEARTBEAT_PUBSUB;
   }
 };
 
 class GcsHeartbeatBatchTableSub : public GcsTableSub<ClientID, HeartbeatBatchTableData> {
  public:
   explicit GcsHeartbeatBatchTableSub(std::shared_ptr<RedisClient> redis_client) : GcsTableSub(redis_client) {
+    pubsub_channel_ = TablePubsub::HEARTBEAT_BATCH_PUBSUB;
   }
 };
 
 class GcsWorkerFailureTableSub : public GcsTableSub<WorkerID, WorkerFailureData> {
  public:
   explicit GcsWorkerFailureTableSub(std::shared_ptr<RedisClient> redis_client) : GcsTableSub(redis_client) {
+    pubsub_channel_ = TablePubsub::WORKER_FAILURE_PUBSUB;
   }
 };
 
