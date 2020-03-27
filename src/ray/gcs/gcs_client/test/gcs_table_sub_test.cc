@@ -46,7 +46,7 @@ TEST_F(GcsTableSubTest, TestApi) {
   gcs::GcsJobTableSub table_sub(client_);
   JobID job_id;
   ClientID client_id;
-  auto subscribe = [](const JobID &id, const gcs::JobTableData &result) {
+  auto subscribe = [](const JobID &id, const std::vector<rpc::JobTableData> &data) {
   };
   auto done = [](Status status) {
   };
