@@ -1,4 +1,4 @@
-#include "gcs_table_sub.h"
+#include "gcs_table_pubsub.h"
 #include "ray/common/common_protocol.h"
 #include "ray/common/constants.h"
 #include "ray/common/id.h"
@@ -12,7 +12,30 @@ namespace ray {
 namespace gcs {
 
 template <typename ID, typename Data>
-Status GcsTableSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &client_id,
+Status GcsTablePubSub<ID, Data>::Publish(const JobID &job_id, const ClientID &client_id,
+               const Data &data,
+               const StatusCallback &done) {
+  RAY_LOG(INFO) << "Publishing...........";
+  std::vector<std::string> args;
+  args.push_back("PUBLISH");
+  args.push_back(std::to_string(pubsub_channel_));
+
+  std::string data_str;
+  data.SerializeToString(&data_str);
+  rpc::GcsEntry gcs_entry;
+  gcs_entry.set_id(job_id.Binary());
+  gcs_entry.set_change_mode(rpc::GcsChangeMode::APPEND_OR_ADD);
+  gcs_entry.add_entries(data_str);
+  std::string gcs_entry_str = gcs_entry.SerializeAsString();
+  args.push_back(gcs_entry_str);
+
+  auto context = redis_client_->GetPrimaryContext();
+  RAY_CHECK_OK(context->RunArgvAsync(args));
+  return Status::OK();
+}
+
+template <typename ID, typename Data>
+Status GcsTablePubSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &client_id,
                  const Callback &subscribe,
                  const StatusCallback &done) {
   RAY_LOG(INFO) << "Subscribing...........";
@@ -31,11 +54,11 @@ Status GcsTableSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &cli
         RAY_LOG(INFO) << "data is = " << data;
         // Data is provided. This is the callback for a message.
         if (subscribe != nullptr) {
-          // Parse the notification.
           rpc::GcsEntry gcs_entry;
           gcs_entry.ParseFromString(data);
           ID id = ID::FromBinary(gcs_entry.id());
           std::vector<Data> results;
+          RAY_LOG(INFO) << "gcs_entry.entries_size() is = " << gcs_entry.entries_size();
           for (int64_t i = 0; i < gcs_entry.entries_size(); i++) {
             Data result;
             result.ParseFromString(gcs_entry.entries(i));
@@ -52,21 +75,21 @@ Status GcsTableSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &cli
 }
 
 template <typename ID, typename Data>
-Status GcsTableSub<ID, Data>::Unsubscribe(const JobID &job_id, const ClientID &client_id,
+Status GcsTablePubSub<ID, Data>::Unsubscribe(const JobID &job_id, const ClientID &client_id,
                    const StatusCallback &done) {
   return Status::OK();
 }
 
-template class GcsTableSub<JobID, JobTableData>;
-//template class GcsTableSub<ActorID, ActorTableData>;
-//template class GcsTableSub<TaskID, TaskTableData>;
-//template class GcsTableSub<TaskID, boost::optional<TaskLeaseData>>;
-//template class GcsTableSub<ObjectID, ObjectTableDataList>;
-//template class GcsTableSub<ClientID, GcsNodeInfo>;
-//template class GcsTableSub<ClientID, ResourceMap>;
-//template class GcsTableSub<ClientID, HeartbeatTableData>;
-//template class GcsTableSub<ClientID, HeartbeatBatchTableData>;
-//template class GcsTableSub<WorkerID, WorkerFailureData>;
+template class GcsTablePubSub<JobID, JobTableData>;
+template class GcsTablePubSub<ActorID, ActorTableData>;
+template class GcsTablePubSub<TaskID, TaskTableData>;
+template class GcsTablePubSub<TaskID, TaskLeaseData>;
+template class GcsTablePubSub<ObjectID, ObjectTableDataList>;
+template class GcsTablePubSub<ClientID, GcsNodeInfo>;
+template class GcsTablePubSub<ClientID, ResourceMap>;
+template class GcsTablePubSub<ClientID, HeartbeatTableData>;
+template class GcsTablePubSub<ClientID, HeartbeatBatchTableData>;
+template class GcsTablePubSub<WorkerID, WorkerFailureData>;
 
 }  // namespace gcs
 }  // namespace ray

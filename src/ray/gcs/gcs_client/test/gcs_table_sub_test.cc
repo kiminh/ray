@@ -1,3 +1,4 @@
+#include <ray/protobuf/gcs.pb.h>
 #include "gtest/gtest.h"
 
 #include "ray/common/ray_config.h"
@@ -10,11 +11,11 @@
 #include "ray/util/logging.h"
 #include "ray/protobuf/gcs.pb.h"
 
-#include "ray/gcs/gcs_client/gcs_table_sub.h"
+#include "ray/gcs/gcs_client/gcs_table_pubsub.h"
 
 namespace ray {
 
-class GcsTableSubTest : public RedisServiceManagerForTest {
+class GcsTablePubSubTest : public RedisServiceManagerForTest {
  public:
   virtual void SetUp() override {
     thread_io_service_.reset(new std::thread([this] {
@@ -41,16 +42,43 @@ class GcsTableSubTest : public RedisServiceManagerForTest {
   std::unique_ptr<std::thread> thread_io_service_;
 };
 
-TEST_F(GcsTableSubTest, TestApi) {
-  RAY_LOG(INFO) << "GcsTableSubTest......";
-  gcs::GcsJobTableSub table_sub(client_);
-  JobID job_id;
+TEST_F(GcsTablePubSubTest, TestApi) {
+  RAY_LOG(INFO) << "GcsTablePubSubTest......";
+  gcs::GcsJobTablePubSub table_sub(client_);
+  JobID job_id = JobID::FromInt(1);
   ClientID client_id;
-  auto subscribe = [](const JobID &id, const std::vector<rpc::JobTableData> &data) {
+
+  std::promise<bool> promise;
+  auto subscribe = [&promise](const JobID &id, const std::vector<rpc::JobTableData> &data) {
+    RAY_LOG(INFO) << "subscribe message......, data size = " << data.size();
+    auto job_id = JobID::FromBinary(data[0].job_id());
+    RAY_LOG(INFO) << "subscribe message, job id = " << job_id;
+//    ASSERT_EQ(data.size(), 1);
+    promise.set_value(true);
   };
   auto done = [](Status status) {
   };
   RAY_CHECK_OK(table_sub.Subscribe(job_id, client_id, subscribe, done));
+
+  int job_pubsub = rpc::TablePubsub::JOB_PUBSUB;
+  std::vector<std::string> args;
+  args.push_back("PUBLISH");
+  args.push_back(std::to_string(job_pubsub));
+  auto context = client_->GetPrimaryContext();
+
+  rpc::JobTableData job_table_data;
+  job_table_data.set_job_id(job_id.Binary());
+  std::string job_table_data_str;
+  job_table_data.SerializeToString(&job_table_data_str);
+
+  rpc::GcsEntry gcs_entry;
+  gcs_entry.set_id(job_id.Binary());
+  gcs_entry.set_change_mode(rpc::GcsChangeMode::APPEND_OR_ADD);
+  gcs_entry.add_entries(job_table_data_str);
+  std::string gcs_entry_str = gcs_entry.SerializeAsString();
+  args.push_back(gcs_entry_str);
+  RAY_CHECK_OK(context->RunArgvAsync(args, nullptr));
+  promise.get_future().get();
 }
 
 }  // namespace ray
