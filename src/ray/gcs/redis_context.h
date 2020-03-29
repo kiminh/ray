@@ -209,6 +209,15 @@ class RedisContext {
   Status SubscribeAsync(const ClientID &client_id, const TablePubsub pubsub_channel,
                         const RedisCallback &redisCallback, int64_t *out_callback_index);
 
+  /// Subscribe to a channel that conforms to the given mode.
+  ///
+  /// \param pattern The pattern of subscribe channel.
+  /// \param redisCallback The callback function that the notification calls.
+  /// \param out_callback_index The output pointer to callback index.
+  /// \return Status.
+  Status PSubscribeAsync(const std::string &pattern, const RedisCallback &redisCallback,
+                         int64_t *out_callback_index);
+
   redisContext *sync_context() {
     RAY_CHECK(context_);
     return context_;

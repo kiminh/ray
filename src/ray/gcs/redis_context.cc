@@ -85,8 +85,16 @@ CallbackReply::CallbackReply(redisReply *redis_reply) : reply_type_(redis_reply-
       // data is a notification message.
       string_reply_ = std::string(message->str, message->len);
       RAY_CHECK(!string_reply_.empty()) << "Empty message received on subscribe channel.";
+    } else if (strcmp(message_type->str, "psubscribe") == 0) {
+    } else if (strcmp(message_type->str, "pmessage") == 0) {
+      // If the message is from a PUBLISH, make sure the data is nonempty.
+      redisReply *message = redis_reply->element[redis_reply->elements - 1];
+      // data is a notification message.
+      string_reply_ = std::string(message->str, message->len);
+      RAY_CHECK(!string_reply_.empty()) << "Empty message received on subscribe channel.";
     } else {
       // Array replies are used for scan or get.
+      RAY_LOG(INFO) << "message_type->str = " << message_type->str;
       ParseAsScanArray(redis_reply);
     }
     break;
@@ -338,6 +346,24 @@ Status RedisContext::SubscribeAsync(const ClientID &client_id,
         client_id.Data(), client_id.Size());
   }
 
+  return status;
+}
+
+Status RedisContext::PSubscribeAsync(const std::string &pattern,
+                                     const RedisCallback &redisCallback,
+                                     int64_t *out_callback_index) {
+  RAY_CHECK(async_redis_subscribe_context_);
+
+  int64_t callback_index =
+      RedisCallbackManager::instance().add(redisCallback, true, io_service_);
+  RAY_CHECK(out_callback_index != nullptr);
+  *out_callback_index = callback_index;
+  Status status = Status::OK();
+  std::string redis_command = "PSUBSCRIBE %b";
+  status = async_redis_subscribe_context_->RedisAsyncCommand(
+      reinterpret_cast<redisCallbackFn *>(&GlobalRedisCallback),
+      reinterpret_cast<void *>(callback_index), redis_command.c_str(), pattern.c_str(),
+      pattern.size());
   return status;
 }
 
