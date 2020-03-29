@@ -43,7 +43,8 @@ class GcsTablePubSubTest : public RedisServiceManagerForTest {
       promise.set_value(true);
     };
     RAY_CHECK_OK(table_pub_sub.Subscribe(job_id, client_id, id, subscribe, nullptr));
-    RAY_CHECK_OK(table_pub_sub.Publish(job_id, client_id, id, data, nullptr));
+    RAY_CHECK_OK(table_pub_sub.Publish(job_id, client_id, id, data,
+                                       rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
     promise.get_future().get();
   }
 

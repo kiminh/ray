@@ -16,6 +16,7 @@ using rpc::ActorCheckpointData;
 using rpc::ActorCheckpointIdData;
 using rpc::ActorTableData;
 using rpc::ErrorTableData;
+using rpc::GcsChangeMode;
 using rpc::GcsNodeInfo;
 using rpc::HeartbeatBatchTableData;
 using rpc::HeartbeatTableData;
@@ -42,19 +43,22 @@ class GcsTablePubSub {
   virtual ~GcsTablePubSub() {}
 
   Status Publish(const JobID &job_id, const ClientID &client_id, const ID &id,
-                 const Data &data, const StatusCallback &done);
+                 const Data &data, const GcsChangeMode &change_mode,
+                 const StatusCallback &done);
 
   Status Subscribe(const JobID &job_id, const ClientID &client_id,
                    const boost::optional<ID> &id, const Callback &subscribe,
                    const StatusCallback &done);
 
   Status Unsubscribe(const JobID &job_id, const ClientID &client_id,
-                     const StatusCallback &done);
+                     const boost::optional<ID> &id, const StatusCallback &done);
 
  protected:
   TablePubsub pubsub_channel_;
 
  private:
+  std::string GenChannelPattern(const ClientID &client_id, const boost::optional<ID> &id);
+
   std::shared_ptr<RedisClient> redis_client_;
 };
 

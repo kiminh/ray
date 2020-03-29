@@ -14,26 +14,19 @@ namespace gcs {
 template <typename ID, typename Data>
 Status GcsTablePubSub<ID, Data>::Publish(const JobID &job_id, const ClientID &client_id,
                                          const ID &id, const Data &data,
+                                         const GcsChangeMode &change_mode,
                                          const StatusCallback &done) {
   std::vector<std::string> args;
   args.emplace_back("PUBLISH");
+  args.emplace_back(GenChannelPattern(client_id, id));
 
-  std::stringstream channel(pubsub_channel_);
-  channel << ":";
-  if (!client_id.IsNil()) {
-    channel << client_id.Binary() << ":";
-  }
-  channel << id.Binary();
-  args.emplace_back(channel.str());
-
-  std::string data_str;
-  data.SerializeToString(&data_str);
   rpc::GcsEntry gcs_entry;
   gcs_entry.set_id(id.Binary());
-  gcs_entry.set_change_mode(rpc::GcsChangeMode::APPEND_OR_ADD);
+  gcs_entry.set_change_mode(change_mode);
+  std::string data_str;
+  data.SerializeToString(&data_str);
   gcs_entry.add_entries(data_str);
-  std::string gcs_entry_str = gcs_entry.SerializeAsString();
-  args.emplace_back(gcs_entry_str);
+  args.emplace_back(gcs_entry.SerializeAsString());
 
   return redis_client_->GetPrimaryContext()->RunArgvAsync(args);
 }
@@ -66,6 +59,25 @@ Status GcsTablePubSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &
     }
   };
 
+  int64_t index;
+  return context->PSubscribeAsync(GenChannelPattern(client_id, id), redis_callback,
+                                  &index);
+}
+
+template <typename ID, typename Data>
+Status GcsTablePubSub<ID, Data>::Unsubscribe(const JobID &job_id,
+                                             const ClientID &client_id,
+                                             const boost::optional<ID> &id,
+                                             const StatusCallback &done) {
+  std::vector<std::string> args;
+  args.emplace_back("PUNSUBSCRIBE");
+  args.emplace_back(GenChannelPattern(client_id, id));
+  return redis_client_->GetPrimaryContext()->RunArgvAsync(args);
+}
+
+template <typename ID, typename Data>
+std::string GcsTablePubSub<ID, Data>::GenChannelPattern(const ClientID &client_id,
+                                                        const boost::optional<ID> &id) {
   std::stringstream pattern(pubsub_channel_);
   pattern << ":";
   if (!client_id.IsNil()) {
@@ -76,16 +88,7 @@ Status GcsTablePubSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &
   } else {
     pattern << "*";
   }
-
-  int64_t index;
-  return context->PSubscribeAsync(pattern.str(), redis_callback, &index);
-}
-
-template <typename ID, typename Data>
-Status GcsTablePubSub<ID, Data>::Unsubscribe(const JobID &job_id,
-                                             const ClientID &client_id,
-                                             const StatusCallback &done) {
-  return Status::OK();
+  return pattern.str();
 }
 
 template class GcsTablePubSub<JobID, JobTableData>;
