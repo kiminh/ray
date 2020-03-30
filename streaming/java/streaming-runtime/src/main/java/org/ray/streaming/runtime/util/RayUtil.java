@@ -10,7 +10,7 @@ import org.ray.api.id.UniqueId;
 import org.ray.api.runtimecontext.NodeInfo;
 
 /**
- * Utils for ray using.
+ * Utils for ray usage.
  */
 public class RayUtil {
 

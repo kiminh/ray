@@ -12,8 +12,19 @@ import org.ray.streaming.runtime.master.JobMaster;
  */
 public class JobWorkerContext implements Serializable {
 
+  /**
+   * Worker actor's id.
+   */
   private ActorId workerId;
+
+  /**
+   * JobMaster actor.
+   */
   private RayActor<JobMaster> master;
+
+  /**
+   * Worker's vertex info.
+   */
   private ExecutionVertex executionVertex;
 
   public JobWorkerContext(
@@ -44,4 +55,5 @@ public class JobWorkerContext implements Serializable {
         .add("master", master)
         .toString();
   }
+
 }

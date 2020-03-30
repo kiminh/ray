@@ -14,8 +14,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Worker lifecycle controller is used to control JobWorker's creation, initiation and so on.
- * It takes the communication job from {@link org.ray.streaming.runtime.master.JobMaster}
- * to {@link org.ray.streaming.runtime.worker.JobWorker}.
  */
 public class WorkerLifecycleController {
 
@@ -38,12 +36,7 @@ public class WorkerLifecycleController {
         .setMaxReconstructions(ActorCreationOptions.INFINITE_RECONSTRUCTION)
         .createActorCreationOptions();
     
-    RayActor<JobWorker> actor = null;
-    if (Language.JAVA == language) {
-      actor = RemoteCallWorker.createWorker(options);
-    } else {
-      // TODO(chentianyi)
-    }
+    RayActor<JobWorker> actor = RemoteCallWorker.createWorker(language, options);
 
     if (null == actor) {
       LOG.error("Create actor failed.");

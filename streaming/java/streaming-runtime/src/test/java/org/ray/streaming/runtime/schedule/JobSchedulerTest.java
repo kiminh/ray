@@ -6,10 +6,12 @@ import org.ray.streaming.jobgraph.JobGraph;
 import org.ray.streaming.runtime.BaseUnitTest;
 import org.ray.streaming.runtime.TestHelper;
 import org.ray.streaming.runtime.core.graph.executiongraph.ExecutionGraph;
+import org.ray.streaming.runtime.demo.WordCountTest;
 import org.ray.streaming.runtime.graph.ExecutionGraphTest;
 import org.ray.streaming.runtime.master.JobMaster;
 import org.ray.streaming.runtime.master.graphmanager.GraphManager;
 import org.ray.streaming.runtime.master.graphmanager.GraphManagerImpl;
+import org.ray.streaming.runtime.master.scheduler.JobScheduler;
 import org.ray.streaming.runtime.master.scheduler.controller.WorkerLifecycleController;
 import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 import org.testng.Assert;
@@ -18,10 +20,10 @@ import org.testng.annotations.Test;
 /**
  * Only test for {@link WorkerLifecycleController}
  *
- * <p>Note: {@link org.ray.streaming.runtime.master.scheduler.JobScheduler} is hard to have a
+ * <p>Note: {@link JobScheduler} is hard to have a
  * independent unit test because it need JobMaster, ResourceManager and GraphManager to worker
  * together.
- * Please refer to {@link org.ray.streaming.runtime.demo.WordCountTest} to test the full functions
+ * Please refer to {@link WordCountTest} to test the full functions
  * of JobScheduler.
  */
 public class JobSchedulerTest extends BaseUnitTest {

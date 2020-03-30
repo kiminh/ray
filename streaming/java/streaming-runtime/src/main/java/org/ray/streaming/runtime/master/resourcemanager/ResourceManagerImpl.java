@@ -90,13 +90,13 @@ public class ResourceManagerImpl implements ResourceManager {
       }
     }
 
-    LOG.info("Allocate resource: {} to container {}.", requireResource, container);
+    LOG.info("Allocate resource: {} to container: {} succeeded.", requireResource, container);
   }
 
   @Override
   public void deallocateResource(final Container container,
       final Map<String, Double> releaseResource) {
-    LOG.info("Deallocate resource for container {}.", container);
+    LOG.info("Start to deallocate resource for container {}.", container);
 
     Map<String, Double> containResource = container.getAvailableResource();
     for (Map.Entry<String, Double> entry : containResource.entrySet()) {
@@ -107,7 +107,7 @@ public class ResourceManagerImpl implements ResourceManager {
       }
     }
 
-    LOG.info("Deallocated resource for container {} success.", container);
+    LOG.info("Deallocate resource for container: {} succeeded.", container);
   }
 
   @Override

@@ -1,10 +1,14 @@
 package org.ray.streaming.runtime.rpc;
 
+import java.util.Map;
 import org.ray.api.Ray;
 import org.ray.api.RayActor;
 import org.ray.api.RayObject;
 import org.ray.api.RayPyActor;
 import org.ray.api.options.ActorCreationOptions;
+import org.ray.streaming.api.Language;
+import org.ray.streaming.runtime.generated.RemoteCall;
+import org.ray.streaming.runtime.master.JobMaster;
 import org.ray.streaming.runtime.worker.JobWorker;
 import org.ray.streaming.runtime.worker.context.JobWorkerContext;
 import org.slf4j.Logger;
@@ -12,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Ray call worker.
+ * It takes the communication job from {@link JobMaster} to {@link JobWorker}.
  */
 public class RemoteCallWorker extends RemoteCallBase {
 
@@ -20,11 +25,16 @@ public class RemoteCallWorker extends RemoteCallBase {
   /**
    * Create JobWorker actor.
    *
+   * @param language language type(java or python)
    * @param options actor creation options
    * @return JobWorker actor
    */
-  public static RayActor<JobWorker> createWorker(ActorCreationOptions options) {
-    return Ray.createActor(JobWorker::new, options);
+  public static RayActor<JobWorker> createWorker(Language language, ActorCreationOptions options) {
+    if (Language.JAVA == language) {
+      return Ray.createActor(JobWorker::new, options);
+    } else {
+      return Ray.createPyActor("ray.streaming.runtime.worker", "JobWorker", options);
+    }
   }
 
   /**
@@ -40,7 +50,7 @@ public class RemoteCallWorker extends RemoteCallBase {
 
     // python
     if (actor instanceof RayPyActor) {
-      // TODO
+      //result = Ray.callPy((RayPyActor) actor, "init", );
     } else {
       // java
       result = actor.call(JobWorker::init, ctx);
@@ -62,7 +72,7 @@ public class RemoteCallWorker extends RemoteCallBase {
 
     // python
     if (actor instanceof RayPyActor) {
-      // TODO
+      result = Ray.callPy((RayPyActor) actor, "start");
     } else {
       // java
       result = actor.call(JobWorker::start);
@@ -93,4 +103,17 @@ public class RemoteCallWorker extends RemoteCallBase {
     LOG.info("Finish call worker to destroy.");
     return result;
   }
+
+  private byte[] buildPythonWorkerContext(
+      int taskId,
+      RemoteCall.ExecutionGraph executionGraphPb,
+      Map<String, String> jobConfig) {
+    return RemoteCall.WorkerContext.newBuilder()
+      .setTaskId(taskId)
+      .putAllConf(jobConfig)
+      .setGraph(executionGraphPb)
+      .build()
+      .toByteArray();
+  }
+
 }

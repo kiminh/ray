@@ -73,9 +73,11 @@ public class JobMaster {
 
   /**
    * Submit job to run:
-   * 1) Using GraphManager to build physical plan according to the logical plan.
-   * 2) Using ResourceManager to manage and allocate the resources.
-   * 3) Using JobScheduler to schedule the job to run.
+   * <ol>
+   * <li> Using GraphManager to build physical plan according to the logical plan.</li>
+   * <li> Using ResourceManager to manage and allocate the resources.</li>
+   * <li> Using JobScheduler to schedule the job to run.</li>
+   * </ol>
    *
    * @param jobMasterActor JobMaster actor
    * @param jobGraph logical plan
