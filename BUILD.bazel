@@ -377,6 +377,7 @@ cc_library(
         ":gcs",
         ":gcs_service_rpc",
         ":gcs_table_storage_lib",
+        ":gcs_table_sub_lib",
     ],
 )
 

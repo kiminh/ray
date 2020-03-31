@@ -7,7 +7,7 @@ namespace gcs {
 ServiceBasedJobInfoAccessor::ServiceBasedJobInfoAccessor(
     ServiceBasedGcsClient *client_impl)
     : client_impl_(client_impl),
-      job_sub_executor_(client_impl->GetRedisGcsClient().job_table()) {}
+      job_sub_executor_(client_impl->GetRedisGcsClient().GetRedisClient()) {}
 
 Status ServiceBasedJobInfoAccessor::AsyncAdd(
     const std::shared_ptr<JobTableData> &data_ptr, const StatusCallback &callback) {
@@ -50,13 +50,14 @@ Status ServiceBasedJobInfoAccessor::AsyncSubscribeToFinishedJobs(
     const SubscribeCallback<JobID, JobTableData> &subscribe, const StatusCallback &done) {
   RAY_LOG(DEBUG) << "Subscribing finished job.";
   RAY_CHECK(subscribe != nullptr);
-  auto on_subscribe = [subscribe](const JobID &job_id, const JobTableData &job_data) {
-    if (job_data.is_dead()) {
-      subscribe(job_id, job_data);
+  auto on_subscribe = [subscribe](const JobID &job_id, const std::vector<JobTableData> &job_data) {
+    auto job_table_data = job_data.back();
+    if (job_table_data.is_dead()) {
+      subscribe(job_id, job_table_data);
     }
   };
   Status status =
-      job_sub_executor_.AsyncSubscribeAll(ClientID::Nil(), on_subscribe, done);
+      job_sub_executor_.Subscribe(JobID::Nil(), ClientID::Nil(), boost::none, on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing finished job.";
   return status;
 }
@@ -65,7 +66,7 @@ ServiceBasedActorInfoAccessor::ServiceBasedActorInfoAccessor(
     ServiceBasedGcsClient *client_impl)
     : client_impl_(client_impl),
       subscribe_id_(ClientID::FromRandom()),
-      actor_sub_executor_(client_impl->GetRedisGcsClient().actor_table()) {}
+      actor_sub_executor_(client_impl->GetRedisGcsClient().GetRedisClient()) {}
 
 Status ServiceBasedActorInfoAccessor::AsyncGet(
     const ActorID &actor_id, const OptionalItemCallback<rpc::ActorTableData> &callback) {
@@ -144,7 +145,12 @@ Status ServiceBasedActorInfoAccessor::AsyncSubscribeAll(
     const StatusCallback &done) {
   RAY_LOG(DEBUG) << "Subscribing register or update operations of actors.";
   RAY_CHECK(subscribe != nullptr);
-  auto status = actor_sub_executor_.AsyncSubscribeAll(ClientID::Nil(), subscribe, done);
+
+  auto on_subscribe = [subscribe](const ActorID &actor_id, const std::vector<ActorTableData> &actor_data) {
+    subscribe(actor_id, actor_data.back());
+  };
+
+  auto status = actor_sub_executor_.Subscribe(JobID::Nil(), ClientID::Nil(), boost::none, on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing register or update operations of actors.";
   return status;
 }
@@ -153,20 +159,24 @@ Status ServiceBasedActorInfoAccessor::AsyncSubscribe(
     const ActorID &actor_id,
     const SubscribeCallback<ActorID, rpc::ActorTableData> &subscribe,
     const StatusCallback &done) {
-  RAY_LOG(DEBUG) << "Subscribing update operations of actor, actor id = " << actor_id;
+  RAY_LOG(INFO) << "Subscribing update operations of actor, actor id = " << actor_id;
   RAY_CHECK(subscribe != nullptr) << "Failed to subscribe actor, actor id = " << actor_id;
+
+  auto on_subscribe = [subscribe](const ActorID &actor_id, const std::vector<ActorTableData> &actor_data) {
+    subscribe(actor_id, actor_data.back());
+  };
   auto status =
-      actor_sub_executor_.AsyncSubscribe(subscribe_id_, actor_id, subscribe, done);
-  RAY_LOG(DEBUG) << "Finished subscribing update operations of actor, actor id = "
+      actor_sub_executor_.Subscribe(JobID::Nil(), ClientID::Nil(), actor_id, on_subscribe, done);
+  RAY_LOG(INFO) << "Finished subscribing update operations of actor, actor id = "
                  << actor_id;
   return status;
 }
 
 Status ServiceBasedActorInfoAccessor::AsyncUnsubscribe(const ActorID &actor_id,
                                                        const StatusCallback &done) {
-  RAY_LOG(DEBUG) << "Cancelling subscription to an actor, actor id = " << actor_id;
-  auto status = actor_sub_executor_.AsyncUnsubscribe(subscribe_id_, actor_id, done);
-  RAY_LOG(DEBUG) << "Finished cancelling subscription to an actor, actor id = "
+  RAY_LOG(INFO) << "Cancelling subscription to an actor, actor id = " << actor_id;
+  auto status = actor_sub_executor_.Unsubscribe(JobID::Nil(), ClientID::Nil(), actor_id, done);
+  RAY_LOG(INFO) << "Finished cancelling subscription to an actor, actor id = "
                  << actor_id;
   return status;
 }

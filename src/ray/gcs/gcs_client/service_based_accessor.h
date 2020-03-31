@@ -4,6 +4,7 @@
 #include "ray/gcs/accessor.h"
 #include "ray/gcs/subscription_executor.h"
 #include "ray/util/sequencer.h"
+#include "ray/gcs/gcs_client/gcs_table_pubsub.h"
 
 namespace ray {
 namespace gcs {
@@ -30,9 +31,7 @@ class ServiceBasedJobInfoAccessor : public JobInfoAccessor {
 
  private:
   ServiceBasedGcsClient *client_impl_;
-
-  typedef SubscriptionExecutor<JobID, JobTableData, JobTable> JobSubscriptionExecutor;
-  JobSubscriptionExecutor job_sub_executor_;
+  GcsJobTablePubSub job_sub_executor_;
 };
 
 /// \class ServiceBasedActorInfoAccessor
@@ -80,9 +79,7 @@ class ServiceBasedActorInfoAccessor : public ActorInfoAccessor {
 
   ClientID subscribe_id_;
 
-  typedef SubscriptionExecutor<ActorID, ActorTableData, ActorTable>
-      ActorSubscriptionExecutor;
-  ActorSubscriptionExecutor actor_sub_executor_;
+  GcsActorTablePubSub actor_sub_executor_;
 
   Sequencer<ActorID> sequencer_;
 };

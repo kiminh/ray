@@ -2,6 +2,7 @@
 #define RAY_GCS_ACTOR_INFO_HANDLER_IMPL_H
 
 #include "ray/gcs/gcs_server/gcs_table_storage.h"
+#include "ray/gcs/gcs_client/gcs_table_pubsub.h"
 #include "ray/rpc/gcs_server/gcs_rpc_server.h"
 
 namespace ray {
@@ -11,7 +12,8 @@ namespace rpc {
 class DefaultActorInfoHandler : public rpc::ActorInfoHandler {
  public:
   explicit DefaultActorInfoHandler(
-      const std::shared_ptr<gcs::GcsTableStorage> &gcs_table_storage) {
+      const std::shared_ptr<gcs::GcsTableStorage> &gcs_table_storage,
+      const std::shared_ptr<gcs::RedisClient> &redis_client) : actor_pub_(redis_client) {
     gcs_table_storage_ = gcs_table_storage;
   }
 
@@ -52,6 +54,7 @@ class DefaultActorInfoHandler : public rpc::ActorInfoHandler {
                        const std::function<void(const Status &status)> &done);
 
   std::shared_ptr<gcs::GcsTableStorage> gcs_table_storage_;
+  gcs::GcsActorTablePubSub actor_pub_;
 };
 
 }  // namespace rpc

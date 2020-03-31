@@ -40,7 +40,7 @@ class GcsTablePubSub {
   GcsTablePubSub(std::shared_ptr<RedisClient> redis_client)
       : redis_client_(redis_client) {}
 
-  virtual ~GcsTablePubSub() {}
+  virtual ~GcsTablePubSub() = default;
 
   Status Publish(const JobID &job_id, const ClientID &client_id, const ID &id,
                  const Data &data, const GcsChangeMode &change_mode,
@@ -50,11 +50,14 @@ class GcsTablePubSub {
                    const boost::optional<ID> &id, const Callback &subscribe,
                    const StatusCallback &done);
 
-  Status Unsubscribe(const JobID &job_id, const ClientID &client_id,
-                     const boost::optional<ID> &id, const StatusCallback &done);
+  Status Unsubscribe(const JobID &job_id,
+                     const ClientID &client_id,
+                     const boost::optional<ID> &id,
+                     const StatusCallback &done);
 
  protected:
   TablePubsub pubsub_channel_;
+  int64_t callback_index_;
 
  private:
   std::string GenChannelPattern(const ClientID &client_id, const boost::optional<ID> &id);

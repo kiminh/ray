@@ -44,6 +44,10 @@ class RedisStoreClient : public StoreClient {
   Status AsyncDeleteByIndex(const std::string &table_name, const std::string &index,
                             const StatusCallback &callback) override;
 
+  std::shared_ptr<RedisClient> GetRedisClient() {
+    return redis_client_;
+  }
+
  private:
   Status DoPut(const std::string &key, const std::string &value,
                const StatusCallback &callback);

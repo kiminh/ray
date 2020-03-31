@@ -65,9 +65,13 @@ Status RedisAsyncContext::RedisAsyncCommand(redisCallbackFn *fn, void *privdata,
   va_end(ap);
 
   if (ret_code == REDIS_ERR) {
+    RAY_LOG(INFO) << "11111111111111111111111111111111";
     return Status::RedisError(std::string(redis_async_context_->errstr));
   }
   RAY_CHECK(ret_code == REDIS_OK);
+
+  int64_t callback_index = reinterpret_cast<int64_t>(privdata);
+  RAY_LOG(INFO) << "RedisAsyncCommand callback_index = " << callback_index;
   return Status::OK();
 }
 
@@ -84,6 +88,7 @@ Status RedisAsyncContext::RedisAsyncCommandArgv(redisCallbackFn *fn, void *privd
   }
 
   if (ret_code == REDIS_ERR) {
+    RAY_LOG(INFO) << "222222222222222222222222222222 = " << redis_async_context_->err;
     return Status::RedisError(std::string(redis_async_context_->errstr));
   }
   RAY_CHECK(ret_code == REDIS_OK);

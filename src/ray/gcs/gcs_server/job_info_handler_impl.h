@@ -2,6 +2,7 @@
 #define RAY_GCS_JOB_INFO_HANDLER_IMPL_H
 
 #include "ray/gcs/gcs_server/gcs_table_storage.h"
+#include "ray/gcs/gcs_client/gcs_table_pubsub.h"
 #include "ray/gcs/redis_gcs_client.h"
 #include "ray/rpc/gcs_server/gcs_rpc_server.h"
 
@@ -12,7 +13,9 @@ namespace rpc {
 class DefaultJobInfoHandler : public rpc::JobInfoHandler {
  public:
   explicit DefaultJobInfoHandler(
-      const std::shared_ptr<gcs::GcsTableStorage> &gcs_table_storage) {
+      const std::shared_ptr<gcs::GcsTableStorage> &gcs_table_storage,
+      const std::shared_ptr<gcs::RedisClient> &redis_client) :
+      job_pub_(redis_client) {
     gcs_table_storage_ = gcs_table_storage;
   }
 
@@ -25,6 +28,7 @@ class DefaultJobInfoHandler : public rpc::JobInfoHandler {
 
  private:
   std::shared_ptr<gcs::GcsTableStorage> gcs_table_storage_;
+  gcs::GcsJobTablePubSub job_pub_;
 };
 
 }  // namespace rpc

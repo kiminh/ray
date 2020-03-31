@@ -28,7 +28,14 @@ Status GcsTablePubSub<ID, Data>::Publish(const JobID &job_id, const ClientID &cl
   gcs_entry.add_entries(data_str);
   args.emplace_back(gcs_entry.SerializeAsString());
 
-  return redis_client_->GetPrimaryContext()->RunArgvAsync(args);
+  auto on_done = [done](std::shared_ptr<CallbackReply> reply) {
+    if (done) {
+      done(Status::OK());
+    }
+  };
+
+  auto status = redis_client_->GetPrimaryContext()->RunArgvAsync(args, on_done);
+  return status;
 }
 
 template <typename ID, typename Data>
@@ -59,9 +66,12 @@ Status GcsTablePubSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &
     }
   };
 
-  int64_t index;
-  return context->PSubscribeAsync(GenChannelPattern(client_id, id), redis_callback,
-                                  &index);
+  auto status = context->PSubscribeAsync(GenChannelPattern(client_id, id), redis_callback,
+                                  &callback_index_);
+  if (done) {
+    done(status);
+  }
+  return status;
 }
 
 template <typename ID, typename Data>
@@ -69,16 +79,24 @@ Status GcsTablePubSub<ID, Data>::Unsubscribe(const JobID &job_id,
                                              const ClientID &client_id,
                                              const boost::optional<ID> &id,
                                              const StatusCallback &done) {
-  std::vector<std::string> args;
-  args.emplace_back("PUNSUBSCRIBE");
-  args.emplace_back(GenChannelPattern(client_id, id));
-  return redis_client_->GetPrimaryContext()->RunArgvAsync(args);
+  int64_t index;
+  RedisCallback redis_callback = [done](std::shared_ptr<CallbackReply> reply) {
+    RAY_LOG(INFO) << "HELLO WORLD..........";
+    if (done) {
+      done(Status::OK());
+    }
+  };
+  Status status = redis_client_->GetPrimaryContext()->PUnsubscribeAsync(GenChannelPattern(client_id, id),
+      redis_callback, &index);
+  return status;
 }
 
 template <typename ID, typename Data>
 std::string GcsTablePubSub<ID, Data>::GenChannelPattern(const ClientID &client_id,
                                                         const boost::optional<ID> &id) {
-  std::stringstream pattern(pubsub_channel_);
+  RAY_LOG(INFO) << "client_id = " << client_id << ", id = " << *id << ", pubsub_channel_ = " << pubsub_channel_;
+  std::stringstream pattern;
+  pattern << pubsub_channel_;
   pattern << ":";
   if (!client_id.IsNil()) {
     pattern << client_id.Binary() << ":";
@@ -88,6 +106,7 @@ std::string GcsTablePubSub<ID, Data>::GenChannelPattern(const ClientID &client_i
   } else {
     pattern << "*";
   }
+  RAY_LOG(INFO) << "pattern size = " << pattern.str().length();
   return pattern.str();
 }
 

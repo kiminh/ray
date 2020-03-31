@@ -41,12 +41,14 @@ void DefaultActorInfoHandler::HandleRegisterActorInfo(
   RAY_LOG(DEBUG) << "Registering actor info, actor id = " << actor_id;
   auto actor_table_data = std::make_shared<ActorTableData>();
   actor_table_data->CopyFrom(request.actor_table_data());
-  auto on_done = [actor_id, send_reply_callback](Status status) {
+  auto on_done = [this, actor_id, actor_table_data, send_reply_callback](Status status) {
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to register actor info: " << status.ToString()
                      << ", actor id = " << actor_id;
     } else {
       RAY_LOG(DEBUG) << "Finished registering actor info, actor id = " << actor_id;
+      RAY_CHECK_OK(actor_pub_.Publish(JobID::Nil(), ClientID::Nil(), actor_id, *actor_table_data,
+                                     GcsChangeMode::APPEND_OR_ADD, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };
@@ -65,12 +67,14 @@ void DefaultActorInfoHandler::HandleUpdateActorInfo(
   RAY_LOG(DEBUG) << "Updating actor info, actor id = " << actor_id;
   auto actor_table_data = std::make_shared<ActorTableData>();
   actor_table_data->CopyFrom(request.actor_table_data());
-  auto on_done = [actor_id, send_reply_callback](Status status) {
+  auto on_done = [this, actor_id, actor_table_data, send_reply_callback](Status status) {
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to update actor info: " << status.ToString()
                      << ", actor id = " << actor_id;
     } else {
       RAY_LOG(DEBUG) << "Finished updating actor info, actor id = " << actor_id;
+      RAY_CHECK_OK(actor_pub_.Publish(JobID::Nil(), ClientID::Nil(), actor_id, *actor_table_data,
+                                      GcsChangeMode::APPEND_OR_ADD, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };

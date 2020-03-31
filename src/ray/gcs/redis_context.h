@@ -110,6 +110,7 @@ class RedisCallbackManager {
     void Dispatch(std::shared_ptr<CallbackReply> &reply) {
       std::shared_ptr<CallbackItem> self = shared_from_this();
       if (callback_ != nullptr) {
+        RAY_LOG(INFO) << "io_service_->post = " << reply->ReadAsString();
         io_service_->post([self, reply]() { self->callback_(std::move(reply)); });
       }
     }
@@ -218,6 +219,10 @@ class RedisContext {
   Status PSubscribeAsync(const std::string &pattern, const RedisCallback &redisCallback,
                          int64_t *out_callback_index);
 
+  Status PUnsubscribeAsync(const std::string &pattern,
+      const RedisCallback &redisCallback,
+                           int64_t *out_callback_index);
+
   redisContext *sync_context() {
     RAY_CHECK(context_);
     return context_;
@@ -240,6 +245,7 @@ class RedisContext {
   redisContext *context_;
   std::unique_ptr<RedisAsyncContext> redis_async_context_;
   std::unique_ptr<RedisAsyncContext> async_redis_subscribe_context_;
+  std::unique_ptr<RedisAsyncContext> async_redis_unsubscribe_context_;
 };
 
 template <typename ID>

@@ -112,12 +112,12 @@ void GcsServer::InitBackendClient() {
 
 std::unique_ptr<rpc::JobInfoHandler> GcsServer::InitJobInfoHandler() {
   return std::unique_ptr<rpc::DefaultJobInfoHandler>(
-      new rpc::DefaultJobInfoHandler(gcs_table_storage_));
+      new rpc::DefaultJobInfoHandler(gcs_table_storage_, ((RedisStoreClient*)store_client_.get())->GetRedisClient()));
 }
 
 std::unique_ptr<rpc::ActorInfoHandler> GcsServer::InitActorInfoHandler() {
   return std::unique_ptr<rpc::DefaultActorInfoHandler>(
-      new rpc::DefaultActorInfoHandler(gcs_table_storage_));
+      new rpc::DefaultActorInfoHandler(gcs_table_storage_, ((RedisStoreClient*)store_client_.get())->GetRedisClient()));
 }
 
 std::unique_ptr<rpc::NodeInfoHandler> GcsServer::InitNodeInfoHandler() {

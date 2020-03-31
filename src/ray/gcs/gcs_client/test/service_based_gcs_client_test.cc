@@ -349,18 +349,18 @@ TEST_F(ServiceBasedGcsGcsClientTest, TestJobInfo) {
   JobID add_job_id = JobID::FromInt(1);
   auto job_table_data = GenJobTableData(add_job_id);
 
-//  std::promise<bool> promise;
-//  auto on_subscribe = [&promise, add_job_id](const JobID &job_id,
-//                                             const gcs::JobTableData &data) {
-//    ASSERT_TRUE(add_job_id == job_id);
-//    promise.set_value(true);
-//  };
-//  RAY_CHECK_OK(gcs_client_->Jobs().AsyncSubscribeToFinishedJobs(
-//      on_subscribe, [](Status status) { RAY_CHECK_OK(status); }));
+  std::promise<bool> promise;
+  auto on_subscribe = [&promise, add_job_id](const JobID &job_id,
+                                             const gcs::JobTableData &data) {
+    ASSERT_TRUE(add_job_id == job_id);
+    promise.set_value(true);
+  };
+  RAY_CHECK_OK(gcs_client_->Jobs().AsyncSubscribeToFinishedJobs(
+      on_subscribe, [](Status status) { RAY_CHECK_OK(status); }));
 
   ASSERT_TRUE(AddJob(job_table_data));
   ASSERT_TRUE(MarkJobFinished(add_job_id));
-//  ASSERT_TRUE(WaitReady(promise.get_future(), timeout_ms_));
+  ASSERT_TRUE(WaitReady(promise.get_future(), timeout_ms_));
 }
 
 TEST_F(ServiceBasedGcsGcsClientTest, TestActorInfo) {
@@ -370,31 +370,36 @@ TEST_F(ServiceBasedGcsGcsClientTest, TestActorInfo) {
   ActorID actor_id = ActorID::FromBinary(actor_table_data->actor_id());
 
   // Subscribe
-//  std::promise<bool> promise_subscribe;
-//  std::atomic<int> subscribe_callback_count(0);
-//  auto on_subscribe = [&subscribe_callback_count](const ActorID &actor_id,
-//                                                  const gcs::ActorTableData &data) {
-//    ++subscribe_callback_count;
-//  };
-//  RAY_CHECK_OK(gcs_client_->Actors().AsyncSubscribe(actor_id, on_subscribe,
-//                                                    [&promise_subscribe](Status status) {
-//                                                      RAY_CHECK_OK(status);
-//                                                      promise_subscribe.set_value(true);
-//                                                    }));
+  std::promise<bool> promise_subscribe;
+  std::atomic<int> subscribe_callback_count(0);
+  auto on_subscribe = [&subscribe_callback_count](const ActorID &actor_id,
+                                                  const gcs::ActorTableData &data) {
+    ++subscribe_callback_count;
+  };
+  RAY_CHECK_OK(gcs_client_->Actors().AsyncSubscribe(actor_id, on_subscribe,
+                                                    [&promise_subscribe](Status status) {
+                                                      RAY_CHECK_OK(status);
+                                                      promise_subscribe.set_value(true);
+                                                    }));
+  ASSERT_TRUE(WaitReady(promise_subscribe.get_future(), timeout_ms_));
 
   // Register actor
   ASSERT_TRUE(RegisterActor(actor_table_data));
   ASSERT_TRUE(GetActor(actor_id).state() ==
               rpc::ActorTableData_ActorState::ActorTableData_ActorState_ALIVE);
 
+  RAY_LOG(INFO) << "11111111111 subscribe_callback_count = " << subscribe_callback_count;
+
   // Unsubscribe
-//  std::promise<bool> promise_unsubscribe;
-//  RAY_CHECK_OK(gcs_client_->Actors().AsyncUnsubscribe(
-//      actor_id, [&promise_unsubscribe](Status status) {
-//        RAY_CHECK_OK(status);
-//        promise_unsubscribe.set_value(true);
-//      }));
-//  ASSERT_TRUE(WaitReady(promise_unsubscribe.get_future(), timeout_ms_));
+  std::promise<bool> promise_unsubscribe;
+  RAY_CHECK_OK(gcs_client_->Actors().AsyncUnsubscribe(
+      actor_id, [&promise_unsubscribe](Status status) {
+        RAY_CHECK_OK(status);
+        promise_unsubscribe.set_value(true);
+      }));
+  ASSERT_TRUE(WaitReady(promise_unsubscribe.get_future(), timeout_ms_));
+
+  RAY_LOG(INFO) << "22222222222222 subscribe_callback_count = " << subscribe_callback_count;
 
   // Update actor
   actor_table_data->set_state(
@@ -402,11 +407,13 @@ TEST_F(ServiceBasedGcsGcsClientTest, TestActorInfo) {
   ASSERT_TRUE(UpdateActor(actor_id, actor_table_data));
   ASSERT_TRUE(GetActor(actor_id).state() ==
               rpc::ActorTableData_ActorState::ActorTableData_ActorState_DEAD);
-//  ASSERT_TRUE(WaitReady(promise_subscribe.get_future(), timeout_ms_));
-//  auto condition = [&subscribe_callback_count]() {
-//    return 1 == subscribe_callback_count;
-//  };
-//  EXPECT_TRUE(WaitForCondition(condition, timeout_ms_.count()));
+
+  RAY_LOG(INFO) << "3333333333333 subscribe_callback_count = " << subscribe_callback_count;
+
+  auto condition = [&subscribe_callback_count]() {
+    return 1 == subscribe_callback_count;
+  };
+  EXPECT_TRUE(WaitForCondition(condition, timeout_ms_.count()));
 }
 
 TEST_F(ServiceBasedGcsGcsClientTest, TestActorCheckpoint) {
