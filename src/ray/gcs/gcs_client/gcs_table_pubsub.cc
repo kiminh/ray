@@ -45,29 +45,36 @@ Status GcsTablePubSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &
                                            const StatusCallback &done) {
   auto context = redis_client_->GetPrimaryContext();
   RedisCallback redis_callback = [subscribe](std::shared_ptr<CallbackReply> reply) {
+    RAY_LOG(INFO) << "Receiving Subscribe...................";
     if (!reply->IsNil()) {
+      // TODO(ffbin): remove redis_callback in RedisCallbackManager
+      RAY_LOG(INFO) << "Receiving Subscribe...................1111111111111111111111";
       const auto data = reply->ReadAsPubsubData();
+      RAY_LOG(INFO) << "Receiving Subscribe...................2222222222222222222222";
       if (!data.empty()) {
+        RAY_LOG(INFO) << "Receiving Subscribe...................3333333333333333333333";
         // Data is provided. This is the callback for a message.
         if (subscribe != nullptr) {
+          RAY_LOG(INFO) << "Receiving Subscribe...................444444444444444444";
           rpc::GcsEntry gcs_entry;
           gcs_entry.ParseFromString(data);
           ID id = ID::FromBinary(gcs_entry.id());
           std::vector<Data> results;
+          RAY_LOG(INFO) << "Receiving Subscribe...................5555555555555555";
 
           for (int64_t i = 0; i < gcs_entry.entries_size(); i++) {
             Data result;
             result.ParseFromString(gcs_entry.entries(i));
             results.emplace_back(std::move(result));
           }
-          subscribe(id, results);
+          RAY_LOG(INFO) << "Receiving Subscribe...................6666666666666666";
+          subscribe(id, gcs_entry.change_mode(), results);
         }
       }
     }
   };
 
-  auto status = context->PSubscribeAsync(GenChannelPattern(client_id, id), redis_callback,
-                                  &callback_index_);
+  auto status = context->PSubscribeAsync(GenChannelPattern(client_id, id), redis_callback);
   if (done) {
     done(status);
   }
@@ -79,22 +86,13 @@ Status GcsTablePubSub<ID, Data>::Unsubscribe(const JobID &job_id,
                                              const ClientID &client_id,
                                              const boost::optional<ID> &id,
                                              const StatusCallback &done) {
-  int64_t index;
-  RedisCallback redis_callback = [done](std::shared_ptr<CallbackReply> reply) {
-    RAY_LOG(INFO) << "HELLO WORLD..........";
-    if (done) {
-      done(Status::OK());
-    }
-  };
-  Status status = redis_client_->GetPrimaryContext()->PUnsubscribeAsync(GenChannelPattern(client_id, id),
-      redis_callback, &index);
+  Status status = redis_client_->GetPrimaryContext()->PUnsubscribeAsync(GenChannelPattern(client_id, id));
   return status;
 }
 
 template <typename ID, typename Data>
 std::string GcsTablePubSub<ID, Data>::GenChannelPattern(const ClientID &client_id,
                                                         const boost::optional<ID> &id) {
-  RAY_LOG(INFO) << "client_id = " << client_id << ", id = " << *id << ", pubsub_channel_ = " << pubsub_channel_;
   std::stringstream pattern;
   pattern << pubsub_channel_;
   pattern << ":";
@@ -106,7 +104,6 @@ std::string GcsTablePubSub<ID, Data>::GenChannelPattern(const ClientID &client_i
   } else {
     pattern << "*";
   }
-  RAY_LOG(INFO) << "pattern size = " << pattern.str().length();
   return pattern.str();
 }
 

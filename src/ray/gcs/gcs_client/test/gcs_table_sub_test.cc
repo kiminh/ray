@@ -68,24 +68,54 @@ TEST_F(GcsTablePubSubTest, TestJobTablePubSubApi) {
 
 
   int count = 0;
-  auto subscribe1 = [&count](const JobID &id, const std::vector<rpc::JobTableData> &data) {
+//  auto subscribe1 = [&count](const JobID &id, const std::vector<rpc::JobTableData> &data) {
+//    ++count;
+//    RAY_LOG(INFO) << "MMMMMMMMMMMMMMM count = " << count << ", data size = " << data.size();
+//  };
+//
+//  auto subscribe2 = [&count](const JobID &id, const std::vector<rpc::JobTableData> &data) {
+//    ++count;
+//    RAY_LOG(INFO) << "KKKKKKKKKKKKKK count = " << count << ", data size = " << data.size();
+//  };
+
+  auto subscribe3 = [&count](const JobID &id, const std::vector<rpc::JobTableData> &data) {
     ++count;
 //    ASSERT_EQ(data.size(), 1);
-    RAY_LOG(INFO) << "MMMMMMMMMMMMMMM count = " << count << ", data size = " << data.size();
+    RAY_LOG(INFO) << "FFFFFFFFFFF count = " << count << ", data size = " << data.size();
 //    promise.set_value(true);
   };
-  RAY_CHECK_OK(table_pub_sub.Subscribe(job_id_, ClientID::Nil(), job_id_, subscribe1, nullptr));
+  JobID job_id1 = JobID::FromInt(1);
+  JobID job_id2 = JobID::FromInt(2);
+//  JobID job_id3 = JobID::FromInt(3);
+//  RAY_CHECK_OK(table_pub_sub.Subscribe(job_id_, ClientID::Nil(), job_id1, subscribe1, nullptr));
+//  RAY_CHECK_OK(table_pub_sub.Subscribe(job_id_, ClientID::Nil(), job_id2, subscribe2, nullptr));
+  RAY_CHECK_OK(table_pub_sub.Subscribe(job_id_, ClientID::Nil(), boost::none, subscribe3, nullptr));
   sleep(3);
-  RAY_CHECK_OK(table_pub_sub.Unsubscribe(job_id_, ClientID::Nil(), job_id_, nullptr));
+  RAY_CHECK_OK(table_pub_sub.Publish(job_id_, ClientID::Nil(), job_id1, job_table_data,
+                                     rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
+  RAY_CHECK_OK(table_pub_sub.Publish(job_id_, ClientID::Nil(), job_id2, job_table_data,
+                                     rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
+  sleep(3);
+//  RAY_CHECK_OK(table_pub_sub.Unsubscribe(job_id_, ClientID::Nil(), job_id2, nullptr));
+//  RAY_CHECK_OK(table_pub_sub.Unsubscribe(job_id_, ClientID::Nil(), boost::none, nullptr));
+//  RAY_CHECK_OK(table_pub_sub.Unsubscribe(job_id_, ClientID::Nil(), job_id1, nullptr));
 //  sleep(3);
 ////  RAY_CHECK_OK(table_pub_sub.Unsubscribe(job_id_, ClientID::Nil(), job_id_));
 //  RAY_CHECK_OK(table_pub_sub.Publish(job_id_, ClientID::Nil(), job_id_, job_table_data,
 //                                     rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
 
-  sleep(3);
-  RAY_CHECK_OK(table_pub_sub.Publish(job_id_, ClientID::Nil(), job_id_, job_table_data,
-                                     rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
-
+//  sleep(3);
+//  RAY_CHECK_OK(table_pub_sub.Publish(job_id_, ClientID::Nil(), job_id_, job_table_data,
+//                                     rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
+//  RAY_CHECK_OK(table_pub_sub.Publish(job_id_, ClientID::Nil(), job_id_, job_table_data,
+//                                     rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
+//  RAY_CHECK_OK(table_pub_sub.Publish(job_id_, ClientID::Nil(), job_id_, job_table_data,
+//                                     rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
+//  sleep(10);
+//  RAY_CHECK_OK(table_pub_sub.Subscribe(job_id_, ClientID::Nil(), job_id_, subscribe1, nullptr));
+//  sleep(3);
+//  RAY_CHECK_OK(table_pub_sub.Publish(job_id_, ClientID::Nil(), job_id_, job_table_data,
+//                                     rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
   sleep(60);
 //  promise.get_future().get();
 }

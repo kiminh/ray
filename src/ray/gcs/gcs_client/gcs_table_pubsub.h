@@ -35,7 +35,7 @@ using rpc::WorkerFailureData;
 template <typename ID, typename Data>
 class GcsTablePubSub {
  public:
-  using Callback = std::function<void(const ID &id, const std::vector<Data> &data)>;
+  using Callback = std::function<void(const ID &id, const rpc::GcsChangeMode &change_mode, const std::vector<Data> &data)>;
 
   GcsTablePubSub(std::shared_ptr<RedisClient> redis_client)
       : redis_client_(redis_client) {}
@@ -57,7 +57,6 @@ class GcsTablePubSub {
 
  protected:
   TablePubsub pubsub_channel_;
-  int64_t callback_index_;
 
  private:
   std::string GenChannelPattern(const ClientID &client_id, const boost::optional<ID> &id);
