@@ -397,7 +397,7 @@ Status RedisObjectInfoAccessor::AsyncUnsubscribeToLocations(const ObjectID &obje
 RedisNodeInfoAccessor::RedisNodeInfoAccessor(RedisGcsClient *client_impl)
     : client_impl_(client_impl),
       resource_sub_executor_(client_impl_->resource_table()),
-      heartbeat_sub_executor_(client_impl->heartbeat_table()),
+      heartbeat_sub_(client_impl->heartbeat_table()),
       heartbeat_batch_sub_executor_(client_impl->heartbeat_batch_table()) {}
 
 Status RedisNodeInfoAccessor::RegisterSelf(const GcsNodeInfo &local_node_info) {
@@ -510,7 +510,7 @@ Status RedisNodeInfoAccessor::AsyncSubscribeHeartbeat(
     subscribe(node_id, data);
   };
 
-  return heartbeat_sub_executor_.AsyncSubscribeAll(ClientID::Nil(), on_subscribe, done);
+  return heartbeat_sub_.AsyncSubscribeAll(ClientID::Nil(), on_subscribe, done);
 }
 
 Status RedisNodeInfoAccessor::AsyncReportBatchHeartbeat(

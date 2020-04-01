@@ -526,80 +526,80 @@ class ServiceBasedGcsGcsClientTest : public RedisServiceManagerForTest {
 //  ASSERT_TRUE(gcs_client_->Nodes().IsRemoved(node2_id));
 //}
 
-TEST_F(ServiceBasedGcsGcsClientTest, TestNodeResources) {
-  int add_count = 0;
-  int remove_count = 0;
-  auto subscribe = [&add_count, &remove_count](
-                       const ClientID &id,
-                       const gcs::ResourceChangeNotification &notification) {
-    RAY_LOG(INFO) << "ResourceChangeNotification...........";
-    if (notification.IsAdded()) {
-      ++add_count;
-    } else if (notification.IsRemoved()) {
-      ++remove_count;
-    }
-  };
-  RAY_CHECK_OK(gcs_client_->Nodes().AsyncSubscribeToResources(subscribe, nullptr));
-
-  // Update resources
-  ClientID node_id = ClientID::FromRandom();
-  gcs::NodeInfoAccessor::ResourceMap resource_map;
-  std::string key = "CPU";
-  auto resource = std::make_shared<rpc::ResourceTableData>();
-  resource->set_resource_capacity(1.0);
-  resource_map[key] = resource;
-  ASSERT_TRUE(UpdateResources(node_id, resource_map));
-  WaitPendingDone(add_count, 1);
-  auto get_resources_result = GetResources(node_id);
-  ASSERT_TRUE(get_resources_result.count(key));
-
-  // Delete resources
-  ASSERT_TRUE(DeleteResources(node_id, {key}));
-  WaitPendingDone(remove_count, 1);
-  get_resources_result = GetResources(node_id);
-  ASSERT_TRUE(get_resources_result.empty());
-}
-
-TEST_F(ServiceBasedGcsGcsClientTest, TestNodeHeartbeat) {
-  int heartbeat_count = 0;
-  auto heartbeat_subscribe = [&heartbeat_count](const ClientID &id,
-                                                const gcs::HeartbeatTableData &result) {
-    ++heartbeat_count;
-  };
-  RAY_CHECK_OK(
-      gcs_client_->Nodes().AsyncSubscribeHeartbeat(heartbeat_subscribe, nullptr));
-
-  int heartbeat_batch_count = 0;
-  auto heartbeat_batch_subscribe =
-      [&heartbeat_batch_count](const gcs::HeartbeatBatchTableData &result) {
-        ++heartbeat_batch_count;
-      };
-  RAY_CHECK_OK(gcs_client_->Nodes().AsyncSubscribeBatchHeartbeat(
-      heartbeat_batch_subscribe, nullptr));
-
-  // Report heartbeat
-  ClientID node_id = ClientID::FromRandom();
-  auto heartbeat = std::make_shared<rpc::HeartbeatTableData>();
-  heartbeat->set_client_id(node_id.Binary());
-  ASSERT_TRUE(ReportHeartbeat(heartbeat));
-  WaitPendingDone(heartbeat_count, 1);
-
-  // Report batch heartbeat
-  auto batch_heartbeat = std::make_shared<rpc::HeartbeatBatchTableData>();
-  batch_heartbeat->add_batch()->set_client_id(node_id.Binary());
-  ASSERT_TRUE(ReportBatchHeartbeat(batch_heartbeat));
-  WaitPendingDone(heartbeat_batch_count, 1);
-}
+//TEST_F(ServiceBasedGcsGcsClientTest, TestNodeResources) {
+//  int add_count = 0;
+//  int remove_count = 0;
+//  auto subscribe = [&add_count, &remove_count](
+//                       const ClientID &id,
+//                       const gcs::ResourceChangeNotification &notification) {
+//    RAY_LOG(INFO) << "ResourceChangeNotification...........";
+//    if (notification.IsAdded()) {
+//      ++add_count;
+//    } else if (notification.IsRemoved()) {
+//      ++remove_count;
+//    }
+//  };
+//  RAY_CHECK_OK(gcs_client_->Nodes().AsyncSubscribeToResources(subscribe, nullptr));
+//
+//  // Update resources
+//  ClientID node_id = ClientID::FromRandom();
+//  gcs::NodeInfoAccessor::ResourceMap resource_map;
+//  std::string key = "CPU";
+//  auto resource = std::make_shared<rpc::ResourceTableData>();
+//  resource->set_resource_capacity(1.0);
+//  resource_map[key] = resource;
+//  ASSERT_TRUE(UpdateResources(node_id, resource_map));
+//  WaitPendingDone(add_count, 1);
+//  auto get_resources_result = GetResources(node_id);
+//  ASSERT_TRUE(get_resources_result.count(key));
+//
+//  // Delete resources
+//  ASSERT_TRUE(DeleteResources(node_id, {key}));
+//  WaitPendingDone(remove_count, 1);
+//  get_resources_result = GetResources(node_id);
+//  ASSERT_TRUE(get_resources_result.empty());
+//}
+//
+//TEST_F(ServiceBasedGcsGcsClientTest, TestNodeHeartbeat) {
+//  int heartbeat_count = 0;
+//  auto heartbeat_subscribe = [&heartbeat_count](const ClientID &id,
+//                                                const gcs::HeartbeatTableData &result) {
+//    ++heartbeat_count;
+//  };
+//  RAY_CHECK_OK(
+//      gcs_client_->Nodes().AsyncSubscribeHeartbeat(heartbeat_subscribe, nullptr));
+//
+//  int heartbeat_batch_count = 0;
+//  auto heartbeat_batch_subscribe =
+//      [&heartbeat_batch_count](const gcs::HeartbeatBatchTableData &result) {
+//        ++heartbeat_batch_count;
+//      };
+//  RAY_CHECK_OK(gcs_client_->Nodes().AsyncSubscribeBatchHeartbeat(
+//      heartbeat_batch_subscribe, nullptr));
+//
+//  // Report heartbeat
+//  ClientID node_id = ClientID::FromRandom();
+//  auto heartbeat = std::make_shared<rpc::HeartbeatTableData>();
+//  heartbeat->set_client_id(node_id.Binary());
+//  ASSERT_TRUE(ReportHeartbeat(heartbeat));
+//  WaitPendingDone(heartbeat_count, 1);
+//
+//  // Report batch heartbeat
+//  auto batch_heartbeat = std::make_shared<rpc::HeartbeatBatchTableData>();
+//  batch_heartbeat->add_batch()->set_client_id(node_id.Binary());
+//  ASSERT_TRUE(ReportBatchHeartbeat(batch_heartbeat));
+//  WaitPendingDone(heartbeat_batch_count, 1);
+//}
 
 TEST_F(ServiceBasedGcsGcsClientTest, TestTaskInfo) {
   JobID job_id = JobID::FromInt(1);
   TaskID task_id = TaskID::ForDriverTask(job_id);
   auto task_table_data = GenTaskTableData(job_id.Binary(), task_id.Binary());
 
-//  int task_count = 0;
-//  auto task_subscribe = [&task_count](const TaskID &id,
-//                                      const rpc::TaskTableData &result) { ++task_count; };
-//  RAY_CHECK_OK(gcs_client_->Tasks().AsyncSubscribe(task_id, task_subscribe, nullptr));
+  int task_count = 0;
+  auto task_subscribe = [&task_count](const TaskID &id,
+                                      const rpc::TaskTableData &result) { ++task_count; };
+  RAY_CHECK_OK(gcs_client_->Tasks().AsyncSubscribe(task_id, task_subscribe, nullptr));
 
   // Add task
   ASSERT_TRUE(AddTask(task_table_data));
@@ -607,31 +607,31 @@ TEST_F(ServiceBasedGcsGcsClientTest, TestTaskInfo) {
   auto get_task_result = GetTask(task_id);
   ASSERT_TRUE(get_task_result.task().task_spec().task_id() == task_id.Binary());
   ASSERT_TRUE(get_task_result.task().task_spec().job_id() == job_id.Binary());
-//  RAY_CHECK_OK(gcs_client_->Tasks().AsyncUnsubscribe(task_id, nullptr));
+  RAY_CHECK_OK(gcs_client_->Tasks().AsyncUnsubscribe(task_id, nullptr));
   ASSERT_TRUE(AddTask(task_table_data));
 
   // Delete task
-//  std::vector<TaskID> task_ids = {task_id};
-//  ASSERT_TRUE(DeleteTask(task_ids));
-//  EXPECT_EQ(task_count, 1);
+  std::vector<TaskID> task_ids = {task_id};
+  ASSERT_TRUE(DeleteTask(task_ids));
+  EXPECT_EQ(task_count, 1);
 
   // Add task lease
-//  int task_lease_count = 0;
-//  auto task_lease_subscribe = [&task_lease_count](
-//                                  const TaskID &id,
-//                                  const boost::optional<rpc::TaskLeaseData> &result) {
-//    ++task_lease_count;
-//  };
-//  RAY_CHECK_OK(gcs_client_->Tasks().AsyncSubscribeTaskLease(task_id, task_lease_subscribe,
-//                                                            nullptr));
+  int task_lease_count = 0;
+  auto task_lease_subscribe = [&task_lease_count](
+                                  const TaskID &id,
+                                  const boost::optional<rpc::TaskLeaseData> &result) {
+    ++task_lease_count;
+  };
+  RAY_CHECK_OK(gcs_client_->Tasks().AsyncSubscribeTaskLease(task_id, task_lease_subscribe,
+                                                            nullptr));
   ClientID node_id = ClientID::FromRandom();
   auto task_lease = GenTaskLeaseData(task_id.Binary(), node_id.Binary());
   ASSERT_TRUE(AddTaskLease(task_lease));
-//  WaitPendingDone(task_lease_count, 2);
+  WaitPendingDone(task_lease_count, 2);
 
-//  RAY_CHECK_OK(gcs_client_->Tasks().AsyncUnsubscribeTaskLease(task_id, nullptr));
-//  ASSERT_TRUE(AddTaskLease(task_lease));
-//  EXPECT_EQ(task_lease_count, 2);
+  RAY_CHECK_OK(gcs_client_->Tasks().AsyncUnsubscribeTaskLease(task_id, nullptr));
+  ASSERT_TRUE(AddTaskLease(task_lease));
+  EXPECT_EQ(task_lease_count, 2);
 
   // Attempt task reconstruction
   auto task_reconstruction_data = std::make_shared<rpc::TaskReconstructionData>();

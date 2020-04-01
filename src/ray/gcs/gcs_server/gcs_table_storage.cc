@@ -90,13 +90,28 @@ Status GcsTable<KEY, VALUE>::Delete(const JobID &job_id, const KEY &key,
 template <typename KEY, typename VALUE>
 Status GcsTable<KEY, VALUE>::Delete(const JobID &job_id, const std::vector<KEY> &keys,
                                     const StatusCallback &callback) {
+  RAY_LOG(INFO) << "Deleting table " << table_name_ << " items, job id = " << job_id << ", key size = " << keys.size();
+  int count = 0;
+  Status final_status = Status::OK();
+  for (KEY key : keys) {
+    std::string str_key = key.Binary();
+    auto done = [&count, &final_status, keys, callback](Status status) {
+      RAY_LOG(INFO) << "XXXXXXXXXXXXXXXXXXXXXXFinished deleting table";
+      ++count;
+      if (!status.ok()) {
+        final_status = status;
+      }
+      RAY_LOG(INFO) << "XXXXXXXXXXXXXXXXXXXXXXFinished deleting table, count = " << count << ", keys size = " << keys.size();
+      if (count == keys.size()) {
+        RAY_LOG(INFO) << "XXXXXXXXXXXXXXXXXXXXXXFinished deleting table, final_status = ";
+        RAY_CHECK(callback != nullptr);
+        callback(final_status);
+      }
+    };
+    RAY_CHECK_OK(store_client_->AsyncDelete(table_name_, str_key, done));
+  }
+  RAY_LOG(INFO) << "Finished deleting table " << table_name_ << " items, job id = " << job_id << ", key size = " << keys.size();
   return Status::OK();
-  //  std::vector<std::string> serialized_keys(keys.size());
-  //  for (KEY key : keys) {
-  //    serialized_keys.push_back(Serialize(key));
-  //  }
-  //  return store_client_.AsyncDelete(table_name_, job_id.Binary(), serialized_keys,
-  //  callback);
 }
 
 template <typename KEY, typename VALUE>

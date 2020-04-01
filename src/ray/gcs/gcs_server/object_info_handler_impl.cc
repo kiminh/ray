@@ -46,10 +46,14 @@ void DefaultObjectInfoHandler::HandleAddObjectLocation(
   auto on_done = [this, object_id, node_id, send_reply_callback](
                      Status status,
                      const boost::optional<rpc::ObjectTableDataList> &result) {
-    auto on_done = [object_id, node_id, send_reply_callback](Status status) {
+    auto on_done = [this, object_id, node_id, send_reply_callback](Status status) {
       if (status.ok()) {
         RAY_LOG(DEBUG) << "Finished adding object location, object id = " << object_id
                        << ", node id = " << node_id;
+        ObjectTableData object_table_data;
+        object_table_data.set_manager(node_id.Binary());
+        RAY_CHECK_OK(object_pub_.Publish(JobID::Nil(), ClientID::Nil(), object_id, object_table_data,
+                                       GcsChangeMode::APPEND_OR_ADD, nullptr));
       } else {
         RAY_LOG(ERROR) << "Failed to add object location: " << status.ToString()
                        << ", object id = " << object_id << ", node id = " << node_id;
@@ -92,10 +96,14 @@ void DefaultObjectInfoHandler::HandleRemoveObjectLocation(
   auto on_done = [this, object_id, node_id, send_reply_callback](
                      Status status,
                      const boost::optional<rpc::ObjectTableDataList> &result) {
-    auto on_done = [object_id, node_id, send_reply_callback](Status status) {
+    auto on_done = [this, object_id, node_id, send_reply_callback](Status status) {
       if (status.ok()) {
         RAY_LOG(DEBUG) << "Finished removing object location, object id = " << object_id
                        << ", node id = " << node_id;
+        ObjectTableData object_table_data;
+        object_table_data.set_manager(node_id.Binary());
+        RAY_CHECK_OK(object_pub_.Publish(JobID::Nil(), ClientID::Nil(), object_id, object_table_data,
+                                         GcsChangeMode::REMOVE, nullptr));
       } else {
         RAY_LOG(ERROR) << "Failed to remove object location: " << status.ToString()
                        << ", object id = " << object_id << ", node id = " << node_id;

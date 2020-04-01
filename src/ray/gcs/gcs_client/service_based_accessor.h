@@ -31,7 +31,7 @@ class ServiceBasedJobInfoAccessor : public JobInfoAccessor {
 
  private:
   ServiceBasedGcsClient *client_impl_;
-  GcsJobTablePubSub job_sub_executor_;
+  GcsJobTablePubSub job_sub_;
 };
 
 /// \class ServiceBasedActorInfoAccessor
@@ -79,7 +79,7 @@ class ServiceBasedActorInfoAccessor : public ActorInfoAccessor {
 
   ClientID subscribe_id_;
 
-  GcsActorTablePubSub actor_sub_executor_;
+  GcsActorTablePubSub actor_sub_;
 
   Sequencer<ActorID> sequencer_;
 };
@@ -151,10 +151,10 @@ class ServiceBasedNodeInfoAccessor : public NodeInfoAccessor {
  private:
   ServiceBasedGcsClient *client_impl_;
 
-  GcsNodeTablePubSub node_sub_executor_;
-  GcsNodeResourceTablePubSub node_resource_sub_executor_;
-  GcsHeartbeatTablePubSub heartbeat_sub_executor_;
-  GcsHeartbeatBatchTablePubSub heartbeat_batch_sub_executor_;
+  GcsNodeTablePubSub node_sub_;
+  GcsNodeResourceTablePubSub node_resource_sub_;
+  GcsHeartbeatTablePubSub heartbeat_sub_;
+  GcsHeartbeatBatchTablePubSub heartbeat_batch_sub_;
 
   GcsNodeInfo local_node_info_;
   ClientID local_node_id_;
@@ -206,13 +206,8 @@ class ServiceBasedTaskInfoAccessor : public TaskInfoAccessor {
 
   ClientID subscribe_id_;
 
-  typedef SubscriptionExecutor<TaskID, TaskTableData, raylet::TaskTable>
-      TaskSubscriptionExecutor;
-  TaskSubscriptionExecutor task_sub_executor_;
-
-  typedef SubscriptionExecutor<TaskID, boost::optional<TaskLeaseData>, TaskLeaseTable>
-      TaskLeaseSubscriptionExecutor;
-  TaskLeaseSubscriptionExecutor task_lease_sub_executor_;
+  GcsTaskTablePubSub task_sub_;
+  GcsTaskLeaseTablePubSub task_lease_sub_;
 };
 
 /// \class ServiceBasedObjectInfoAccessor
@@ -247,9 +242,7 @@ class ServiceBasedObjectInfoAccessor : public ObjectInfoAccessor {
 
   ClientID subscribe_id_;
 
-  typedef SubscriptionExecutor<ObjectID, ObjectChangeNotification, ObjectTable>
-      ObjectSubscriptionExecutor;
-  ObjectSubscriptionExecutor object_sub_executor_;
+  GcsObjectTablePubSub object_sub_;
 
   Sequencer<ObjectID> sequencer_;
 };
@@ -305,9 +298,7 @@ class ServiceBasedWorkerInfoAccessor : public WorkerInfoAccessor {
  private:
   ServiceBasedGcsClient *client_impl_;
 
-  typedef SubscriptionExecutor<WorkerID, WorkerFailureData, WorkerFailureTable>
-      WorkerFailureSubscriptionExecutor;
-  WorkerFailureSubscriptionExecutor worker_failure_sub_executor_;
+  GcsWorkerFailureTablePubSub worker_failure_sub_;
 };
 
 }  // namespace gcs

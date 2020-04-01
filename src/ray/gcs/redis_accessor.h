@@ -283,7 +283,7 @@ class RedisNodeInfoAccessor : public NodeInfoAccessor {
 
   typedef SubscriptionExecutor<ClientID, HeartbeatTableData, HeartbeatTable>
       HeartbeatSubscriptionExecutor;
-  HeartbeatSubscriptionExecutor heartbeat_sub_executor_;
+  HeartbeatSubscriptionExecutor heartbeat_sub_;
 
   typedef SubscriptionExecutor<ClientID, HeartbeatBatchTableData, HeartbeatBatchTable>
       HeartbeatBatchSubscriptionExecutor;

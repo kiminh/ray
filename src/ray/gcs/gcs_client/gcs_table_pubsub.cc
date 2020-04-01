@@ -48,26 +48,26 @@ Status GcsTablePubSub<ID, Data>::Subscribe(const JobID &job_id, const ClientID &
     RAY_LOG(INFO) << "Receiving Subscribe...................";
     if (!reply->IsNil()) {
       // TODO(ffbin): remove redis_callback in RedisCallbackManager
-      RAY_LOG(INFO) << "Receiving Subscribe...................1111111111111111111111";
+//      RAY_LOG(INFO) << "Receiving Subscribe...................1111111111111111111111";
       const auto data = reply->ReadAsPubsubData();
-      RAY_LOG(INFO) << "Receiving Subscribe...................2222222222222222222222";
+//      RAY_LOG(INFO) << "Receiving Subscribe...................2222222222222222222222";
       if (!data.empty()) {
-        RAY_LOG(INFO) << "Receiving Subscribe...................3333333333333333333333";
+//        RAY_LOG(INFO) << "Receiving Subscribe...................3333333333333333333333";
         // Data is provided. This is the callback for a message.
         if (subscribe != nullptr) {
-          RAY_LOG(INFO) << "Receiving Subscribe...................444444444444444444";
+//          RAY_LOG(INFO) << "Receiving Subscribe...................444444444444444444";
           rpc::GcsEntry gcs_entry;
           gcs_entry.ParseFromString(data);
           ID id = ID::FromBinary(gcs_entry.id());
           std::vector<Data> results;
-          RAY_LOG(INFO) << "Receiving Subscribe...................5555555555555555";
+//          RAY_LOG(INFO) << "Receiving Subscribe...................5555555555555555";
 
           for (int64_t i = 0; i < gcs_entry.entries_size(); i++) {
             Data result;
             result.ParseFromString(gcs_entry.entries(i));
             results.emplace_back(std::move(result));
           }
-          RAY_LOG(INFO) << "Receiving Subscribe...................6666666666666666";
+//          RAY_LOG(INFO) << "Receiving Subscribe...................6666666666666666";
           subscribe(id, gcs_entry.change_mode(), results);
         }
       }
