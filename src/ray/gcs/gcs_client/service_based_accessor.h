@@ -2,9 +2,9 @@
 #define RAY_GCS_SERVICE_BASED_ACCESSOR_H
 
 #include "ray/gcs/accessor.h"
+#include "ray/gcs/gcs_client/gcs_table_pubsub.h"
 #include "ray/gcs/subscription_executor.h"
 #include "ray/util/sequencer.h"
-#include "ray/gcs/gcs_client/gcs_table_pubsub.h"
 
 namespace ray {
 namespace gcs {
@@ -149,6 +149,17 @@ class ServiceBasedNodeInfoAccessor : public NodeInfoAccessor {
       const StatusCallback &done) override;
 
  private:
+  using NodeChangeCallback =
+      std::function<void(const ClientID &id, const GcsNodeInfo &node_info)>;
+
+  /// Handle a client table notification.
+  void HandleNotification(const GcsNodeInfo &node_info);
+
+  /// Register a callback to call when a new node is added or a node is removed.
+  ///
+  /// \param callback The callback to register.
+  void RegisterNodeChangeCallback(const NodeChangeCallback &callback);
+
   ServiceBasedGcsClient *client_impl_;
 
   GcsNodeTablePubSub node_sub_;
@@ -158,6 +169,13 @@ class ServiceBasedNodeInfoAccessor : public NodeInfoAccessor {
 
   GcsNodeInfo local_node_info_;
   ClientID local_node_id_;
+  /// The callback to call when a new node is added or a node is removed.
+  NodeChangeCallback node_change_callback_{nullptr};
+
+  /// A cache for information about all nodes.
+  std::unordered_map<ClientID, GcsNodeInfo> node_cache_;
+  /// The set of removed nodes.
+  std::unordered_set<ClientID> removed_nodes_;
 
   Sequencer<ClientID> sequencer_;
 };

@@ -76,10 +76,12 @@ CallbackReply::CallbackReply(redisReply *redis_reply) : reply_type_(redis_reply-
   case REDIS_REPLY_ARRAY: {
     // Array replies are only used for pub-sub messages. Parse the published message.
     redisReply *message_type = redis_reply->element[0];
-    if (strcmp(message_type->str, "subscribe") == 0 || strcmp(message_type->str, "psubscribe") == 0
-      || strcmp(message_type->str, "punsubscribe") == 0) {
-      // If the message is for the initial subscription/unsubscription call, return the empty
-      // string as a response to signify that subscription/unsubscription was successful.
+    if (strcmp(message_type->str, "subscribe") == 0 ||
+        strcmp(message_type->str, "psubscribe") == 0 ||
+        strcmp(message_type->str, "punsubscribe") == 0) {
+      // If the message is for the initial subscription/unsubscription call, return the
+      // empty string as a response to signify that subscription/unsubscription was
+      // successful.
     } else if (strcmp(message_type->str, "message") == 0) {
       // If the message is from a PUBLISH, make sure the data is nonempty.
       redisReply *message = redis_reply->element[redis_reply->elements - 1];
@@ -94,7 +96,6 @@ CallbackReply::CallbackReply(redisReply *redis_reply) : reply_type_(redis_reply-
       RAY_CHECK(!string_reply_.empty()) << "Empty message received on subscribe channel.";
     } else {
       // Array replies are used for scan or get.
-      RAY_LOG(INFO) << "message_type->str = " << message_type->str;
       ParseAsScanArray(redis_reply);
     }
     break;

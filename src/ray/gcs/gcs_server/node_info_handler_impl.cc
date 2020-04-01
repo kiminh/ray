@@ -19,7 +19,7 @@ void DefaultNodeInfoHandler::HandleRegisterNode(
     } else {
       RAY_LOG(DEBUG) << "Finished registering node info, node id = " << node_id;
       RAY_CHECK_OK(node_pub_.Publish(JobID::Nil(), ClientID::Nil(), node_id, node_info,
-          GcsChangeMode::APPEND_OR_ADD, nullptr));
+                                     GcsChangeMode::APPEND_OR_ADD, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };
@@ -38,14 +38,16 @@ void DefaultNodeInfoHandler::HandleUnregisterNode(
   RAY_LOG(DEBUG) << "Unregistering node info, node id = " << node_id;
 
   auto on_done = [this, node_id, send_reply_callback](
-      Status status, const boost::optional<rpc::GcsNodeInfo> &result) {
+                     Status status, const boost::optional<rpc::GcsNodeInfo> &result) {
     auto on_done = [this, node_id, result, send_reply_callback](Status status) {
       if (!status.ok()) {
         RAY_LOG(ERROR) << "Failed to unregister node info: " << status.ToString()
                        << ", node id = " << node_id;
       } else {
         RAY_LOG(DEBUG) << "Finished unregistering node info, node id = " << node_id;
-        RAY_CHECK_OK(node_pub_.Publish(JobID::Nil(), ClientID::Nil(), node_id, *result,
+        rpc::GcsNodeInfo node_info(*result);
+        node_info.set_state(rpc::GcsNodeInfo_GcsNodeState::GcsNodeInfo_GcsNodeState_DEAD);
+        RAY_CHECK_OK(node_pub_.Publish(JobID::Nil(), ClientID::Nil(), node_id, node_info,
                                        GcsChangeMode::REMOVE, nullptr));
       }
       send_reply_callback(status, nullptr, nullptr);
@@ -103,8 +105,9 @@ void DefaultNodeInfoHandler::HandleReportHeartbeat(
                      << ", node id = " << node_id;
     } else {
       RAY_LOG(DEBUG) << "Finished reporting heartbeat, node id = " << node_id;
-      RAY_CHECK_OK(heartbeat_pub_.Publish(JobID::Nil(), ClientID::Nil(), node_id, *heartbeat_data,
-          GcsChangeMode::APPEND_OR_ADD, nullptr));
+      RAY_CHECK_OK(heartbeat_pub_.Publish(JobID::Nil(), ClientID::Nil(), node_id,
+                                          *heartbeat_data, GcsChangeMode::APPEND_OR_ADD,
+                                          nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };
@@ -124,15 +127,17 @@ void DefaultNodeInfoHandler::HandleReportBatchHeartbeat(
 
   auto heartbeat_batch_data = std::make_shared<rpc::HeartbeatBatchTableData>();
   heartbeat_batch_data->CopyFrom(request.heartbeat_batch());
-  auto on_done = [this, &request, heartbeat_batch_data, send_reply_callback](Status status) {
+  auto on_done = [this, &request, heartbeat_batch_data,
+                  send_reply_callback](Status status) {
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to report batch heartbeat: " << status.ToString()
                      << ", batch size = " << request.heartbeat_batch().batch_size();
     } else {
       RAY_LOG(DEBUG) << "Finished reporting batch heartbeat, batch size = "
                      << request.heartbeat_batch().batch_size();
-      RAY_CHECK_OK(heartbeat_batch_pub_.Publish(JobID::Nil(), ClientID::Nil(), ClientID::Nil(),
-          *heartbeat_batch_data, GcsChangeMode::APPEND_OR_ADD, nullptr));
+      RAY_CHECK_OK(heartbeat_batch_pub_.Publish(JobID::Nil(), ClientID::Nil(),
+                                                ClientID::Nil(), *heartbeat_batch_data,
+                                                GcsChangeMode::APPEND_OR_ADD, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };
@@ -192,9 +197,11 @@ void DefaultNodeInfoHandler::HandleUpdateResources(
 
       auto callback = [this, node_id, request]() {
         rpc::ResourceMap resource;
-        resource.mutable_items()->insert(request.resources().begin(), request.resources().end());
+        resource.mutable_items()->insert(request.resources().begin(),
+                                         request.resources().end());
         RAY_CHECK_OK(node_resource_pub_.Publish(JobID::Nil(), ClientID::Nil(), node_id,
-                                                resource, GcsChangeMode::APPEND_OR_ADD, nullptr));
+                                                resource, GcsChangeMode::APPEND_OR_ADD,
+                                                nullptr));
       };
 
       UpdateResource(node_id, resource_map, send_reply_callback, callback);
@@ -252,8 +259,7 @@ void DefaultNodeInfoHandler::HandleDeleteResources(
 void DefaultNodeInfoHandler::UpdateResource(
     const ClientID &node_id,
     const std::unordered_map<std::string, rpc::ResourceTableData> &resource_map,
-    SendReplyCallback send_reply_callback,
-    std::function<void()> callback) {
+    SendReplyCallback send_reply_callback, std::function<void()> callback) {
   std::shared_ptr<rpc::ResourceMap> resources = std::make_shared<rpc::ResourceMap>();
   resources->mutable_items()->insert(resource_map.begin(), resource_map.end());
 
