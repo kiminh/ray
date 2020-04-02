@@ -19,9 +19,8 @@ void DefaultTaskInfoHandler::HandleAddTask(const AddTaskRequest &request,
     } else {
       RAY_LOG(INFO) << "Finished adding task, task id = " << task_id
                     << ", job id = " << job_id;
-      RAY_CHECK_OK(task_pub_.Publish(JobID::Nil(), ClientID::Nil(), task_id,
-                                     *task_table_data, GcsChangeMode::APPEND_OR_ADD,
-                                     nullptr));
+      RAY_CHECK_OK(task_pub_.Publish(task_id, *task_table_data,
+                                     GcsChangeMode::APPEND_OR_ADD, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };
@@ -90,8 +89,8 @@ void DefaultTaskInfoHandler::HandleDeleteTasks(const DeleteTasksRequest &request
     } else {
       RAY_LOG(INFO) << "Finished deleting tasks, task id list size = " << task_ids.size();
       for (auto &task : tasks) {
-        RAY_CHECK_OK(task_pub_.Publish(JobID::Nil(), ClientID::Nil(), task.first,
-                                       task.second, GcsChangeMode::REMOVE, nullptr));
+        RAY_CHECK_OK(
+            task_pub_.Publish(task.first, task.second, GcsChangeMode::REMOVE, nullptr));
       }
     }
     send_reply_callback(status, nullptr, nullptr);
@@ -121,9 +120,8 @@ void DefaultTaskInfoHandler::HandleAddTaskLease(const AddTaskLeaseRequest &reque
     } else {
       RAY_LOG(DEBUG) << "Finished adding task lease, task id = " << task_id
                      << ", node id = " << node_id;
-      RAY_CHECK_OK(task_lease_pub_.Publish(JobID::Nil(), ClientID::Nil(), task_id,
-                                           *task_lease_data, GcsChangeMode::APPEND_OR_ADD,
-                                           nullptr));
+      RAY_CHECK_OK(task_lease_pub_.Publish(task_id, *task_lease_data,
+                                           GcsChangeMode::APPEND_OR_ADD, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };

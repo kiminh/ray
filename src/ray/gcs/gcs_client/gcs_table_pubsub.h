@@ -35,33 +35,35 @@ using rpc::WorkerFailureData;
 template <typename ID, typename Data>
 class GcsTablePubSub {
  public:
-  using Callback = std::function<void(const ID &id, const rpc::GcsChangeMode &change_mode, const std::vector<Data> &data)>;
+  using Callback = std::function<void(const ID &id, const rpc::GcsChangeMode &change_mode,
+                                      const std::vector<Data> &data)>;
 
   GcsTablePubSub(std::shared_ptr<RedisClient> redis_client)
       : redis_client_(redis_client) {}
 
   virtual ~GcsTablePubSub() = default;
 
-  Status Publish(const JobID &job_id, const ClientID &client_id, const ID &id,
-                 const Data &data, const GcsChangeMode &change_mode,
+  Status Publish(const ID &id, const Data &data, const GcsChangeMode &change_mode,
                  const StatusCallback &done);
 
-  Status Subscribe(const JobID &job_id, const ClientID &client_id,
-                   const boost::optional<ID> &id, const Callback &subscribe,
-                   const StatusCallback &done);
+  Status Subscribe(const ID &id, const Callback &subscribe, const StatusCallback &done);
 
-  Status Unsubscribe(const JobID &job_id,
-                     const ClientID &client_id,
-                     const boost::optional<ID> &id,
-                     const StatusCallback &done);
+  Status SubscribeAll(const Callback &subscribe, const StatusCallback &done);
+
+  Status Unsubscribe(const ID &id, const StatusCallback &done);
 
  protected:
   TablePubsub pubsub_channel_;
 
  private:
-  std::string GenChannelPattern(const ClientID &client_id, const boost::optional<ID> &id);
+  Status Subscribe(const boost::optional<ID> &id, const Callback &subscribe,
+                   const StatusCallback &done);
+
+  std::string GenChannelPattern(const boost::optional<ID> &id = boost::none);
 
   std::shared_ptr<RedisClient> redis_client_;
+  std::unordered_map<ID, int64_t> subscribe_callback_index;
+  std::unordered_map<ID, StatusCallback> unsubscribe_callbacks;
 };
 
 class GcsJobTablePubSub : public GcsTablePubSub<JobID, JobTableData> {

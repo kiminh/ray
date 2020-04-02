@@ -58,8 +58,7 @@ Status ServiceBasedJobInfoAccessor::AsyncSubscribeToFinishedJobs(
       subscribe(job_id, job_table_data);
     }
   };
-  Status status =
-      job_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), boost::none, on_subscribe, done);
+  Status status = job_sub_.SubscribeAll(on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing finished job.";
   return status;
 }
@@ -154,8 +153,7 @@ Status ServiceBasedActorInfoAccessor::AsyncSubscribeAll(
     subscribe(actor_id, actor_data.back());
   };
 
-  auto status = actor_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), boost::none,
-                                     on_subscribe, done);
+  auto status = actor_sub_.SubscribeAll(on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing register or update operations of actors.";
   return status;
 }
@@ -172,8 +170,7 @@ Status ServiceBasedActorInfoAccessor::AsyncSubscribe(
                                   const std::vector<ActorTableData> &actor_data) {
     subscribe(actor_id, actor_data.back());
   };
-  auto status =
-      actor_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), actor_id, on_subscribe, done);
+  auto status = actor_sub_.Subscribe(actor_id, on_subscribe, done);
   RAY_LOG(INFO) << "Finished subscribing update operations of actor, actor id = "
                 << actor_id;
   return status;
@@ -182,7 +179,7 @@ Status ServiceBasedActorInfoAccessor::AsyncSubscribe(
 Status ServiceBasedActorInfoAccessor::AsyncUnsubscribe(const ActorID &actor_id,
                                                        const StatusCallback &done) {
   RAY_LOG(INFO) << "Cancelling subscription to an actor, actor id = " << actor_id;
-  auto status = actor_sub_.Unsubscribe(JobID::Nil(), ClientID::Nil(), actor_id, done);
+  auto status = actor_sub_.Unsubscribe(actor_id, done);
   RAY_LOG(INFO) << "Finished cancelling subscription to an actor, actor id = "
                 << actor_id;
   done(status);
@@ -410,8 +407,7 @@ Status ServiceBasedNodeInfoAccessor::AsyncSubscribeToNodeChange(
     RegisterNodeChangeCallback(subscribe);
   };
 
-  auto status = node_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), boost::none,
-                                    on_subscribe, on_done);
+  auto status = node_sub_.SubscribeAll(on_subscribe, on_done);
   RAY_LOG(DEBUG) << "Finished subscribing node change.";
   return status;
 }
@@ -547,8 +543,7 @@ Status ServiceBasedNodeInfoAccessor::AsyncSubscribeToResources(
     gcs::ResourceChangeNotification notification(change_mode, data);
     subscribe(node_id, notification);
   };
-  auto status = node_resource_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), boost::none,
-                                             on_subscribe, done);
+  auto status = node_resource_sub_.SubscribeAll(on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing node resources change.";
   return status;
 }
@@ -583,8 +578,7 @@ Status ServiceBasedNodeInfoAccessor::AsyncSubscribeHeartbeat(
     subscribe(node_id, data.back());
   };
 
-  auto status = heartbeat_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), boost::none,
-                                         on_subscribe, done);
+  auto status = heartbeat_sub_.SubscribeAll(on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing heartbeat.";
   return status;
 }
@@ -617,8 +611,7 @@ Status ServiceBasedNodeInfoAccessor::AsyncSubscribeBatchHeartbeat(
                                   const std::vector<HeartbeatBatchTableData> &data) {
     subscribe(data.back());
   };
-  auto status = heartbeat_batch_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), boost::none,
-                                               on_subscribe, done);
+  auto status = heartbeat_batch_sub_.SubscribeAll(on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing batch heartbeat.";
   return status;
 }
@@ -748,8 +741,7 @@ Status ServiceBasedTaskInfoAccessor::AsyncSubscribe(
                                   const std::vector<rpc::TaskTableData> &data) {
     subscribe(task_id, data.back());
   };
-  auto status =
-      task_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), task_id, on_subscribe, done);
+  auto status = task_sub_.Subscribe(task_id, on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing task, task id = " << task_id;
   return status;
 }
@@ -757,7 +749,7 @@ Status ServiceBasedTaskInfoAccessor::AsyncSubscribe(
 Status ServiceBasedTaskInfoAccessor::AsyncUnsubscribe(const TaskID &task_id,
                                                       const StatusCallback &done) {
   RAY_LOG(DEBUG) << "Unsubscribing task, task id = " << task_id;
-  auto status = task_sub_.Unsubscribe(JobID::Nil(), ClientID::Nil(), task_id, done);
+  auto status = task_sub_.Unsubscribe(task_id, done);
   RAY_LOG(DEBUG) << "Finished unsubscribing task, task id = " << task_id;
   return status;
 }
@@ -794,8 +786,7 @@ Status ServiceBasedTaskInfoAccessor::AsyncSubscribeTaskLease(
                                   const std::vector<rpc::TaskLeaseData> &data) {
     subscribe(task_id, data.back());
   };
-  auto status = task_lease_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), task_id,
-                                          on_subscribe, done);
+  auto status = task_lease_sub_.Subscribe(task_id, on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing task lease, task id = " << task_id;
   return status;
 }
@@ -803,7 +794,7 @@ Status ServiceBasedTaskInfoAccessor::AsyncSubscribeTaskLease(
 Status ServiceBasedTaskInfoAccessor::AsyncUnsubscribeTaskLease(
     const TaskID &task_id, const StatusCallback &done) {
   RAY_LOG(DEBUG) << "Unsubscribing task lease, task id = " << task_id;
-  auto status = task_lease_sub_.Unsubscribe(JobID::Nil(), ClientID::Nil(), task_id, done);
+  auto status = task_lease_sub_.Unsubscribe(task_id, done);
   RAY_LOG(DEBUG) << "Finished unsubscribing task lease, task id = " << task_id;
   return status;
 }
@@ -923,8 +914,7 @@ Status ServiceBasedObjectInfoAccessor::AsyncSubscribeToLocations(
     gcs::ObjectChangeNotification notification(change_mode, data);
     subscribe(object_id, notification);
   };
-  auto status =
-      object_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), object_id, on_subscribe, done);
+  auto status = object_sub_.Subscribe(object_id, on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing object location, object id = " << object_id;
   return status;
 }
@@ -932,7 +922,7 @@ Status ServiceBasedObjectInfoAccessor::AsyncSubscribeToLocations(
 Status ServiceBasedObjectInfoAccessor::AsyncUnsubscribeToLocations(
     const ObjectID &object_id, const StatusCallback &done) {
   RAY_LOG(DEBUG) << "Unsubscribing object location, object id = " << object_id;
-  auto status = object_sub_.Unsubscribe(JobID::Nil(), ClientID::Nil(), object_id, done);
+  auto status = object_sub_.Unsubscribe(object_id, done);
   RAY_LOG(DEBUG) << "Finished unsubscribing object location, object id = " << object_id;
   return status;
 }
@@ -1001,8 +991,7 @@ Status ServiceBasedWorkerInfoAccessor::AsyncSubscribeToWorkerFailures(
                                   const std::vector<rpc::WorkerFailureData> &data) {
     subscribe(worker_id, data.back());
   };
-  auto status = worker_failure_sub_.Subscribe(JobID::Nil(), ClientID::Nil(), boost::none,
-                                              on_subscribe, done);
+  auto status = worker_failure_sub_.SubscribeAll(on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing worker failures.";
   return status;
 }

@@ -42,7 +42,7 @@ void DefaultJobInfoHandler::HandleMarkJobFinished(
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to mark job state, job id = " << job_id;
     } else {
-      RAY_CHECK_OK(job_pub_.Publish(JobID::Nil(), ClientID::Nil(), job_id, *job_table_data,
+      RAY_CHECK_OK(job_pub_.Publish(job_id, *job_table_data,
                                     rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
     }
     reply->set_success(status.ok());

@@ -20,8 +20,8 @@ void DefaultWorkerInfoHandler::HandleReportWorkerFailure(
     } else {
       RAY_LOG(DEBUG) << "Finished reporting worker failure, "
                      << worker_address.DebugString();
-      RAY_CHECK_OK(worker_failure_pub_.Publish(JobID::Nil(), ClientID::Nil(), worker_id, *worker_failure_data,
-                                     GcsChangeMode::APPEND_OR_ADD, nullptr));
+      RAY_CHECK_OK(worker_failure_pub_.Publish(worker_id, *worker_failure_data,
+                                               GcsChangeMode::APPEND_OR_ADD, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };

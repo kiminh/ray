@@ -59,6 +59,10 @@ class CallbackReply {
   /// \return size_t The next cursor for scan.
   size_t ReadAsScanArray(std::vector<std::string> *array) const;
 
+  std::string GetMessageType() const {
+    return message_type_;
+  }
+
  private:
   /// Parse redis reply as scan array.
   void ParseAsScanArray(redisReply *redis_reply);
@@ -79,6 +83,8 @@ class CallbackReply {
   /// Reply data if reply_type_ is REDIS_REPLY_ARRAY.
   /// Represent the reply of StringArray or ScanArray.
   std::vector<std::string> string_array_;
+
+  std::string message_type_;
 
   /// Represent the reply of SCanArray, means the next scan cursor for scan request.
   size_t next_scan_cursor_{0};
@@ -215,9 +221,12 @@ class RedisContext {
   /// \param redisCallback The callback function that the notification calls.
   /// \param out_callback_index The output pointer to callback index.
   /// \return Status.
-  Status PSubscribeAsync(const std::string &pattern, const RedisCallback &redisCallback);
+  Status PSubscribeAsync(const std::string &pattern, const RedisCallback &redisCallback, int64_t *out_callback_index);
 
   Status PUnsubscribeAsync(const std::string &pattern);
+
+  Status PublishAsync(const std::string &channel, const std::string &message,
+                      const RedisCallback &redisCallback);
 
   redisContext *sync_context() {
     RAY_CHECK(context_);
