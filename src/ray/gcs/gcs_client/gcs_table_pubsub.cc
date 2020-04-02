@@ -48,7 +48,9 @@ Status GcsTablePubSub<ID, Data>::SubscribeAll(const Callback &subscribe,
 
 template <typename ID, typename Data>
 Status GcsTablePubSub<ID, Data>::Unsubscribe(const ID &id, const StatusCallback &done) {
-//  unsubscribe_callbacks_[id] = done;
+  if (done) {
+    unsubscribe_callbacks_[id] = done;
+  }
   return redis_client_->GetPrimaryContext()->PUnsubscribeAsync(GenChannelPattern(id));
 }
 
@@ -57,18 +59,19 @@ Status GcsTablePubSub<ID, Data>::Subscribe(const boost::optional<ID> &id,
                                            const Callback &subscribe,
                                            const StatusCallback &done) {
   auto context = redis_client_->GetPrimaryContext();
-  RedisCallback redis_callback = [id, subscribe](std::shared_ptr<CallbackReply> reply) {
+  RedisCallback redis_callback = [this, id,
+                                  subscribe](std::shared_ptr<CallbackReply> reply) {
     if (!reply->IsNil()) {
       if (reply->GetMessageType() == "punsubscribe") {
-        RAY_LOG(INFO) << "@@@@@@@@@@@@@@@@@@@@@reply is = ";
-//        unsubscribe_callbacks_[*id](Status::OK());
-//        unsubscribe_callbacks_.erase(*id);
-//        ray::gcs::RedisCallbackManager::instance().remove(subscribe_callback_index_[*id]);
+        if (id && unsubscribe_callbacks_.count(*id)) {
+          unsubscribe_callbacks_[*id](Status::OK());
+          unsubscribe_callbacks_.erase(*id);
+        }
+        ray::gcs::RedisCallbackManager::instance().remove(subscribe_callback_index_[*id]);
       } else {
         // TODO(ffbin): remove redis_callback in RedisCallbackManager
         const auto data = reply->ReadAsPubsubData();
         if (!data.empty()) {
-          RAY_LOG(INFO) << "999999999999999 reply is = " << data;
           // Data is provided. This is the callback for a message.
           if (subscribe != nullptr) {
             rpc::GcsEntry gcs_entry;
@@ -89,9 +92,10 @@ Status GcsTablePubSub<ID, Data>::Subscribe(const boost::optional<ID> &id,
   };
 
   int64_t callback_index;
-  auto status = context->PSubscribeAsync(GenChannelPattern(id), redis_callback, &callback_index);
+  auto status =
+      context->PSubscribeAsync(GenChannelPattern(id), redis_callback, &callback_index);
   if (id) {
-//    subscribe_callback_index_[*id] = callback_index;
+    subscribe_callback_index_[*id] = callback_index;
   }
 
   if (done) {

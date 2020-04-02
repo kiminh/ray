@@ -391,6 +391,7 @@ TEST_F(ServiceBasedGcsGcsClientTest, TestActorInfo) {
   RAY_CHECK_OK(gcs_client_->Actors().AsyncUnsubscribe(
       actor_id, [&promise_unsubscribe](Status status) {
         RAY_CHECK_OK(status);
+        RAY_LOG(INFO) << "promise_unsubscribe.set_value(true);================";
         promise_unsubscribe.set_value(true);
       }));
   ASSERT_TRUE(WaitReady(promise_unsubscribe.get_future(), timeout_ms_));

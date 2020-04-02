@@ -62,8 +62,8 @@ class GcsTablePubSub {
   std::string GenChannelPattern(const boost::optional<ID> &id = boost::none);
 
   std::shared_ptr<RedisClient> redis_client_;
-  std::unordered_map<ID, int64_t> subscribe_callback_index;
-  std::unordered_map<ID, StatusCallback> unsubscribe_callbacks;
+  std::unordered_map<ID, int64_t> subscribe_callback_index_;
+  std::unordered_map<ID, StatusCallback> unsubscribe_callbacks_;
 };
 
 class GcsJobTablePubSub : public GcsTablePubSub<JobID, JobTableData> {

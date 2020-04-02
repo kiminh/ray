@@ -182,7 +182,7 @@ Status ServiceBasedActorInfoAccessor::AsyncUnsubscribe(const ActorID &actor_id,
   auto status = actor_sub_.Unsubscribe(actor_id, done);
   RAY_LOG(INFO) << "Finished cancelling subscription to an actor, actor id = "
                 << actor_id;
-  done(status);
+  //  done(status);
   return status;
 }
 
@@ -658,9 +658,7 @@ void ServiceBasedNodeInfoAccessor::HandleNotification(const GcsNodeInfo &node_in
       // structure getting updated.
       removed_nodes_.insert(node_id);
     }
-    RAY_LOG(INFO) << "[ClientTableNotification]8888888888888";
     if (node_change_callback_ != nullptr) {
-      RAY_LOG(INFO) << "[ClientTableNotification]99999999999999999";
       node_change_callback_(node_id, cache_data);
     }
   }
