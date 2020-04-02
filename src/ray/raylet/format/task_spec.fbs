@@ -1,0 +1,154 @@
+// Copyright 2017 The Ray Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+namespace ray.rpc;
+
+enum TaskType: int {
+  // Normal task.
+  NORMAL_TASK = 0,
+  // Actor creation task.
+  ACTOR_CREATION_TASK = 1,
+  // Actor task.
+  ACTOR_TASK = 2,
+  // Driver task.
+  DRIVER_TASK = 3,
+}
+
+// Language of a task or worker.
+enum Language: int {
+  PYTHON = 0;
+  JAVA = 1;
+  CPP = 2;
+}
+
+/// Function descriptor for Java.
+table JavaFunctionDescriptor {
+  class_name: string;
+  function_name: string;
+  signature: string;
+}
+
+/// Function descriptor for Python.
+table PythonFunctionDescriptor {
+  module_name: string;
+  class_name: string;
+  function_name: string;
+  function_hash: string;
+}
+
+/// Function descriptor for C/C++.
+table CppFunctionDescriptor {
+  lib_name: string;
+  function_offset: string;
+  exec_function_offset: string;
+}
+
+// A union wrapper for various function descriptor types.
+union FunctionDescriptor {
+  JavaFunctionDescriptor,
+  PythonFunctionDescriptor,
+  CppFunctionDescriptor,
+}
+
+
+/// The task specification encapsulates all immutable information about the
+/// task. These fields are determined at submission time, converse to the
+/// `TaskExecutionSpec` may change at execution time.
+table TaskSpec {
+  // Type of this task.
+  type: TaskType;
+  // Language of this task.
+  language: Language;
+  // Function descriptor of this task uniquely describe the function to execute.
+  function_descriptor: FunctionDescriptor;
+  // ID of the job that this task belongs to.
+  job_id: string;
+  // Task ID of the task.
+  task_id: string;
+  // Task ID of the parent task.
+  parent_task_id: string;
+  // A count of the number of tasks submitted by the parent task before this one.
+  parent_counter: int;
+  // Task ID of the caller. This is the same as parent_task_id for non-actors.
+  // This is the actor ID (embedded in a nil task ID) for actors.
+  caller_id: string;
+  // Address of the caller.
+  caller_address: Address;
+  // Task arguments.
+  args: TaskArg;
+  // Number of return objects.
+  num_returns: int;
+  // Quantities of the different resources required by this task.
+  required_resources: map<string, double>;
+  // The resources required for placing this task on a node. If this is empty,
+  // then the placement resources are equal to the required_resources.
+  required_placement_resources: map<string, double>;
+
+  // Task specification for an actor creation task.
+  // This field is only valid when `type == ACTOR_CREATION_TASK`.
+  actor_creation_task_spec: ActorCreationTaskSpec;
+
+  // Task specification for an actor task.
+  // This field is only valid when `type == ACTOR_TASK`.
+  actor_task_spec: ActorTaskSpec;
+  // Number of times this task may be retried on worker failure.
+  max_retries: int;
+}
+
+// Task spec of an actor creation task.
+table ActorCreationTaskSpec {
+  // ID of the actor that will be created by this task.
+  actor_id: string;
+  // The max number of times this actor should be reconstructed.
+  // If this number of 0 or negative, the actor won't be reconstructed on failure.
+  max_actor_reconstructions: int;
+  // The dynamic options used in the worker command when starting a worker process for
+  // an actor creation task. If the list isn't empty, the options will be used to replace
+  // the placeholder strings (`RAY_WORKER_DYNAMIC_OPTION_PLACEHOLDER_0`,
+  // `RAY_WORKER_DYNAMIC_OPTION_PLACEHOLDER_1`, etc) in the worker command.
+  dynamic_worker_options: [string];
+  // The max number of concurrent calls for direct call actors.
+  max_concurrency: int;
+  // Whether the actor is persistent.
+  is_detached: bool;
+  // Whether the actor use async actor calls
+  is_asyncio: bool;
+}
+
+
+// Task spec of an actor task.
+table ActorTaskSpec {
+  // Actor ID of the actor that this task is executed on.
+  actor_id: string;
+  // The dummy object ID of the actor creation task.
+  actor_creation_dummy_object_id: string;
+  // Number of tasks that have been submitted to this actor so far.
+  actor_counter: int;
+  // The dummy object ID of the previous actor task.
+  previous_actor_task_dummy_object_id: string;
+}
+
+table TaskArg {
+  // Object IDs for pass-by-reference arguments. Normally there is only one
+  // object ID in this list which represents the object that is being passed.
+  // However to support reducers in a MapReduce workload, we also support
+  // passing multiple object IDs for each argument.
+  object_ids: [string];
+  // Data for pass-by-value arguments.
+  data: string;
+  // Metadata for pass-by-value arguments.
+  metadata: string;
+  // ObjectIDs that were nested in the inlined arguments of the data field.
+  nested_inlined_ids: [string];
+}
