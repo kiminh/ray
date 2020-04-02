@@ -264,6 +264,7 @@ cc_library(
         ":common_cc_proto",
         ":gcs_cc_proto",
         ":node_manager_fbs",
+        ":task_spec_fbs",
         ":ray_util",
         "@boost//:asio",
         "@com_github_grpc_grpc//:grpc++",
@@ -406,6 +407,7 @@ cc_library(
         ":common_cc_proto",
         ":gcs",
         ":node_manager_fbs",
+        ":task_spec_fbs",
         ":node_manager_rpc",
         ":object_manager",
         ":ray_common",
@@ -1117,6 +1119,13 @@ flatbuffer_cc_library(
 flatbuffer_cc_library(
     name = "node_manager_fbs",
     srcs = ["src/ray/raylet/format/node_manager.fbs"],
+    flatc_args = FLATC_ARGS,
+    out_prefix = "src/ray/raylet/format/",
+)
+
+flatbuffer_cc_library(
+    name = "task_spec_fbs",
+    srcs = ["src/ray/raylet/format/task_spec.fbs"],
     flatc_args = FLATC_ARGS,
     out_prefix = "src/ray/raylet/format/",
 )
