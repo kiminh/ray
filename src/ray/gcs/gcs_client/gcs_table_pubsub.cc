@@ -84,7 +84,7 @@ Status GcsTablePubSub<ID, Data>::Subscribe(const boost::optional<ID> &id,
               result.ParseFromString(gcs_entry.entries(i));
               results.emplace_back(std::move(result));
             }
-            subscribe(id, gcs_entry.change_mode(), results);
+            subscribe(id, gcs_entry.change_mode(), results.back());
           }
         }
       }

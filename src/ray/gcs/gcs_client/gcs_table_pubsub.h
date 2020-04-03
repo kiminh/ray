@@ -36,7 +36,7 @@ template <typename ID, typename Data>
 class GcsTablePubSub {
  public:
   using Callback = std::function<void(const ID &id, const rpc::GcsChangeMode &change_mode,
-                                      const std::vector<Data> &data)>;
+                                      const Data &data)>;
 
   GcsTablePubSub(std::shared_ptr<RedisClient> redis_client)
       : redis_client_(redis_client) {}

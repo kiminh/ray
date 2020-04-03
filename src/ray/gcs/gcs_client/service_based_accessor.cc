@@ -52,8 +52,7 @@ Status ServiceBasedJobInfoAccessor::AsyncSubscribeToFinishedJobs(
   RAY_CHECK(subscribe != nullptr);
   auto on_subscribe = [subscribe](const JobID &job_id,
                                   const rpc::GcsChangeMode &change_mode,
-                                  const std::vector<JobTableData> &job_data) {
-    auto job_table_data = job_data.back();
+                                  const JobTableData &job_table_data) {
     if (job_table_data.is_dead()) {
       subscribe(job_id, job_table_data);
     }
@@ -149,8 +148,8 @@ Status ServiceBasedActorInfoAccessor::AsyncSubscribeAll(
 
   auto on_subscribe = [subscribe](const ActorID &actor_id,
                                   const rpc::GcsChangeMode &change_mode,
-                                  const std::vector<ActorTableData> &actor_data) {
-    subscribe(actor_id, actor_data.back());
+                                  const ActorTableData &actor_table_data) {
+    subscribe(actor_id, actor_table_data);
   };
 
   auto status = actor_sub_.SubscribeAll(on_subscribe, done);
@@ -167,8 +166,8 @@ Status ServiceBasedActorInfoAccessor::AsyncSubscribe(
 
   auto on_subscribe = [subscribe](const ActorID &actor_id,
                                   const rpc::GcsChangeMode &change_mode,
-                                  const std::vector<ActorTableData> &actor_data) {
-    subscribe(actor_id, actor_data.back());
+                                  const ActorTableData &actor_table_data) {
+    subscribe(actor_id, actor_table_data);
   };
   auto status = actor_sub_.Subscribe(actor_id, on_subscribe, done);
   RAY_LOG(INFO) << "Finished subscribing update operations of actor, actor id = "
@@ -182,7 +181,6 @@ Status ServiceBasedActorInfoAccessor::AsyncUnsubscribe(const ActorID &actor_id,
   auto status = actor_sub_.Unsubscribe(actor_id, done);
   RAY_LOG(INFO) << "Finished cancelling subscription to an actor, actor id = "
                 << actor_id;
-  //  done(status);
   return status;
 }
 
@@ -368,33 +366,10 @@ Status ServiceBasedNodeInfoAccessor::AsyncGetAll(
 Status ServiceBasedNodeInfoAccessor::AsyncSubscribeToNodeChange(
     const SubscribeCallback<ClientID, GcsNodeInfo> &subscribe,
     const StatusCallback &done) {
-  RAY_LOG(DEBUG) << "Subscribing node change.";
   RAY_CHECK(subscribe != nullptr);
-  auto on_subscribe = [this, subscribe](const ClientID &node_id,
-                                        const rpc::GcsChangeMode &change_mode,
-                                        const std::vector<GcsNodeInfo> &notifications) {
-    RAY_LOG(INFO) << "Subscribing node change.............., notifications size = "
-                  << notifications.size();
-    std::unordered_map<std::string, GcsNodeInfo> connected_nodes;
-    std::unordered_map<std::string, GcsNodeInfo> disconnected_nodes;
-    for (auto &notification : notifications) {
-      if (notification.state() == GcsNodeInfo::ALIVE) {
-        connected_nodes.emplace(notification.node_id(), notification);
-      } else {
-        auto iter = connected_nodes.find(notification.node_id());
-        if (iter != connected_nodes.end()) {
-          connected_nodes.erase(iter);
-        }
-        disconnected_nodes.emplace(notification.node_id(), notification);
-      }
-    }
-    for (const auto &pair : connected_nodes) {
-      HandleNotification(pair.second);
-    }
-    for (const auto &pair : disconnected_nodes) {
-      HandleNotification(pair.second);
-    }
-  };
+  auto on_subscribe =
+      [this, subscribe](const ClientID &node_id, const rpc::GcsChangeMode &change_mode,
+                        const GcsNodeInfo &node_info) { HandleNotification(node_info); };
 
   // Callback to request notifications from the client table once we've
   // successfully subscribed.
@@ -532,8 +507,7 @@ Status ServiceBasedNodeInfoAccessor::AsyncSubscribeToResources(
   RAY_CHECK(subscribe != nullptr);
   auto on_subscribe = [subscribe](const ClientID &node_id,
                                   const rpc::GcsChangeMode &change_mode,
-                                  const std::vector<rpc::ResourceMap> &resource_data) {
-    rpc::ResourceMap resource_map = resource_data.back();
+                                  const rpc::ResourceMap &resource_map) {
     std::unordered_map<std::string, std::shared_ptr<rpc::ResourceTableData>> data;
     auto it = resource_map.items().begin();
     while (it != resource_map.items().end()) {
@@ -574,8 +548,8 @@ Status ServiceBasedNodeInfoAccessor::AsyncSubscribeHeartbeat(
   RAY_CHECK(subscribe != nullptr);
   auto on_subscribe = [subscribe](const ClientID &node_id,
                                   const rpc::GcsChangeMode &change_mode,
-                                  const std::vector<HeartbeatTableData> &data) {
-    subscribe(node_id, data.back());
+                                  const rpc::HeartbeatTableData &heartbeat_table_data) {
+    subscribe(node_id, heartbeat_table_data);
   };
 
   auto status = heartbeat_sub_.SubscribeAll(on_subscribe, done);
@@ -602,15 +576,14 @@ Status ServiceBasedNodeInfoAccessor::AsyncReportBatchHeartbeat(
 }
 
 Status ServiceBasedNodeInfoAccessor::AsyncSubscribeBatchHeartbeat(
-    const ItemCallback<rpc::HeartbeatBatchTableData> &subscribe,
-    const StatusCallback &done) {
+    const ItemCallback<HeartbeatBatchTableData> &subscribe, const StatusCallback &done) {
   RAY_LOG(DEBUG) << "Subscribing batch heartbeat.";
   RAY_CHECK(subscribe != nullptr);
-  auto on_subscribe = [subscribe](const ClientID &node_id,
-                                  const rpc::GcsChangeMode &change_mode,
-                                  const std::vector<HeartbeatBatchTableData> &data) {
-    subscribe(data.back());
-  };
+  auto on_subscribe =
+      [subscribe](const ClientID &node_id, const rpc::GcsChangeMode &change_mode,
+                  const rpc::HeartbeatBatchTableData &heartbeat_batch_table_data) {
+        subscribe(heartbeat_batch_table_data);
+      };
   auto status = heartbeat_batch_sub_.SubscribeAll(on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing batch heartbeat.";
   return status;
@@ -736,8 +709,8 @@ Status ServiceBasedTaskInfoAccessor::AsyncSubscribe(
 
   auto on_subscribe = [subscribe](const TaskID &task_id,
                                   const rpc::GcsChangeMode &change_mode,
-                                  const std::vector<rpc::TaskTableData> &data) {
-    subscribe(task_id, data.back());
+                                  const rpc::TaskTableData &task_table_data) {
+    subscribe(task_id, task_table_data);
   };
   auto status = task_sub_.Subscribe(task_id, on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing task, task id = " << task_id;
@@ -781,8 +754,8 @@ Status ServiceBasedTaskInfoAccessor::AsyncSubscribeTaskLease(
       << "Failed to subscribe task lease, task id = " << task_id;
   auto on_subscribe = [subscribe](const TaskID &task_id,
                                   const rpc::GcsChangeMode &change_mode,
-                                  const std::vector<rpc::TaskLeaseData> &data) {
-    subscribe(task_id, data.back());
+                                  const rpc::TaskLeaseData &task_lease_data) {
+    subscribe(task_id, task_lease_data);
   };
   auto status = task_lease_sub_.Subscribe(task_id, on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing task lease, task id = " << task_id;
@@ -908,8 +881,10 @@ Status ServiceBasedObjectInfoAccessor::AsyncSubscribeToLocations(
       << "Failed to subscribe object location, object id = " << object_id;
   auto on_subscribe = [subscribe](const ObjectID &object_id,
                                   const rpc::GcsChangeMode &change_mode,
-                                  const std::vector<rpc::ObjectTableData> &data) {
-    gcs::ObjectChangeNotification notification(change_mode, data);
+                                  const rpc::ObjectTableData &object_table_data) {
+    auto object_data_vector = std::vector<rpc::ObjectTableData>();
+    object_data_vector.emplace_back(object_table_data);
+    gcs::ObjectChangeNotification notification(change_mode, object_data_vector);
     subscribe(object_id, notification);
   };
   auto status = object_sub_.Subscribe(object_id, on_subscribe, done);
@@ -986,8 +961,8 @@ Status ServiceBasedWorkerInfoAccessor::AsyncSubscribeToWorkerFailures(
   RAY_CHECK(subscribe != nullptr);
   auto on_subscribe = [subscribe](const WorkerID &worker_id,
                                   const rpc::GcsChangeMode &change_mode,
-                                  const std::vector<rpc::WorkerFailureData> &data) {
-    subscribe(worker_id, data.back());
+                                  const rpc::WorkerFailureData &worker_failure_data) {
+    subscribe(worker_id, worker_failure_data);
   };
   auto status = worker_failure_sub_.SubscribeAll(on_subscribe, done);
   RAY_LOG(DEBUG) << "Finished subscribing worker failures.";
