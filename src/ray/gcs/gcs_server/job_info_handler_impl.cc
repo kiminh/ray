@@ -37,13 +37,13 @@ void DefaultJobInfoHandler::HandleMarkJobFinished(
 
   std::shared_ptr<JobTableData> job_table_data =
       gcs::CreateJobTableData(job_id, /*is_dead*/ true, /*time_stamp*/ std::time(nullptr),
-          /*node_manager_address*/ "", /*driver_pid*/ -1);
-  auto on_done = [this, job_id, job_table_data, reply, send_reply_callback](Status status) {
+                              /*node_manager_address*/ "", /*driver_pid*/ -1);
+  auto on_done = [this, job_id, job_table_data, reply,
+                  send_reply_callback](Status status) {
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to mark job state, job id = " << job_id;
     } else {
-      RAY_CHECK_OK(job_pub_.Publish(job_id, *job_table_data,
-                                    rpc::GcsChangeMode::APPEND_OR_ADD, nullptr));
+      RAY_CHECK_OK(job_pub_.Publish(job_id, *job_table_data, nullptr));
     }
     reply->set_success(status.ok());
     send_reply_callback(status, nullptr, nullptr);

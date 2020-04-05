@@ -13,15 +13,12 @@ namespace gcs {
 
 template <typename ID, typename Data>
 Status GcsTablePubSub<ID, Data>::Publish(const ID &id, const Data &data,
-                                         const GcsChangeMode &change_mode,
                                          const StatusCallback &done) {
-  rpc::GcsEntry gcs_entry;
-  gcs_entry.set_id(id.Binary());
-  gcs_entry.set_change_mode(change_mode);
+  rpc::GcsPublishMessage message;
+  message.set_id(id.Binary());
   std::string data_str;
   data.SerializeToString(&data_str);
-  gcs_entry.add_entries(data_str);
-  auto message = gcs_entry.SerializeAsString();
+  message.set_data(data_str);
 
   auto on_done = [done](std::shared_ptr<CallbackReply> reply) {
     if (done) {
@@ -29,8 +26,8 @@ Status GcsTablePubSub<ID, Data>::Publish(const ID &id, const Data &data,
     }
   };
 
-  auto status = redis_client_->GetPrimaryContext()->PublishAsync(GenChannelPattern(id),
-                                                                 message, on_done);
+  auto status = redis_client_->GetPrimaryContext()->PublishAsync(
+      GenChannelPattern(id), message.SerializeAsString(), on_done);
   return status;
 }
 
@@ -74,17 +71,11 @@ Status GcsTablePubSub<ID, Data>::Subscribe(const boost::optional<ID> &id,
         if (!data.empty()) {
           // Data is provided. This is the callback for a message.
           if (subscribe != nullptr) {
-            rpc::GcsEntry gcs_entry;
-            gcs_entry.ParseFromString(data);
-            ID id = ID::FromBinary(gcs_entry.id());
-            std::vector<Data> results;
-
-            for (int64_t i = 0; i < gcs_entry.entries_size(); i++) {
-              Data result;
-              result.ParseFromString(gcs_entry.entries(i));
-              results.emplace_back(std::move(result));
-            }
-            subscribe(id, gcs_entry.change_mode(), results.back());
+            rpc::GcsPublishMessage message;
+            message.ParseFromString(data);
+            Data data;
+            data.ParseFromString(message.data());
+            subscribe(ID::FromBinary(message.id()), data);
           }
         }
       }
@@ -120,9 +111,9 @@ template class GcsTablePubSub<JobID, JobTableData>;
 template class GcsTablePubSub<ActorID, ActorTableData>;
 template class GcsTablePubSub<TaskID, TaskTableData>;
 template class GcsTablePubSub<TaskID, TaskLeaseData>;
-template class GcsTablePubSub<ObjectID, ObjectTableData>;
+template class GcsTablePubSub<ObjectID, ObjectChanges>;
 template class GcsTablePubSub<ClientID, GcsNodeInfo>;
-template class GcsTablePubSub<ClientID, ResourceMap>;
+template class GcsTablePubSub<ClientID, ResourceChanges>;
 template class GcsTablePubSub<ClientID, HeartbeatTableData>;
 template class GcsTablePubSub<ClientID, HeartbeatBatchTableData>;
 template class GcsTablePubSub<WorkerID, WorkerFailureData>;

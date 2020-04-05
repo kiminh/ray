@@ -69,6 +69,11 @@ message ObjectTableData {
   bytes manager = 2;
 }
 
+message ObjectChanges {
+  GcsChangeMode change_mode = 1;
+  ObjectTableData data = 2;
+}
+
 message TaskReconstructionData {
   // The ID of task.
   bytes task_id = 1;
@@ -287,6 +292,16 @@ message WorkerFailureData {
 
 message ResourceMap {
   map<string, ResourceTableData> items = 1;
+}
+
+message ResourceChanges {
+  GcsChangeMode change_mode = 1;
+  ResourceMap resources = 2;
+}
+
+message GcsPublishMessage {
+  bytes id = 1;
+  bytes data = 2;
 }
 
 message ObjectTableDataList {

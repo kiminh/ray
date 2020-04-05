@@ -47,8 +47,7 @@ void DefaultActorInfoHandler::HandleRegisterActorInfo(
                      << ", actor id = " << actor_id;
     } else {
       RAY_LOG(DEBUG) << "Finished registering actor info, actor id = " << actor_id;
-      RAY_CHECK_OK(actor_pub_.Publish(actor_id, *actor_table_data,
-                                      GcsChangeMode::APPEND_OR_ADD, nullptr));
+      RAY_CHECK_OK(actor_pub_.Publish(actor_id, *actor_table_data, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };
@@ -73,8 +72,7 @@ void DefaultActorInfoHandler::HandleUpdateActorInfo(
                      << ", actor id = " << actor_id;
     } else {
       RAY_LOG(DEBUG) << "Finished updating actor info, actor id = " << actor_id;
-      RAY_CHECK_OK(actor_pub_.Publish(actor_id, *actor_table_data,
-                                      GcsChangeMode::APPEND_OR_ADD, nullptr));
+      RAY_CHECK_OK(actor_pub_.Publish(actor_id, *actor_table_data, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };

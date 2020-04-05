@@ -52,8 +52,10 @@ void DefaultObjectInfoHandler::HandleAddObjectLocation(
                        << ", node id = " << node_id;
         ObjectTableData object_table_data;
         object_table_data.set_manager(node_id.Binary());
-        RAY_CHECK_OK(object_pub_.Publish(object_id, object_table_data,
-                                         GcsChangeMode::APPEND_OR_ADD, nullptr));
+        ObjectChanges object_changes;
+        object_changes.set_change_mode(GcsChangeMode::APPEND_OR_ADD);
+        object_changes.mutable_data()->CopyFrom(object_table_data);
+        RAY_CHECK_OK(object_pub_.Publish(object_id, object_changes, nullptr));
       } else {
         RAY_LOG(ERROR) << "Failed to add object location: " << status.ToString()
                        << ", object id = " << object_id << ", node id = " << node_id;
@@ -102,8 +104,10 @@ void DefaultObjectInfoHandler::HandleRemoveObjectLocation(
                        << ", node id = " << node_id;
         ObjectTableData object_table_data;
         object_table_data.set_manager(node_id.Binary());
-        RAY_CHECK_OK(object_pub_.Publish(object_id, object_table_data,
-                                         GcsChangeMode::REMOVE, nullptr));
+        ObjectChanges object_changes;
+        object_changes.set_change_mode(GcsChangeMode::REMOVE);
+        object_changes.mutable_data()->CopyFrom(object_table_data);
+        RAY_CHECK_OK(object_pub_.Publish(object_id, object_changes, nullptr));
       } else {
         RAY_LOG(ERROR) << "Failed to remove object location: " << status.ToString()
                        << ", object id = " << object_id << ", node id = " << node_id;

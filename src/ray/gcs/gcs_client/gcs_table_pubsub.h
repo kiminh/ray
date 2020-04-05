@@ -12,39 +12,29 @@
 namespace ray {
 namespace gcs {
 
-using rpc::ActorCheckpointData;
-using rpc::ActorCheckpointIdData;
 using rpc::ActorTableData;
-using rpc::ErrorTableData;
-using rpc::GcsChangeMode;
 using rpc::GcsNodeInfo;
 using rpc::HeartbeatBatchTableData;
 using rpc::HeartbeatTableData;
 using rpc::JobTableData;
-using rpc::ObjectTableData;
-using rpc::ObjectTableDataList;
-using rpc::ProfileTableData;
-using rpc::ResourceMap;
-using rpc::ResourceTableData;
+using rpc::ObjectChanges;
+using rpc::ResourceChanges;
 using rpc::TablePubsub;
 using rpc::TaskLeaseData;
-using rpc::TaskReconstructionData;
 using rpc::TaskTableData;
 using rpc::WorkerFailureData;
 
 template <typename ID, typename Data>
 class GcsTablePubSub {
  public:
-  using Callback = std::function<void(const ID &id, const rpc::GcsChangeMode &change_mode,
-                                      const Data &data)>;
+  using Callback = std::function<void(const ID &id, const Data &data)>;
 
   GcsTablePubSub(std::shared_ptr<RedisClient> redis_client)
       : redis_client_(redis_client) {}
 
   virtual ~GcsTablePubSub() = default;
 
-  Status Publish(const ID &id, const Data &data, const GcsChangeMode &change_mode,
-                 const StatusCallback &done);
+  Status Publish(const ID &id, const Data &data, const StatusCallback &done);
 
   Status Subscribe(const ID &id, const Callback &subscribe, const StatusCallback &done);
 
@@ -98,7 +88,7 @@ class GcsTaskLeaseTablePubSub : public GcsTablePubSub<TaskID, TaskLeaseData> {
   }
 };
 
-class GcsObjectTablePubSub : public GcsTablePubSub<ObjectID, ObjectTableData> {
+class GcsObjectTablePubSub : public GcsTablePubSub<ObjectID, ObjectChanges> {
  public:
   explicit GcsObjectTablePubSub(std::shared_ptr<RedisClient> redis_client)
       : GcsTablePubSub(redis_client) {
@@ -114,7 +104,7 @@ class GcsNodeTablePubSub : public GcsTablePubSub<ClientID, GcsNodeInfo> {
   }
 };
 
-class GcsNodeResourceTablePubSub : public GcsTablePubSub<ClientID, ResourceMap> {
+class GcsNodeResourceTablePubSub : public GcsTablePubSub<ClientID, ResourceChanges> {
  public:
   explicit GcsNodeResourceTablePubSub(std::shared_ptr<RedisClient> redis_client)
       : GcsTablePubSub(redis_client) {

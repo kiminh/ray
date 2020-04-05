@@ -18,8 +18,7 @@ void DefaultNodeInfoHandler::HandleRegisterNode(
                      << ", node id = " << node_id;
     } else {
       RAY_LOG(DEBUG) << "Finished registering node info, node id = " << node_id;
-      RAY_CHECK_OK(
-          node_pub_.Publish(node_id, node_info, GcsChangeMode::APPEND_OR_ADD, nullptr));
+      RAY_CHECK_OK(node_pub_.Publish(node_id, node_info, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };
@@ -47,8 +46,7 @@ void DefaultNodeInfoHandler::HandleUnregisterNode(
         RAY_LOG(DEBUG) << "Finished unregistering node info, node id = " << node_id;
         rpc::GcsNodeInfo node_info(*result);
         node_info.set_state(rpc::GcsNodeInfo_GcsNodeState::GcsNodeInfo_GcsNodeState_DEAD);
-        RAY_CHECK_OK(
-            node_pub_.Publish(node_id, node_info, GcsChangeMode::REMOVE, nullptr));
+        RAY_CHECK_OK(node_pub_.Publish(node_id, node_info, nullptr));
       }
       send_reply_callback(status, nullptr, nullptr);
     };
@@ -105,8 +103,7 @@ void DefaultNodeInfoHandler::HandleReportHeartbeat(
                      << ", node id = " << node_id;
     } else {
       RAY_LOG(DEBUG) << "Finished reporting heartbeat, node id = " << node_id;
-      RAY_CHECK_OK(heartbeat_pub_.Publish(node_id, *heartbeat_data,
-                                          GcsChangeMode::APPEND_OR_ADD, nullptr));
+      RAY_CHECK_OK(heartbeat_pub_.Publish(node_id, *heartbeat_data, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };
@@ -134,8 +131,8 @@ void DefaultNodeInfoHandler::HandleReportBatchHeartbeat(
     } else {
       RAY_LOG(DEBUG) << "Finished reporting batch heartbeat, batch size = "
                      << request.heartbeat_batch().batch_size();
-      RAY_CHECK_OK(heartbeat_batch_pub_.Publish(ClientID::Nil(), *heartbeat_batch_data,
-                                                GcsChangeMode::APPEND_OR_ADD, nullptr));
+      RAY_CHECK_OK(
+          heartbeat_batch_pub_.Publish(ClientID::Nil(), *heartbeat_batch_data, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };
@@ -194,11 +191,13 @@ void DefaultNodeInfoHandler::HandleUpdateResources(
       }
 
       auto callback = [this, node_id, request]() {
-        rpc::ResourceMap resource;
-        resource.mutable_items()->insert(request.resources().begin(),
-                                         request.resources().end());
-        RAY_CHECK_OK(node_resource_pub_.Publish(node_id, resource,
-                                                GcsChangeMode::APPEND_OR_ADD, nullptr));
+        rpc::ResourceMap resources;
+        resources.mutable_items()->insert(request.resources().begin(),
+                                          request.resources().end());
+        ResourceChanges resource_changes;
+        resource_changes.set_change_mode(GcsChangeMode::APPEND_OR_ADD);
+        resource_changes.mutable_resources()->CopyFrom(resources);
+        RAY_CHECK_OK(node_resource_pub_.Publish(node_id, resource_changes, nullptr));
       };
 
       UpdateResource(node_id, resource_map, send_reply_callback, callback);
@@ -232,9 +231,11 @@ void DefaultNodeInfoHandler::HandleDeleteResources(
         resource_map.erase(resource_name);
       }
 
-      auto callback = [this, node_id, result]() {
-        RAY_CHECK_OK(
-            node_resource_pub_.Publish(node_id, *result, GcsChangeMode::REMOVE, nullptr));
+      ResourceChanges resource_changes;
+      resource_changes.set_change_mode(GcsChangeMode::REMOVE);
+      resource_changes.mutable_resources()->CopyFrom(*result);
+      auto callback = [this, node_id, resource_changes]() {
+        RAY_CHECK_OK(node_resource_pub_.Publish(node_id, resource_changes, nullptr));
       };
 
       UpdateResource(node_id, resource_map, send_reply_callback, callback);

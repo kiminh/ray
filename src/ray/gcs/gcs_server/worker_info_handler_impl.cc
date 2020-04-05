@@ -13,15 +13,15 @@ void DefaultWorkerInfoHandler::HandleReportWorkerFailure(
   WorkerID worker_id =
       WorkerID::FromBinary(worker_failure_data->worker_address().worker_id());
 
-  auto on_done = [this, worker_address, worker_id, worker_failure_data, send_reply_callback](Status status) {
+  auto on_done = [this, worker_address, worker_id, worker_failure_data,
+                  send_reply_callback](Status status) {
     if (!status.ok()) {
       RAY_LOG(ERROR) << "Failed to report worker failure, "
                      << worker_address.DebugString();
     } else {
       RAY_LOG(DEBUG) << "Finished reporting worker failure, "
                      << worker_address.DebugString();
-      RAY_CHECK_OK(worker_failure_pub_.Publish(worker_id, *worker_failure_data,
-                                               GcsChangeMode::APPEND_OR_ADD, nullptr));
+      RAY_CHECK_OK(worker_failure_pub_.Publish(worker_id, *worker_failure_data, nullptr));
     }
     send_reply_callback(status, nullptr, nullptr);
   };
