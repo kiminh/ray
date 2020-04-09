@@ -41,3 +41,13 @@ string_vec_to_flatbuf(flatbuffers::FlatBufferBuilder &fbb,
   }
   return fbb.CreateVector(flatbuf_str_vec);
 }
+
+flatbuffers::Offset<flatbuffers::String>
+string_to_flatbuf(flatbuffers::FlatBufferBuilder &fbb, const std::string &str) {
+  return fbb.CreateString(str);
+}
+
+flatbuffers::Offset<flatbuffers::String>
+string_to_flatbuf(flatbuffers::FlatBufferBuilder &fbb, const char *data, size_t size) {
+  return fbb.CreateString(data, size);
+}

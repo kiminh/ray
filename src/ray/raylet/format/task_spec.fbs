@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-namespace ray.rpc;
+namespace ray.rpc.flatbuf;
 
 enum TaskType: int {
   // Normal task.
@@ -26,6 +26,7 @@ enum TaskType: int {
 }
 
 // Language of a task or worker.
+// This is defined in common.proto already.
 enum Language: int {
   PYTHON = 0,
   JAVA = 1,
@@ -68,16 +69,6 @@ table Resources {
 }
 
 
-/// Address of a worker or node manager.
-table Address {
-  raylet_id: string;
-  ip_address: string;
-  port: int;
-  // Optional unique id for the worker.
-  worker_id: string;
-}
-
-
 /// The task specification encapsulates all immutable information about the
 /// task. These fields are determined at submission time, converse to the
 /// `TaskExecutionSpec` may change at execution time.
@@ -86,8 +77,9 @@ table TaskSpec {
   type: TaskType;
   // Language of this task.
   language: Language;
-  // Function descriptor of this task uniquely describe the function to execute.
-  function_descriptor: FunctionDescriptor;
+  // The bytes of function descriptor protobuf of this task uniquely describe
+  // the function to execute.
+  function_descriptor: string;
   // ID of the job that this task belongs to.
   job_id: string;
   // Task ID of the task.
@@ -99,10 +91,10 @@ table TaskSpec {
   // Task ID of the caller. This is the same as parent_task_id for non-actors.
   // This is the actor ID (embedded in a nil task ID) for actors.
   caller_id: string;
-  // Address of the caller.
-  caller_address: Address;
+  // The bytes of the caller address.
+  caller_address: string;
   // Task arguments.
-  args: TaskArg;
+  args: [TaskArg];
   // Number of return objects.
   num_returns: int;
   // Quantities of the different resources required by this task.

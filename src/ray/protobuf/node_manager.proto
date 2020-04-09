@@ -21,7 +21,7 @@ import "src/ray/protobuf/common.proto";
 // Request a worker from the raylet with the specified resources.
 message RequestWorkerLeaseRequest {
   // TaskSpec containing the requested resources.
-  TaskSpec resource_spec = 1;
+  bytes resource_spec = 1;
 }
 
 message RequestWorkerLeaseReply {
@@ -90,8 +90,10 @@ message GetNodeStatsReply {
   repeated WorkerStats workers_stats = 1;
   repeated ViewData view_data = 2;
   uint32 num_workers = 3;
-  repeated TaskSpec infeasible_tasks = 4;
-  repeated TaskSpec ready_tasks = 5;
+  // The task spec in flatbuf.
+  repeated bytes infeasible_tasks = 4;
+  // The task spec in flatbuf.
+  repeated bytes ready_tasks = 5;
 }
 
 message GlobalGCRequest {

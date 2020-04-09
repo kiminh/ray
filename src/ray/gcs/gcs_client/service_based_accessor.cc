@@ -14,6 +14,8 @@
 
 #include "ray/gcs/gcs_client/service_based_accessor.h"
 #include "ray/gcs/gcs_client/service_based_gcs_client.h"
+#include "ray/common/task/task_spec.h"
+#include "ray/common/common_protocol.h"
 
 namespace ray {
 namespace gcs {
@@ -552,8 +554,8 @@ ServiceBasedTaskInfoAccessor::ServiceBasedTaskInfoAccessor(
 
 Status ServiceBasedTaskInfoAccessor::AsyncAdd(
     const std::shared_ptr<rpc::TaskTableData> &data_ptr, const StatusCallback &callback) {
-  TaskID task_id = TaskID::FromBinary(data_ptr->task().task_spec().task_id());
-  JobID job_id = JobID::FromBinary(data_ptr->task().task_spec().job_id());
+  TaskID task_id = TaskIdFromBytes(data_ptr->mutable_task()->mutable_task_spec());
+  JobID job_id = JobIdFromBytes(data_ptr->mutable_task()->mutable_task_spec());
   RAY_LOG(DEBUG) << "Adding task, task id = " << task_id << ", job id = " << job_id;
   rpc::AddTaskRequest request;
   request.mutable_task_data()->CopyFrom(*data_ptr);

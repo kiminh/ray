@@ -12,45 +12,64 @@
 #include "ray/common/id.h"
 #include "ray/common/task/scheduling_resources.h"
 #include "ray/common/task/task_common.h"
+#include "ray/raylet/format/task_spec_generated.h"
+#include "ray/common/common_protocol.h"
 
 extern "C" {
 #include "ray/thirdparty/sha256.h"
 }
 
 namespace ray {
+
+/// An unsafe helper to parse the task id from the given bytes of a task spec flatbuf.
+inline TaskID TaskIdFromBytes(std::string *data) {
+  auto *message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(data);
+  return from_flatbuf<TaskID>(*message->task_id());
+}
+
+/// An unsafe helper to parse the job id from the given bytes of a task spec flatbuf.
+inline JobID JobIdFromBytes(std::string *data) {
+  auto *message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(data);
+  return from_flatbuf<JobID>(*message->job_id());
+}
+
+/// An unsafe helper to parse the number returns from the given bytes of a task spec flatbuf.
+inline uint32_t NumReturnsFromBytes(std::string *data) {
+  auto *message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(data);
+  return static_cast<uint32_t>(message->num_returns());
+}
+
 typedef std::pair<ResourceSet, ray::FunctionDescriptor> SchedulingClassDescriptor;
 typedef int SchedulingClass;
 
-/// Wrapper class of protobuf `TaskSpec`, see `common.proto` for details.
-/// TODO(ekl) we should consider passing around std::unique_ptrs<TaskSpecification>
-/// instead `const TaskSpecification`, since this class is actually mutable.
-class TaskSpecification : public MessageWrapper<rpc::TaskSpec> {
+
+ class TaskSpecification {
  public:
   /// Construct an empty task specification. This should not be used directly.
-  TaskSpecification() {}
+  TaskSpecification(const flatbuffers::String &string);
 
-  /// Construct from a protobuf message object.
-  /// The input message will be **copied** into this object.
-  ///
-  /// \param message The protobuf message.
-  explicit TaskSpecification(rpc::TaskSpec message) : MessageWrapper(message) {
-    ComputeResources();
-  }
+   TaskSpecification() {}
 
-  /// Construct from a protobuf message shared_ptr.
-  ///
-  /// \param message The protobuf message.
-  explicit TaskSpecification(std::shared_ptr<rpc::TaskSpec> message)
-      : MessageWrapper(message) {
-    ComputeResources();
-  }
+   TaskSpecification(const uint8_t *spec, size_t spec_size) {
+     AssignSpecification(spec, spec_size);
+   }
 
-  /// Construct from protobuf-serialized binary.
+   explicit TaskSpecification(const std::string &serialized_binary) {
+     AssignSpecification(reinterpret_cast<const uint8_t *>(serialized_binary.data()), serialized_binary.size());
+   }
+
+  /// Serialize the TaskSpecification to a flatbuffer.
   ///
-  /// \param serialized_binary Protobuf-serialized binary.
-  explicit TaskSpecification(const std::string &serialized_binary)
-      : MessageWrapper(serialized_binary) {
-    ComputeResources();
+  /// \param fbb The flatbuffer builder to serialize with.
+  /// \return An offset to the serialized task specification.
+  flatbuffers::Offset<flatbuffers::String> ToFlatbuffer(
+      flatbuffers::FlatBufferBuilder &fbb) const;
+
+  std::string Serialize() const {
+    flatbuffers::FlatBufferBuilder fbb;
+    auto string = ToFlatbuffer(fbb);
+    fbb.Finish(string);
+    return std::string(fbb.GetBufferPointer(), fbb.GetBufferPointer() + fbb.GetSize());
   }
 
   // TODO(swang): Finalize and document these methods.
@@ -174,15 +193,36 @@ class TaskSpecification : public MessageWrapper<rpc::TaskSpec> {
 
   static SchedulingClassDescriptor &GetSchedulingClassDescriptor(SchedulingClass id);
 
- private:
-  void ComputeResources();
+  /// Get a pointer to the byte data.
+  const uint8_t *Data() const {
+    return spec_.data();
+  }
+
+  /// Get the size in bytes of the task specification.
+  size_t Size() const {
+    return spec_.size();
+  }
+
+  private:
+  /// Assign the specification data from a pointer.
+  void AssignSpecification(const uint8_t *spec, size_t spec_size) {
+    spec_.assign(spec, spec + spec_size);
+    ComputeResources();
+  }
 
   /// Field storing required resources. Initalized in constructor.
-  /// TODO(ekl) consider optimizing the representation of ResourceSet for fast copies
-  /// instead of keeping shared ptrs here.
   std::shared_ptr<ResourceSet> required_resources_;
   /// Field storing required placement resources. Initalized in constructor.
   std::shared_ptr<ResourceSet> required_placement_resources_;
+  /// caller address.
+  mutable rpc::Address caller_address_;
+  /// The task specification data.
+  std::vector<uint8_t> spec_;
+
+
+
+  void ComputeResources();
+
   /// Cached scheduling class of this task.
   SchedulingClass sched_cls_id_;
 

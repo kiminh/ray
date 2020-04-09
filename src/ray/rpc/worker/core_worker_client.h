@@ -29,6 +29,7 @@
 #include "ray/util/logging.h"
 #include "src/ray/protobuf/core_worker.grpc.pb.h"
 #include "src/ray/protobuf/core_worker.pb.h"
+#include "ray/common/task/task_spec.h"
 
 namespace ray {
 namespace rpc {
@@ -42,8 +43,9 @@ const int64_t kBaseRequestSize = 1024;
 /// Get the estimated size in bytes of the given task.
 const static int64_t RequestSizeInBytes(const PushTaskRequest &request) {
   int64_t size = kBaseRequestSize;
-  for (auto &arg : request.task_spec().args()) {
-    size += arg.data().size();
+  TaskSpecification task_spec(request.task_spec());
+  for (int i = 0; i < task_spec.NumArgs(); ++i) {
+    size += task_spec.ArgDataSize(i);
   }
   return size;
 }
@@ -222,13 +224,14 @@ class CoreWorkerClient : public std::enable_shared_from_this<CoreWorkerClient>,
 
   ray::Status PushActorTask(std::unique_ptr<PushTaskRequest> request,
                             const ClientCallback<PushTaskReply> &callback) override {
-    request->set_sequence_number(request->task_spec().actor_task_spec().actor_counter());
+    TaskSpecification task_spec(request->task_spec());
+    request->set_sequence_number(task_spec.ActorCounter());
     {
       std::lock_guard<std::mutex> lock(mutex_);
-      if (request->task_spec().caller_id() != cur_caller_id_) {
+      if (task_spec.CallerId().Binary() != cur_caller_id_) {
         // We are running a new task, reset the seq no counter.
         max_finished_seq_no_ = -1;
-        cur_caller_id_ = request->task_spec().caller_id();
+        cur_caller_id_ = task_spec.CallerId().Binary();
       }
       send_queue_.push_back(std::make_pair(std::move(request), callback));
     }

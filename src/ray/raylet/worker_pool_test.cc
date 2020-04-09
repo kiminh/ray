@@ -170,21 +170,22 @@ static inline TaskSpecification ExampleTaskSpec(
     const ActorID actor_id = ActorID::Nil(), const Language &language = Language::PYTHON,
     const ActorID actor_creation_id = ActorID::Nil(),
     const std::vector<std::string> &dynamic_worker_options = {}) {
-  rpc::TaskSpec message;
-  message.set_language(language);
-  if (!actor_id.IsNil()) {
-    message.set_type(TaskType::ACTOR_TASK);
-    message.mutable_actor_task_spec()->set_actor_id(actor_id.Binary());
-  } else if (!actor_creation_id.IsNil()) {
-    message.set_type(TaskType::ACTOR_CREATION_TASK);
-    message.mutable_actor_creation_task_spec()->set_actor_id(actor_creation_id.Binary());
-    for (const auto &option : dynamic_worker_options) {
-      message.mutable_actor_creation_task_spec()->add_dynamic_worker_options(option);
-    }
-  } else {
-    message.set_type(TaskType::NORMAL_TASK);
-  }
-  return TaskSpecification(std::move(message));
+//  rpc::flatbuf::TaskSpec message;
+//  message.set_language(language);
+//  if (!actor_id.IsNil()) {
+//    message.set_type(TaskType::ACTOR_TASK);
+//    message.mutable_actor_task_spec()->set_actor_id(actor_id.Binary());
+//  } else if (!actor_creation_id.IsNil()) {
+//    message.set_type(TaskType::ACTOR_CREATION_TASK);
+//    message.mutable_actor_creation_task_spec()->set_actor_id(actor_creation_id.Binary());
+//    for (const auto &option : dynamic_worker_options) {
+//      message.mutable_actor_creation_task_spec()->add_dynamic_worker_options(option);
+//    }
+//  } else {
+//    message.set_type(TaskType::NORMAL_TASK);
+//  }
+//  return TaskSpecification(std::move(message));
+  return TaskSpecification();
 }
 
 TEST_F(WorkerPoolTest, CompareWorkerProcessObjects) {

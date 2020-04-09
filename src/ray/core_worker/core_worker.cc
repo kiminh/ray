@@ -384,7 +384,8 @@ CoreWorker::CoreWorker(const CoreWorkerOptions &options, const WorkerID &worker_
                               GetCallerId(), rpc_address_);
 
     std::shared_ptr<gcs::TaskTableData> data = std::make_shared<gcs::TaskTableData>();
-    data->mutable_task()->mutable_task_spec()->CopyFrom(builder.Build().GetMessage());
+    auto task_spec = builder.Build();
+    data->mutable_task()->set_task_spec(reinterpret_cast<const char *>(task_spec.Data()), task_spec.Size());
     if (!options_.is_local_mode) {
       RAY_CHECK_OK(gcs_client_->Tasks().AsyncAdd(data, nullptr));
     }

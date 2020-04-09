@@ -1524,9 +1524,7 @@ void NodeManager::ProcessSubmitTaskMessage(const uint8_t *message_data) {
   // Read the task submitted by the client.
   auto fbs_message = flatbuffers::GetRoot<protocol::SubmitTaskRequest>(message_data);
   rpc::Task task_message;
-  RAY_CHECK(task_message.mutable_task_spec()->ParseFromArray(
-      fbs_message->task_spec()->data(), fbs_message->task_spec()->size()));
-
+  task_message.set_task_spec(fbs_message->task_spec()->data(), fbs_message->task_spec()->size());
   // Submit the task to the raylet. Since the task was submitted
   // locally, there is no uncommitted lineage.
   SubmitTask(Task(task_message), Lineage());
@@ -1652,7 +1650,7 @@ void NodeManager::HandleRequestWorkerLease(const rpc::RequestWorkerLeaseRequest 
                                            rpc::RequestWorkerLeaseReply *reply,
                                            rpc::SendReplyCallback send_reply_callback) {
   rpc::Task task_message;
-  task_message.mutable_task_spec()->CopyFrom(request.resource_spec());
+  task_message.set_task_spec(request.resource_spec());
   Task task(task_message);
   bool is_actor_creation_task = task.GetTaskSpecification().IsActorCreationTask();
   ActorID actor_id = ActorID::Nil();
@@ -1663,8 +1661,7 @@ void NodeManager::HandleRequestWorkerLease(const rpc::RequestWorkerLeaseRequest 
     // Save the actor creation task spec to GCS, which is needed to
     // reconstruct the actor when raylet detect it dies.
     std::shared_ptr<rpc::TaskTableData> data = std::make_shared<rpc::TaskTableData>();
-    data->mutable_task()->mutable_task_spec()->CopyFrom(
-        task.GetTaskSpecification().GetMessage());
+    data->mutable_task()->set_task_spec(task.GetTaskSpecification().Serialize());
     RAY_CHECK_OK(gcs_client_->Tasks().AsyncAdd(data, nullptr));
   }
 
@@ -2571,8 +2568,7 @@ std::shared_ptr<ActorTableData> NodeManager::CreateActorTableDataFromCreationTas
     // of remaining reconstructions is the max.
     actor_info_ptr->set_remaining_reconstructions(task_spec.MaxActorReconstructions());
     actor_info_ptr->set_is_detached(task_spec.IsDetachedActor());
-    actor_info_ptr->mutable_owner_address()->CopyFrom(
-        task_spec.GetMessage().caller_address());
+    actor_info_ptr->mutable_owner_address()->CopyFrom(task_spec.CallerAddress());
   } else {
     // If we've already seen this actor, it means that this actor was reconstructed.
     // Thus, its previous state must be RECONSTRUCTING.
@@ -3071,8 +3067,7 @@ void NodeManager::ForwardTask(
   request.set_task_id(task_id.Binary());
   for (auto &task_entry : uncommitted_lineage.GetEntries()) {
     auto task = request.add_uncommitted_tasks();
-    task->mutable_task_spec()->CopyFrom(
-        task_entry.second.TaskData().GetTaskSpecification().GetMessage());
+    task->set_task_spec(task_entry.second.TaskData().GetTaskSpecification().Data(), task_entry.second.TaskData().GetTaskSpecification().Size());
     task->mutable_task_execution_spec()->CopyFrom(
         task_entry.second.TaskData().GetTaskExecutionSpec().GetMessage());
   }
@@ -3392,8 +3387,7 @@ void NodeManager::HandleGetNodeStats(const rpc::GetNodeStatsRequest &node_stats_
   // TODO(sang): Support dashboard for non-ActorCreationTask.
   for (const auto task : local_queues_.GetTasks(TaskState::INFEASIBLE)) {
     if (task.GetTaskSpecification().IsActorCreationTask()) {
-      auto infeasible_task = reply->add_infeasible_tasks();
-      infeasible_task->ParseFromString(task.GetTaskSpecification().Serialize());
+      reply->add_infeasible_tasks(task.GetTaskSpecification().Serialize());
     }
   }
   // Report tasks that are not scheduled because
@@ -3402,8 +3396,7 @@ void NodeManager::HandleGetNodeStats(const rpc::GetNodeStatsRequest &node_stats_
   // like PENDING_UNTIL_RESOURCE_AVAILABLE.
   for (const auto task : local_queues_.GetTasks(TaskState::READY)) {
     if (task.GetTaskSpecification().IsActorCreationTask()) {
-      auto ready_task = reply->add_ready_tasks();
-      ready_task->ParseFromString(task.GetTaskSpecification().Serialize());
+      reply->add_ready_tasks(task.GetTaskSpecification().Serialize());
     }
   }
   // Ensure we never report an empty set of metrics.

@@ -663,7 +663,6 @@ TEST_F(ZeroNodeTest, TestTaskSpecPerf) {
     TaskOptions options{1, resources};
     std::vector<ObjectID> return_ids;
     auto num_returns = options.num_returns;
-
     TaskSpecBuilder builder;
     builder.SetCommonTaskSpec(RandomTaskId(), function.GetLanguage(),
                               function.GetFunctionDescriptor(), job_id, RandomTaskId(), 0,
@@ -676,14 +675,11 @@ TEST_F(ZeroNodeTest, TestTaskSpecPerf) {
         builder.AddByValueArg(arg.GetValue());
       }
     }
-
     actor_handle.SetActorTaskSpec(builder, ObjectID::FromRandom());
-
     auto task_spec = builder.Build();
-
     ASSERT_TRUE(task_spec.IsActorTask());
     auto request = std::unique_ptr<rpc::PushTaskRequest>(new rpc::PushTaskRequest);
-    request->mutable_task_spec()->Swap(&task_spec.GetMutableMessage());
+    request->set_task_spec(reinterpret_cast<const char *>(task_spec.Data()), task_spec.Size());
   }
   RAY_LOG(INFO) << "Finish creating " << num_tasks << " PushTaskRequests"
                 << ", which takes " << current_time_ms() - start_ms << " ms";

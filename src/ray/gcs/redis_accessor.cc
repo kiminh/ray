@@ -17,6 +17,7 @@
 #include "ray/gcs/pb_util.h"
 #include "ray/gcs/redis_gcs_client.h"
 #include "ray/util/logging.h"
+#include "ray/common/common_protocol.h"
 
 namespace ray {
 
@@ -335,8 +336,7 @@ Status RedisTaskInfoAccessor::AsyncAdd(const std::shared_ptr<TaskTableData> &dat
     on_done = [callback](RedisGcsClient *client, const TaskID &task_id,
                          const TaskTableData &data) { callback(Status::OK()); };
   }
-
-  TaskID task_id = TaskID::FromBinary(data_ptr->task().task_spec().task_id());
+  auto task_id = TaskIdFromBytes(data_ptr->mutable_task()->mutable_task_spec());
   raylet::TaskTable &task_table = client_impl_->raylet_task_table();
   return task_table.Add(task_id.JobId(), task_id, data_ptr, on_done);
 }

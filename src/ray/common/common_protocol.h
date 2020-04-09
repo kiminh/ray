@@ -20,6 +20,8 @@
 
 #include "ray/common/id.h"
 #include "ray/util/logging.h"
+#include "ray/raylet/format/task_spec_generated.h"
+
 
 /// Convert an unique ID to a flatbuffer string.
 ///
@@ -113,6 +115,13 @@ flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>
 string_vec_to_flatbuf(flatbuffers::FlatBufferBuilder &fbb,
                       const std::vector<std::string> &string_vector);
 
+flatbuffers::Offset<flatbuffers::String>
+string_to_flatbuf(flatbuffers::FlatBufferBuilder &fbb, const std::string &str);
+
+
+flatbuffers::Offset<flatbuffers::String>
+string_to_flatbuf(flatbuffers::FlatBufferBuilder &fbb, const char *data, size_t size);
+
 template <typename ID>
 flatbuffers::Offset<flatbuffers::String> to_flatbuf(flatbuffers::FlatBufferBuilder &fbb,
                                                     ID id) {
@@ -200,6 +209,16 @@ to_flatbuf(flatbuffers::FlatBufferBuilder &fbb, const std::unordered_set<ID> &id
     results.push_back(to_flatbuf(fbb, id));
   }
   return fbb.CreateVector(results);
+}
+
+inline flatbuffers::Offset<ray::rpc::flatbuf::Resources> ToFlatbufResources(flatbuffers::FlatBufferBuilder &fbb, const std::unordered_map<std::string, double> resources_map) {
+  std::vector<flatbuffers::Offset<flatbuffers::String>> resource_names;
+  std::vector<double> resource_capacities;
+  for (const auto &resource : resources_map) {
+    resource_names.push_back(fbb.CreateString(resource.first));
+    resource_capacities.push_back(resource.second);
+  }
+  return ray::rpc::flatbuf::CreateResources(fbb, fbb.CreateVector(resource_names), fbb.CreateVector(resource_capacities));
 }
 
 #endif

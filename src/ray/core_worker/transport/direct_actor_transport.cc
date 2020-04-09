@@ -17,6 +17,7 @@
 #include <thread>
 
 #include "ray/common/task/task.h"
+#include "ray/core_worker/core_worker.h"
 
 using ray::rpc::ActorTableData;
 
@@ -75,7 +76,7 @@ Status CoreWorkerDirectActorTaskSubmitter::SubmitTask(TaskSpecification task_spe
     // NOTE(swang): CopyFrom is needed because if we use Swap here and the task
     // fails, then the task data will be gone when the TaskManager attempts to
     // access the task.
-    request->mutable_task_spec()->CopyFrom(task_spec.GetMessage());
+    request->set_task_spec(reinterpret_cast<const char *>(task_spec.Data()), task_spec.Size());
     request->set_caller_version(caller_creation_timestamp_ms_);
 
     absl::MutexLock lock(&mu_);
@@ -134,7 +135,7 @@ void CoreWorkerDirectActorTaskSubmitter::DisconnectActor(const ActorID &actor_id
       while (head != pending_it->second.end()) {
         auto request = std::move(head->second);
         head = pending_it->second.erase(head);
-        auto task_id = TaskID::FromBinary(request->task_spec().task_id());
+        auto task_id = TaskIdFromBytes(request->mutable_task_spec());
         auto status = Status::IOError("cancelling all pending tasks of dead actor");
         task_finisher_->PendingTaskFailed(task_id, rpc::ErrorType::ACTOR_DIED, &status);
       }
@@ -169,8 +170,8 @@ void CoreWorkerDirectActorTaskSubmitter::SendPendingTasks(const ActorID &actor_i
     auto request = std::move(head->second);
     head = requests.erase(head);
 
-    auto num_returns = request->task_spec().num_returns();
-    auto task_id = TaskID::FromBinary(request->task_spec().task_id());
+    auto num_returns = NumReturnsFromBytes(request->mutable_task_spec());
+    auto task_id = TaskIdFromBytes(request->mutable_task_spec());
     PushActorTask(*client, std::move(request), actor_id, task_id, num_returns);
   }
 }
