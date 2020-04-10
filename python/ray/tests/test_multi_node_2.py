@@ -188,7 +188,7 @@ def test_worker_plasma_store_failure(ray_start_cluster_head):
     cluster = ray_start_cluster_head
     worker = cluster.add_node()
     cluster.wait_for_nodes()
-    worker.kill_reporter()
+    worker.kill_agent()
     worker.kill_plasma_store()
     if ray_constants.PROCESS_TYPE_REAPER in worker.all_processes:
         worker.kill_reaper()

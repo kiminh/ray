@@ -136,7 +136,7 @@ class WorkerPoolTest : public ::testing::Test {
                 static_cast<int>(desired_initial_worker_process_count));
     Process last_started_worker_process;
     for (int i = 0; i < desired_initial_worker_process_count; i++) {
-      worker_pool_.StartWorkerProcess(language);
+      worker_pool_.StartWorkerProcess(language, JobID::Nil());
       ASSERT_TRUE(worker_pool_.NumWorkerProcessesStarting() <=
                   expected_worker_process_count);
       Process prev = worker_pool_.LastStartedWorkerProcess();
@@ -202,7 +202,7 @@ TEST_F(WorkerPoolTest, CompareWorkerProcessObjects) {
 }
 
 TEST_F(WorkerPoolTest, HandleWorkerRegistration) {
-  Process proc = worker_pool_.StartWorkerProcess(Language::JAVA);
+  Process proc = worker_pool_.StartWorkerProcess(Language::JAVA, JobID::Nil());
   std::vector<std::shared_ptr<Worker>> workers;
   for (int i = 0; i < NUM_WORKERS_PER_PROCESS_JAVA; i++) {
     workers.push_back(CreateWorker(Process(), Language::JAVA));
@@ -328,7 +328,7 @@ TEST_F(WorkerPoolTest, StartWorkerWithDynamicOptionsCommand) {
   TaskSpecification task_spec = ExampleTaskSpec(
       ActorID::Nil(), Language::JAVA,
       ActorID::Of(job_id, TaskID::ForDriverTask(job_id), 1), {"test_op_0", "test_op_1"});
-  worker_pool_.StartWorkerProcess(Language::JAVA, task_spec.DynamicWorkerOptions());
+  worker_pool_.StartWorkerProcess(Language::JAVA, JobID::Nil(), task_spec.DynamicWorkerOptions());
   const auto real_command =
       worker_pool_.GetWorkerCommand(worker_pool_.LastStartedWorkerProcess());
   ASSERT_EQ(real_command,

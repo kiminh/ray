@@ -43,4 +43,6 @@ constexpr char kWorkerDynamicOptionPlaceholderPrefix[] =
 
 constexpr char kWorkerRayletConfigPlaceholder[] = "RAY_WORKER_RAYLET_CONFIG_PLACEHOLDER";
 
+constexpr char kWorkerCommandJobIdPlaceholder[] = "{job_id}";
+
 #endif  // RAY_CONSTANTS_H_

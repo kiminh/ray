@@ -3,8 +3,8 @@ import threading
 import traceback
 import time
 
-from ray.dashboard.metrics_exporter import api
-from ray.dashboard.metrics_exporter.actions import ActionHandler
+from ray.dashboard.modules.metrics_exporter import api
+from ray.dashboard.modules.metrics_exporter.actions import ActionHandler
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ class Exporter(threading.Thread):
         while True:
             try:
                 time.sleep(self.update_frequency)
-                self.export(self.dashboard_controller.get_ray_config(),
+                self.export(self.dashboard_controller._get_ray_config(),
                             self.dashboard_controller.get_node_info(),
                             self.dashboard_controller.get_raylet_info(),
                             self.dashboard_controller.tune_info(),

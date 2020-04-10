@@ -118,7 +118,7 @@ RESOURCE_DEADLOCK_ERROR = "resource_deadlock"
 REMOVED_NODE_ERROR = "node_removed"
 MONITOR_DIED_ERROR = "monitor_died"
 LOG_MONITOR_DIED_ERROR = "log_monitor_died"
-REPORTER_DIED_ERROR = "reporter_died"
+DASHBOARD_AGENT_DIED_ERROR = "dashboard_agent_died"
 DASHBOARD_DIED_ERROR = "dashboard_died"
 RAYLET_CONNECTION_ERROR = "raylet_connection_error"
 
@@ -142,9 +142,6 @@ AUTOSCALER_UPDATE_INTERVAL_S = env_integer("AUTOSCALER_UPDATE_INTERVAL_S", 5)
 # in more than this interval.
 AUTOSCALER_HEARTBEAT_TIMEOUT_S = env_integer("AUTOSCALER_HEARTBEAT_TIMEOUT_S",
                                              30)
-
-# The reporter will report its statistics this often (milliseconds).
-REPORTER_UPDATE_INTERVAL_MS = env_integer("REPORTER_UPDATE_INTERVAL_MS", 2500)
 
 # Max number of retries to AWS (default is 5, time increases exponentially)
 BOTO_MAX_RETRIES = env_integer("BOTO_MAX_RETRIES", 12)
@@ -170,6 +167,7 @@ PROCESS_TYPE_MONITOR = "monitor"
 PROCESS_TYPE_RAYLET_MONITOR = "raylet_monitor"
 PROCESS_TYPE_LOG_MONITOR = "log_monitor"
 PROCESS_TYPE_REPORTER = "reporter"
+PROCESS_TYPE_DASHBOARD_AGENT = "dashboard_agent"
 PROCESS_TYPE_DASHBOARD = "dashboard"
 PROCESS_TYPE_WORKER = "worker"
 PROCESS_TYPE_RAYLET = "raylet"

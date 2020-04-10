@@ -1036,12 +1036,12 @@ def start_log_monitor(redis_address,
     return process_info
 
 
-def start_reporter(redis_address,
-                   stdout_file=None,
-                   stderr_file=None,
-                   redis_password=None,
-                   fate_share=None):
-    """Start a reporter process.
+def start_dashboard_agent(redis_address,
+                          stdout_file=None,
+                          stderr_file=None,
+                          redis_password=None,
+                          fate_share=None):
+    """Start a operation agent process.
 
     Args:
         redis_address (str): The address of the Redis instance.
@@ -1055,7 +1055,8 @@ def start_reporter(redis_address,
         ProcessInfo for the process that was started.
     """
     reporter_filepath = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "reporter.py")
+        os.path.dirname(os.path.abspath(__file__)),
+        "dashboard/agent.py")
     command = [
         sys.executable, "-u", reporter_filepath,
         "--redis-address={}".format(redis_address)
@@ -1065,7 +1066,7 @@ def start_reporter(redis_address,
 
     process_info = start_ray_process(
         command,
-        ray_constants.PROCESS_TYPE_REPORTER,
+        ray_constants.PROCESS_TYPE_DASHBOARD_AGENT,
         stdout_file=stdout_file,
         stderr_file=stderr_file,
         fate_share=fate_share)
@@ -1288,7 +1289,9 @@ def start_raylet(redis_address,
 
     # Create the command that the Raylet will use to start workers.
     start_worker_command = [
-        sys.executable, worker_path,
+        # TODO(fyrestone): use job config.
+        "/tmp/ray/job/{job_id}/pyenv/bin/python",
+        worker_path,
         "--node-ip-address={}".format(node_ip_address),
         "--node-manager-port={}".format(node_manager_port),
         "--object-store-name={}".format(plasma_store_name),

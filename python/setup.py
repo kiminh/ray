@@ -173,6 +173,7 @@ def find_version(*filepath):
 
 requires = [
     "aiohttp",
+    "aioredis",
     "click",
     "colorama",
     "filelock",
@@ -185,6 +186,7 @@ requires = [
     "py-spy >= 0.2.0",
     "pyyaml",
     "redis >= 3.3.2",
+    "virtualenv",
 ]
 
 setup(

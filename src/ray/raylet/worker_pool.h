@@ -175,10 +175,12 @@ class WorkerPool {
   /// any workers.
   ///
   /// \param language Which language this worker process should be.
+  /// \param job_id Which job this worker process should be.
   /// \param dynamic_options The dynamic options that we should add for worker command.
   /// \return The id of the process that we started if it's positive,
   /// otherwise it means we didn't start a process.
   Process StartWorkerProcess(const Language &language,
+                             const JobID &job_id,
                              const std::vector<std::string> &dynamic_options = {});
 
   /// The implementation of how to start a new worker process with command arguments.
