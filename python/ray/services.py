@@ -1072,6 +1072,43 @@ def start_reporter(redis_address,
     return process_info
 
 
+def start_operation_agent(redis_address,
+                          stdout_file=None,
+                          stderr_file=None,
+                          redis_password=None,
+                          fate_share=None):
+    """Start a operation agent process.
+
+    Args:
+        redis_address (str): The address of the Redis instance.
+        stdout_file: A file handle opened for writing to redirect stdout to. If
+            no redirection should happen, then this should be None.
+        stderr_file: A file handle opened for writing to redirect stderr to. If
+            no redirection should happen, then this should be None.
+        redis_password (str): The password of the redis server.
+
+    Returns:
+        ProcessInfo for the process that was started.
+    """
+    reporter_filepath = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "operation_agent/operation_agent.py")
+    command = [
+        sys.executable, "-u", reporter_filepath,
+        "--redis-address={}".format(redis_address)
+    ]
+    if redis_password:
+        command += ["--redis-password", redis_password]
+
+    process_info = start_ray_process(
+        command,
+        ray_constants.PROCESS_TYPE_OPERATION_AGENT,
+        stdout_file=stdout_file,
+        stderr_file=stderr_file,
+        fate_share=fate_share)
+    return process_info
+
+
 def start_dashboard(require_webui,
                     host,
                     redis_address,

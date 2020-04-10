@@ -6,6 +6,7 @@ except ImportError:
     sys.exit(1)
 
 import argparse
+import asyncio
 import copy
 import datetime
 import errno
@@ -33,6 +34,8 @@ from ray.core.generated import node_manager_pb2
 from ray.core.generated import node_manager_pb2_grpc
 from ray.core.generated import reporter_pb2
 from ray.core.generated import reporter_pb2_grpc
+from ray.core.generated import operation_pb2
+from ray.core.generated import operation_pb2_grpc
 from ray.core.generated import core_worker_pb2
 from ray.core.generated import core_worker_pb2_grpc
 from ray.dashboard.interface import BaseDashboardController
@@ -121,9 +124,16 @@ async def json_response(is_dev, result=None, error=None,
 
 class DashboardController(BaseDashboardController):
     def __init__(self, redis_address, redis_password):
+        nodes_lock = threading.Lock()
         self.node_stats = NodeStats(redis_address, redis_password)
         self.raylet_stats = RayletStats(
-            redis_address, redis_password=redis_password)
+            redis_address,
+            redis_password=redis_password,
+            nodes_lock=nodes_lock)
+        self.operation_manager = OperationManager(
+            redis_address,
+            redis_password=redis_password,
+            nodes_lock=nodes_lock)
         if Analysis is not None:
             self.tune_stats = TuneCollector(DEFAULT_RESULTS_DIR, 2.0)
 
@@ -261,6 +271,7 @@ class DashboardController(BaseDashboardController):
     def start_collecting_metrics(self):
         self.node_stats.start()
         self.raylet_stats.start()
+        self.operation_manager.start()
         if Analysis is not None:
             self.tune_stats.start()
 
@@ -814,8 +825,8 @@ class NodeStats(threading.Thread):
 
 
 class RayletStats(threading.Thread):
-    def __init__(self, redis_address, redis_password=None):
-        self.nodes_lock = threading.Lock()
+    def __init__(self, redis_address, redis_password=None, nodes_lock=None):
+        self.nodes_lock = nodes_lock or threading.Lock()
         self.nodes = []
         self.stubs = {}
         self.reporter_stubs = {}
@@ -1080,6 +1091,53 @@ class TuneCollector(threading.Thread):
             details["job_id"] = job_name
 
         return trial_details
+
+
+class OperationManager(threading.Thread):
+    def __init__(self, redis_address, redis_password=None, nodes_lock=None):
+        self.nodes_lock = nodes_lock or threading.Lock()
+        self.redis_key = "{}.*".format(ray.gcs_utils.REPORTER_CHANNEL)
+        self.redis_client = ray.services.create_redis_client(
+            redis_address, password=redis_password)
+        self.nodes = []
+        self.agent_stubs = {}
+        self._update_agents()
+        super().__init__()
+
+    def _update_agents(self):
+        with self.nodes_lock:
+            self.nodes = ray.nodes()
+            node_ids = [node["NodeID"] for node in self.nodes]
+
+            # First remove node connections of disconnected nodes.
+            for node_id in self.agent_stubs.keys():
+                if node_id not in node_ids:
+                    reporter_stub = self.agent_stubs.pop(node_id)
+                    reporter_stub.close()
+
+            # Now add node connections of new nodes.
+            for node in self.nodes:
+                node_id = node["NodeID"]
+                if node_id in self.agent_stubs:
+                    continue
+
+                node_ip = node["NodeManagerAddress"]
+                # Block wait until the reporter for the node starts.
+                agent_port = self.redis_client.get(
+                    "OPERATION_AGENT_PORT:{}".format(node_ip))
+                if not agent_port:
+                    continue
+
+                agent_channel = grpc.insecure_channel("{}:{}".format(
+                    node_ip, int(agent_port)))
+                agent_stub = operation_pb2_grpc.OperationAgentServiceStub(
+                    agent_channel)
+                self.agent_stubs[node_id] = agent_stub
+
+    def run(self) -> None:
+        while True:
+            time.sleep(10.0)
+            self._update_agents()
 
 
 if __name__ == "__main__":

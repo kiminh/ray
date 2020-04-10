@@ -1,0 +1,79 @@
+// Copyright 2017 The Ray Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package ray.rpc;
+
+import "src/ray/protobuf/common.proto";
+
+enum JobState {
+    SUBMITTED = 0;
+    // Job resources are ready.
+    READY = 1;
+    // Job is running.
+    RUNNING = 2;
+    // Job completed successfully.
+    COMPLETED = 3;
+    // Job canceled by user.
+    CANCELED = 4;
+    // Job failed.
+    FAILED = 5;
+}
+
+message Job {
+  // The job ID.
+  bytes job_id = 1;
+  // The job language.
+  Language language = 2;
+  // A human readable name of this job which doesn't have to be unique.
+  string name = 3;
+  // A human readable string to indicate the owner of this job.
+  string owner = 4;
+  // The url of this job code package which we should download on demand.
+  string package_url = 5;
+  // The entrance which we should run.
+  // It's main class name for Java and it's script name for python.
+  string driver_entry = 6;
+  // Current state of this job.
+  JobState state = 7;
+  // Config of this job.
+  string config_json = 8;
+  // IP of the node this job was started on.
+  string node_manager_address = 9;
+  // Job submitted time.
+  double submit_time = 10;
+  // Job start time.
+  double start_time = 11;
+  // Job end time.
+  double end_time = 12;
+}
+
+message StartJobRequest {
+  // The job ID.
+  bytes job_id = 1;
+}
+
+message StartJobReply {
+  // The job ID.
+  bytes job_id = 1;
+  // Current state of this job.
+  JobState state = 2;
+}
+
+// Service for communicating with the operation_agent.py process on a remote node.
+service OperationAgentService {
+  // Start job.
+  rpc StartJob(StartJobRequest) returns (StartJobReply);
+}

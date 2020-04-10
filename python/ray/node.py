@@ -484,6 +484,22 @@ class Node:
                 process_info
             ]
 
+    def start_operation_agent(self):
+        """Start the operation agent."""
+        stdout_file, stderr_file = self.new_log_files("operation_agent", True)
+        process_info = ray.services.start_operation_agent(
+            self.redis_address,
+            stdout_file=stdout_file,
+            stderr_file=stderr_file,
+            redis_password=self._ray_params.redis_password,
+            fate_share=self.kernel_fate_share)
+        assert ray_constants.PROCESS_TYPE_OPERATION_AGENT not in \
+            self.all_processes
+        if process_info is not None:
+            self.all_processes[ray_constants.PROCESS_TYPE_OPERATION_AGENT] = [
+                process_info
+            ]
+
     def start_dashboard(self, require_webui):
         """Start the dashboard.
 
@@ -647,6 +663,7 @@ class Node:
         self.start_plasma_store()
         self.start_raylet()
         self.start_reporter()
+        self.start_operation_agent()
 
         if self._ray_params.include_log_monitor:
             self.start_log_monitor()
