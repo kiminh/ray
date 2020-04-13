@@ -247,6 +247,12 @@ Process WorkerPool::StartWorkerProcess(const Language &language,
   }
 
   Process proc = StartProcess(worker_command_args);
+  if (!job_id.IsNil()) {
+    // If the pid is reused between processes, the old process must have exited.
+    // So it's safe to bind the pid with another job ID.
+    RAY_LOG(INFO) << "Worker process " << pid << " is bound to job " << job_id;
+    state.worker_pids_to_assigned_jobs[pid] = job_id;
+  }
   RAY_LOG(DEBUG) << "Started worker process of " << workers_to_start
                  << " worker(s) with pid " << proc.GetId();
   MonitorStartingWorkerProcess(proc, language);
@@ -354,15 +360,25 @@ Status WorkerPool::RegisterWorker(const std::shared_ptr<Worker> &worker, pid_t p
   }
 
   state.registered_workers.emplace(std::move(worker));
+
+  auto dedicated_workers_it = state.worker_pids_to_assigned_jobs.find(pid);
+  if (dedicated_workers_it != state.worker_pids_to_assigned_jobs.end()) {
+    // Call `AssignWorkerProcessToJob` after the worker is put in `registered_workers`.
+    AssignWorkerProcessToJob(pid, dedicated_workers_it->second);
+    // We don't call state.worker_pids_to_assigned_jobs.erase(dedicated_workers_it) here
+    // because we allow multi-workers per worker process.
+  }
+
   return Status::OK();
 }
 
-Status WorkerPool::RegisterDriver(const std::shared_ptr<Worker> &driver, int *port) {
+Status WorkerPool::RegisterDriver(const std::shared_ptr<Worker> &driver, const JobID &job_id, int *port) {
   RAY_CHECK(!driver->GetAssignedTaskId().IsNil());
   RAY_RETURN_NOT_OK(GetNextFreePort(port));
   driver->SetAssignedPort(*port);
   auto &state = GetStateForLanguage(driver->GetLanguage());
   state.registered_drivers.insert(std::move(driver));
+  driver->AssignJobId(job_id);
   return Status::OK();
 }
 
@@ -440,10 +456,27 @@ std::shared_ptr<Worker> WorkerPool::PopWorker(const TaskSpecification &task_spec
     }
   } else if (!task_spec.IsActorTask()) {
     // Code path of normal task or actor creation task without dynamic worker options.
-    if (!state.idle.empty()) {
-      worker = std::move(*state.idle.begin());
-      state.idle.erase(state.idle.begin());
-    } else {
+    // Find an available worker which is already assigned to this job.
+    for (auto it = state.idle.begin(); it != state.idle.end(); it++) {
+      if ((*it)->GetAssignedJobId() != task_spec.JobId()) {
+        continue;
+      }
+      worker = std::move(*it);
+      state.idle.erase(it);
+      break;
+    }
+    if (worker == nullptr) {
+      // Find an available worker which is not assigned to any job yet.
+      for (auto it = state.idle.begin(); it != state.idle.end(); it++) {
+        if ((*it)->GetAssignedJobId().IsNil()) {
+          worker = std::move(*it);
+          state.idle.erase(it);
+          AssignWorkerProcessToJob(worker->Pid(), task_spec.JobId());
+          break;
+        }
+      }
+    }
+    if (worker == nullptr) {
       // There are no more non-actor workers available to execute this task.
       // Start a new worker process.
       proc = StartWorkerProcess(task_spec.GetLanguage());
@@ -462,6 +495,9 @@ std::shared_ptr<Worker> WorkerPool::PopWorker(const TaskSpecification &task_spec
     WarnAboutSize();
   }
 
+  if (worker) {
+    RAY_CHECK(worker->GetAssignedJobId() == task_spec.JobId());
+  }
   return worker;
 }
 
@@ -533,6 +569,17 @@ const std::vector<std::shared_ptr<Worker>> WorkerPool::GetAllRegisteredDrivers()
   }
 
   return drivers;
+}
+
+void WorkerPool::AssignWorkerProcessToJob(int pid, const JobID &job_id) {
+  for (auto &state_entry : states_by_lang_) {
+    auto &state = state_entry.second;
+    for (auto &worker : state.registered_workers) {
+      if (worker->Pid() == pid) {
+        worker->AssignJobId(job_id);
+      }
+    }
+  }
 }
 
 void WorkerPool::WarnAboutSize() {

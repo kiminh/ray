@@ -1176,8 +1176,7 @@ void NodeManager::ProcessRegisterClientRequestMessage(
     // Compute a dummy driver task id from a given driver.
     const TaskID driver_task_id = TaskID::ComputeDriverTaskId(worker_id);
     worker->AssignTaskId(driver_task_id);
-    worker->AssignJobId(job_id);
-    Status status = worker_pool_.RegisterDriver(worker, &assigned_port);
+    Status status = worker_pool_.RegisterDriver(worker, job_id, &assigned_port);
     if (status.ok()) {
       local_queues_.AddDriverTaskId(driver_task_id);
       auto job_data_ptr = gcs::CreateJobTableData(
@@ -2693,10 +2692,6 @@ bool NodeManager::FinishAssignedTask(Worker &worker) {
   task_dependency_manager_.UnsubscribeGetDependencies(spec.TaskId());
   task_dependency_manager_.TaskCanceled(task_id);
 
-  // Unset the worker's assigned job Id if this is not an actor.
-  if (!spec.IsActorCreationTask() && !spec.IsActorTask()) {
-    worker.AssignJobId(JobID::Nil());
-  }
   if (!spec.IsActorCreationTask()) {
     // Unset the worker's assigned task. We keep the assigned task ID for
     // direct actor creation calls because this ID is used later if the actor
@@ -3298,7 +3293,6 @@ void NodeManager::FinishAssignTask(const std::shared_ptr<Worker> &worker,
     // We successfully assigned the task to the worker.
     worker->AssignTaskId(spec.TaskId());
     worker->SetOwnerAddress(spec.CallerAddress());
-    worker->AssignJobId(spec.JobId());
     // TODO(swang): For actors with multiple actor handles, to
     // guarantee that tasks are replayed in the same order after a
     // failure, we must update the task's execution dependency to be

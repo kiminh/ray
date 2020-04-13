@@ -86,10 +86,11 @@ class WorkerPool {
   /// Register a new driver.
   ///
   /// \param[in] worker The driver to be registered.
+  /// \param[in] The job ID of the driver.
   /// \param[out] port The port that this driver's gRPC server should listen on.
   /// Returns 0 if the driver should bind on a random port.
   /// \return If the registration is successful.
-  Status RegisterDriver(const std::shared_ptr<Worker> &worker, int *port);
+  Status RegisterDriver(const std::shared_ptr<Worker> &worker, const JobID &job_id, int *port);
 
   /// Get the client connection's registered worker.
   ///
@@ -232,6 +233,8 @@ class WorkerPool {
     std::unordered_map<Process, TaskID> dedicated_workers_to_tasks;
     /// A map for speeding up looking up the pending worker for the given task.
     std::unordered_map<TaskID, Process> tasks_to_dedicated_workers;
+    /// A map for looking up the owner JobId by the pid of worker.
+    std::unordered_map<pid_t, JobID> worker_pids_to_assigned_jobs;
     /// We'll push a warning to the user every time a multiple of this many
     /// worker processes has been started.
     int multiple_for_warning;
@@ -253,6 +256,14 @@ class WorkerPool {
   /// A helper function that returns the reference of the pool state
   /// for a given language.
   State &GetStateForLanguage(const Language &language);
+
+  /// Assign a worker process to a job and do some checks. This is a helper function to
+  /// ensure that all workers in the same process are always assigned to the same job.
+  ///
+  /// \param pid The pid of the worker process.
+  /// \param job_id The job ID of the job to assign to.
+  /// \return Void.
+  void AssignWorkerProcessToJob(int pid, const JobID &job_id);
 
   /// Start a timer to monitor the starting worker process.
   ///
