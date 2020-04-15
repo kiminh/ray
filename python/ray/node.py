@@ -469,21 +469,6 @@ class Node:
             process_info
         ]
 
-    def start_reporter(self):
-        """Start the reporter."""
-        stdout_file, stderr_file = self.new_log_files("reporter", True)
-        process_info = ray.services.start_reporter(
-            self.redis_address,
-            stdout_file=stdout_file,
-            stderr_file=stderr_file,
-            redis_password=self._ray_params.redis_password,
-            fate_share=self.kernel_fate_share)
-        assert ray_constants.PROCESS_TYPE_REPORTER not in self.all_processes
-        if process_info is not None:
-            self.all_processes[ray_constants.PROCESS_TYPE_REPORTER] = [
-                process_info
-            ]
-
     def start_operation_agent(self):
         """Start the operation agent."""
         stdout_file, stderr_file = self.new_log_files("operation_agent", True)
@@ -662,7 +647,6 @@ class Node:
 
         self.start_plasma_store()
         self.start_raylet()
-        self.start_reporter()
         self.start_operation_agent()
 
         if self._ray_params.include_log_monitor:
@@ -793,15 +777,15 @@ class Node:
         self._kill_process_type(
             ray_constants.PROCESS_TYPE_LOG_MONITOR, check_alive=check_alive)
 
-    def kill_reporter(self, check_alive=True):
-        """Kill the reporter.
+    def kill_agent(self, check_alive=True):
+        """Kill the operation agent.
 
         Args:
             check_alive (bool): Raise an exception if the process was already
                 dead.
         """
         self._kill_process_type(
-            ray_constants.PROCESS_TYPE_REPORTER, check_alive=check_alive)
+            ray_constants.PROCESS_TYPE_OPERATION_AGENT, check_alive=check_alive)
 
     def kill_dashboard(self, check_alive=True):
         """Kill the dashboard.

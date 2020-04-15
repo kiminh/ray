@@ -487,8 +487,7 @@ def stop(force, verbose):
         ["ray::", True],  # Python worker.
         ["org.ray.runtime.runner.worker.DefaultWorker", False],  # Java worker.
         ["log_monitor.py", False],
-        ["reporter.py", False],
-        ["operation_agent.py", False],
+        ["agent.py", False],
         ["dashboard.py", False],
         ["ray_process_reaper.py", False],
     ]

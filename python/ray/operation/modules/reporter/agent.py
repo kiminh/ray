@@ -1,18 +1,18 @@
 import argparse
-import logging
-import json
-import os
-import traceback
-import time
+import asyncio
 import datetime
-import grpc
+import json
+import logging
+import os
 import socket
 import subprocess
 import sys
-from concurrent import futures
+import traceback
 
-import ray
 import psutil
+import ray
+import ray.gcs_utils
+import ray.operation.modules.utils as module_utils
 import ray.ray_constants as ray_constants
 import ray.services
 import ray.utils
@@ -29,7 +29,7 @@ class ReporterServer(reporter_pb2_grpc.ReporterServiceServicer):
     def __init__(self):
         pass
 
-    def GetProfilingStats(self, request, context):
+    async def GetProfilingStats(self, request, context):
         pid = request.pid
         duration = request.duration
         profiling_file_path = os.path.join(ray.utils.get_ray_temp_dir(),
@@ -79,11 +79,12 @@ def to_posix_time(dt):
     return (dt - datetime.datetime(1970, 1, 1)).total_seconds()
 
 
+@module_utils.agent
 class Reporter:
     """A monitor process for monitoring Ray nodes.
 
     Attributes:
-        host (str): The hostname of this machine. Used to improve the log
+        hostname (str): The hostname of this machine. Used to improve the log
             messages published to Redis.
         redis_client: A client used to communicate with the Redis server.
     """
@@ -191,15 +192,10 @@ class Reporter:
             jsonify_asdict(stats),
         )
 
-    def run(self):
+    async def run(self, server):
         """Publish the port."""
-        thread_pool = futures.ThreadPoolExecutor(max_workers=10)
-        server = grpc.server(thread_pool, options=(("grpc.so_reuseport", 0), ))
         reporter_pb2_grpc.add_ReporterServiceServicer_to_server(
             ReporterServer(), server)
-        port = server.add_insecure_port("[::]:0")
-        server.start()
-        self.redis_client.set("REPORTER_PORT:{}".format(self.ip), port)
         """Run the reporter."""
         while True:
             try:
@@ -208,7 +204,7 @@ class Reporter:
                 traceback.print_exc()
                 pass
 
-            time.sleep(ray_constants.REPORTER_UPDATE_INTERVAL_MS / 1000)
+            await asyncio.sleep(ray_constants.REPORTER_UPDATE_INTERVAL_MS / 1000)
 
 
 if __name__ == "__main__":
@@ -245,7 +241,7 @@ if __name__ == "__main__":
     reporter = Reporter(args.redis_address, redis_password=args.redis_password)
 
     try:
-        reporter.run()
+        module_utils.run_agent(reporter)
     except Exception as e:
         # Something went wrong, so push an error to all drivers.
         redis_client = ray.services.create_redis_client(
@@ -254,5 +250,5 @@ if __name__ == "__main__":
         message = ("The reporter on node {} failed with the following "
                    "error:\n{}".format(os.uname()[1], traceback_str))
         ray.utils.push_error_to_driver_through_redis(
-            redis_client, ray_constants.REPORTER_DIED_ERROR, message)
+            redis_client, ray_constants.OPERATION_AGENT_DIED_ERROR, message)
         raise e

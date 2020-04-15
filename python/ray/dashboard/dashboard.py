@@ -5,8 +5,8 @@ except ImportError:
     import sys
     sys.exit(1)
 
-import argparse
 import asyncio
+import argparse
 import copy
 import datetime
 import errno
@@ -29,13 +29,10 @@ import grpc
 from google.protobuf.json_format import MessageToDict
 import ray
 import ray.ray_constants as ray_constants
+import ray.operation.master as operation_master
 
 from ray.core.generated import node_manager_pb2
 from ray.core.generated import node_manager_pb2_grpc
-from ray.core.generated import reporter_pb2
-from ray.core.generated import reporter_pb2_grpc
-from ray.core.generated import operation_pb2
-from ray.core.generated import operation_pb2_grpc
 from ray.core.generated import core_worker_pb2
 from ray.core.generated import core_worker_pb2_grpc
 from ray.dashboard.interface import BaseDashboardController
@@ -130,10 +127,9 @@ class DashboardController(BaseDashboardController):
             redis_address,
             redis_password=redis_password,
             nodes_lock=nodes_lock)
-        self.operation_manager = OperationManager(
-            redis_address,
-            redis_password=redis_password,
-            nodes_lock=nodes_lock)
+        self.operation_master = operation_master.OperationMaster(
+            redis_address=redis_address,
+            redis_password=redis_password)
         if Analysis is not None:
             self.tune_stats = TuneCollector(DEFAULT_RESULTS_DIR, 2.0)
 
@@ -249,15 +245,14 @@ class DashboardController(BaseDashboardController):
         return D
 
     def launch_profiling(self, node_id, pid, duration):
-        profiling_id = self.raylet_stats.launch_profiling(
+        return self.operation_master.launch_profiling(
             node_id=node_id, pid=pid, duration=duration)
-        return profiling_id
 
     def check_profiling_status(self, profiling_id):
-        return self.raylet_stats.check_profiling_status(profiling_id)
+        return self.operation_master.check_profiling_status(profiling_id)
 
     def get_profiling_info(self, profiling_id):
-        return self.raylet_stats.get_profiling_info(profiling_id)
+        return self.operation_master.get_profiling_info(profiling_id)
 
     def kill_actor(self, actor_id, ip_address, port):
         return self.raylet_stats.kill_actor(actor_id, ip_address, port)
@@ -271,9 +266,9 @@ class DashboardController(BaseDashboardController):
     def start_collecting_metrics(self):
         self.node_stats.start()
         self.raylet_stats.start()
-        self.operation_manager.start()
         if Analysis is not None:
             self.tune_stats.start()
+        return [self.operation_master.run()]
 
 
 class DashboardRouteHandler(BaseDashboardRouteHandler):
@@ -573,12 +568,14 @@ class Dashboard:
             f.write(url)
         logger.info("Dashboard running on {}".format(url))
 
-    def run(self):
+    async def run(self):
+        coroutines = []
         self.log_dashboard_url()
-        self.dashboard_controller.start_collecting_metrics()
+        coroutines += self.dashboard_controller.start_collecting_metrics()
         if self.metrics_export_address:
             self._start_exporting_metrics()
-        aiohttp.web.run_app(self.app, host=self.host, port=self.port)
+        coroutines.append(aiohttp.web._run_app(self.app, host=self.host, port=self.port))
+        await asyncio.gather(*coroutines)
 
 
 class NodeStats(threading.Thread):
@@ -829,7 +826,6 @@ class RayletStats(threading.Thread):
         self.nodes_lock = nodes_lock or threading.Lock()
         self.nodes = []
         self.stubs = {}
-        self.reporter_stubs = {}
         self.redis_client = ray.services.create_redis_client(
             redis_address, password=redis_password)
 
@@ -851,8 +847,6 @@ class RayletStats(threading.Thread):
                 if node_id not in node_ids:
                     stub = self.stubs.pop(node_id)
                     stub.close()
-                    reporter_stub = self.reporter_stubs.pop(node_id)
-                    reporter_stub.close()
 
             # Now add node connections of new nodes.
             for node in self.nodes:
@@ -864,57 +858,10 @@ class RayletStats(threading.Thread):
                     stub = node_manager_pb2_grpc.NodeManagerServiceStub(
                         channel)
                     self.stubs[node_id] = stub
-                    # Block wait until the reporter for the node starts.
-                    while True:
-                        reporter_port = self.redis_client.get(
-                            "REPORTER_PORT:{}".format(node_ip))
-                        if reporter_port:
-                            break
-                    reporter_channel = grpc.insecure_channel("{}:{}".format(
-                        node_ip, int(reporter_port)))
-                    reporter_stub = reporter_pb2_grpc.ReporterServiceStub(
-                        reporter_channel)
-                    self.reporter_stubs[node_id] = reporter_stub
-
-            assert len(self.stubs) == len(
-                self.reporter_stubs), (self.stubs.keys(),
-                                       self.reporter_stubs.keys())
 
     def get_raylet_stats(self) -> Dict:
         with self._raylet_stats_lock:
             return copy.deepcopy(self._raylet_stats)
-
-    def launch_profiling(self, node_id, pid, duration):
-        profiling_id = str(uuid.uuid4())
-
-        def _callback(reply_future):
-            reply = reply_future.result()
-            with self._raylet_stats_lock:
-                self._profiling_stats[profiling_id] = reply
-
-        reporter_stub = self.reporter_stubs[node_id]
-        reply_future = reporter_stub.GetProfilingStats.future(
-            reporter_pb2.GetProfilingStatsRequest(pid=pid, duration=duration))
-        reply_future.add_done_callback(_callback)
-        return profiling_id
-
-    def check_profiling_status(self, profiling_id):
-        with self._raylet_stats_lock:
-            is_present = profiling_id in self._profiling_stats
-        if not is_present:
-            return {"status": "pending"}
-
-        reply = self._profiling_stats[profiling_id]
-        if reply.stderr:
-            return {"status": "error", "error": reply.stderr}
-        else:
-            return {"status": "finished"}
-
-    def get_profiling_info(self, profiling_id):
-        with self._raylet_stats_lock:
-            profiling_stats = self._profiling_stats.get(profiling_id)
-        assert profiling_stats, "profiling not finished"
-        return json.loads(profiling_stats.profiling_stats)
 
     def kill_actor(self, actor_id, ip_address, port):
         channel = grpc.insecure_channel("{}:{}".format(ip_address, int(port)))
@@ -1093,53 +1040,6 @@ class TuneCollector(threading.Thread):
         return trial_details
 
 
-class OperationManager(threading.Thread):
-    def __init__(self, redis_address, redis_password=None, nodes_lock=None):
-        self.nodes_lock = nodes_lock or threading.Lock()
-        self.redis_key = "{}.*".format(ray.gcs_utils.REPORTER_CHANNEL)
-        self.redis_client = ray.services.create_redis_client(
-            redis_address, password=redis_password)
-        self.nodes = []
-        self.agent_stubs = {}
-        self._update_agents()
-        super().__init__()
-
-    def _update_agents(self):
-        with self.nodes_lock:
-            self.nodes = ray.nodes()
-            node_ids = [node["NodeID"] for node in self.nodes]
-
-            # First remove node connections of disconnected nodes.
-            for node_id in self.agent_stubs.keys():
-                if node_id not in node_ids:
-                    reporter_stub = self.agent_stubs.pop(node_id)
-                    reporter_stub.close()
-
-            # Now add node connections of new nodes.
-            for node in self.nodes:
-                node_id = node["NodeID"]
-                if node_id in self.agent_stubs:
-                    continue
-
-                node_ip = node["NodeManagerAddress"]
-                # Block wait until the reporter for the node starts.
-                agent_port = self.redis_client.get(
-                    "OPERATION_AGENT_PORT:{}".format(node_ip))
-                if not agent_port:
-                    continue
-
-                agent_channel = grpc.insecure_channel("{}:{}".format(
-                    node_ip, int(agent_port)))
-                agent_stub = operation_pb2_grpc.OperationAgentServiceStub(
-                    agent_channel)
-                self.agent_stubs[node_id] = agent_stub
-
-    def run(self) -> None:
-        while True:
-            time.sleep(10.0)
-            self._update_agents()
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=("Parse Redis server for the "
@@ -1198,7 +1098,8 @@ if __name__ == "__main__":
             args.temp_dir,
             redis_password=args.redis_password,
             metrics_export_address=metrics_export_address)
-        dashboard.run()
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(dashboard.run())
     except Exception as e:
         # Something went wrong, so push an error to all drivers.
         redis_client = ray.services.create_redis_client(
