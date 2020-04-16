@@ -656,7 +656,7 @@ TEST_F(ZeroNodeTest, TestTaskSpecPerf) {
   // `PushTaskRequest`, this is to batch performance of TaskSpec
   // creation/copy/destruction.
   int64_t start_ms = current_time_ms();
-  const auto num_tasks = 10000 * 10;
+  const auto num_tasks = 10000 * 100;
   RAY_LOG(INFO) << "start creating " << num_tasks << " PushTaskRequests";
   rpc::Address address;
   for (int i = 0; i < num_tasks; i++) {

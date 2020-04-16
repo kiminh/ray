@@ -19,24 +19,41 @@ class TaskSpecBuilder {
     // Note that this should be invoked before task_spec_builder created.
     auto task_args_offset = fbb_.CreateVector(task_args_);
 
-    task_spec_builder_ = std::make_shared<rpc::flatbuf::TaskSpecBuilder>(fbb_);
-    task_spec_builder_->add_type(type_);
-    task_spec_builder_->add_language(language_);
-    task_spec_builder_->add_function_descriptor(function_descriptor_);
-    task_spec_builder_->add_job_id(job_id_);
-    task_spec_builder_->add_task_id(task_id_);
-    task_spec_builder_->add_parent_task_id(parent_task_id_);
-    task_spec_builder_->add_parent_counter(parent_counter_);
-    task_spec_builder_->add_caller_id(caller_id_);
-    task_spec_builder_->add_caller_address(caller_address_);
-    task_spec_builder_->add_num_returns(num_returns_);
-    task_spec_builder_->add_required_resources(required_resources_);
-    task_spec_builder_->add_required_placement_resources(required_placement_resources_);
-    task_spec_builder_->add_actor_creation_task_spec(actor_creation_task_spec_);
-    task_spec_builder_->add_actor_task_spec(actor_task_spec_);
-    task_spec_builder_->add_max_retries(max_retries_);
-    task_spec_builder_->add_args(task_args_offset);
-    auto spec = task_spec_builder_->Finish();
+//    task_spec_builder_ = std::make_shared<rpc::flatbuf::TaskSpecBuilder>(fbb_);
+//    task_spec_builder_->add_type(type_);
+//    task_spec_builder_->add_language(language_);
+//    task_spec_builder_->add_function_descriptor(function_descriptor_);
+//    task_spec_builder_->add_job_id(to_flatbuf<JobID>(fbb_, job_id_));
+//    task_spec_builder_->add_task_id(to_flatbuf(task_id_));
+//    task_spec_builder_->add_parent_task_id(to_flatbuf(parent_task_id_));
+//    task_spec_builder_->add_parent_counter(parent_counter_);
+//    task_spec_builder_->add_caller_id(to_flatbuf(caller_id_));
+//    task_spec_builder_->add_caller_address(caller_address_);
+//    task_spec_builder_->add_num_returns(num_returns_);
+//    task_spec_builder_->add_required_resources(required_resources_);
+//    task_spec_builder_->add_required_placement_resources(required_placement_resources_);
+//    task_spec_builder_->add_actor_creation_task_spec(actor_creation_task_spec_);
+//    task_spec_builder_->add_actor_task_spec(actor_task_spec_);
+//    task_spec_builder_->add_max_retries(max_retries_);
+//    task_spec_builder_->add_args(task_args_offset);
+    auto spec = rpc::flatbuf::CreateTaskSpec(
+        fbb_,
+        /*type=*/type_,
+        /*language=*/language_,
+        /*function_descriptor=*/function_descriptor_,
+        /*job_id=*/to_flatbuf(fbb_, job_id_),
+        /*task_id=*/to_flatbuf(fbb_, task_id_),
+        /*parent_task_id=*/to_flatbuf(fbb_, parent_task_id_),
+        parent_counter_,
+        /*caller_id*/to_flatbuf(fbb_, caller_id_),
+        /*caller_address=*/caller_address_,
+        /*task_agrs=*/task_args_offset,
+        /*num_returns=*/num_returns_,
+        /*required_resources=*/required_resources_,
+        /*required_placement_resources=*/required_placement_resources_,
+        /*actor_creation_task_spec_=*/actor_creation_task_spec_,
+        /*actor_task_spec_=*/actor_task_spec_,
+        /*max_retries=*/max_retries_);
     fbb_.Finish(spec);
     return TaskSpecification(fbb_.GetBufferPointer(), fbb_.GetSize());
   }
@@ -56,11 +73,11 @@ class TaskSpecBuilder {
     type_ = rpc::flatbuf::TaskType::NORMAL_TASK;
     language_ = ToFlatbufLanguage(language);
     function_descriptor_ = string_to_flatbuf(fbb_, function_descriptor->Serialize());
-    job_id_ = to_flatbuf<JobID>(fbb_, job_id);
-    task_id_ = to_flatbuf<TaskID>(fbb_, task_id);
-    parent_task_id_ = to_flatbuf<TaskID>(fbb_, parent_task_id);
+    job_id_ = job_id;
+    task_id_ = task_id;
+    parent_task_id_ = parent_task_id;
     parent_counter_ = parent_counter;
-    caller_id_ = to_flatbuf<TaskID>(fbb_, caller_id);
+    caller_id_ = caller_id;
     std::string address_str;
     caller_address.SerializeToString(&address_str);
     caller_address_ = string_to_flatbuf(fbb_, address_str);
@@ -80,11 +97,11 @@ class TaskSpecBuilder {
                                      const rpc::Address &caller_address) {
     type_ = rpc::flatbuf::TaskType::DRIVER_TASK;
     language_ = ToFlatbufLanguage(language);
-    job_id_ = to_flatbuf<JobID>(fbb_, job_id);
-    task_id_ = to_flatbuf<TaskID>(fbb_, parent_task_id);
-    parent_task_id_ = to_flatbuf<TaskID>(fbb_, parent_task_id);
+    job_id_ = job_id;
+    task_id_ = parent_task_id;
+    parent_task_id_ = parent_task_id;
     parent_counter_ = 0;
-    caller_id_ = to_flatbuf<TaskID>(fbb_, caller_id);
+    caller_id_ = caller_id;
     std::string address_str;
     caller_address.SerializeToString(&address_str);
     caller_address_ = string_to_flatbuf(fbb_, address_str);
@@ -185,13 +202,13 @@ class TaskSpecBuilder {
       rpc::flatbuf::TaskType type_ = rpc::flatbuf::TaskType::NORMAL_TASK;
       rpc::flatbuf::Language language_ = rpc::flatbuf::Language::JAVA;
       flatbuffers::Offset<flatbuffers::String> function_descriptor_ = 0;
-      flatbuffers::Offset<flatbuffers::String> job_id_ = 0;
-      flatbuffers::Offset<flatbuffers::String> task_id_ = 0;
-      flatbuffers::Offset<flatbuffers::String> parent_task_id_ = 0;
-      int32_t parent_counter_ = 0;
-      flatbuffers::Offset<flatbuffers::String> caller_id_ = 0;
+      JobID job_id_;
+      TaskID task_id_;
+      TaskID parent_task_id_;
+      int32_t parent_counter_;
+      TaskID caller_id_;
       flatbuffers::Offset<flatbuffers::String> caller_address_ = 0;
-//      flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<TaskArg>>> args_ = 0;
+      std::vector<flatbuffers::Offset<rpc::flatbuf::TaskArg>> task_args_;
       int32_t num_returns_ = 0;
       flatbuffers::Offset<rpc::flatbuf::Resources> required_resources_ = 0;
       flatbuffers::Offset<rpc::flatbuf::Resources> required_placement_resources_ = 0;
@@ -202,7 +219,6 @@ class TaskSpecBuilder {
 
   flatbuffers::FlatBufferBuilder fbb_;
   std::shared_ptr<rpc::flatbuf::TaskSpecBuilder> task_spec_builder_;
-  std::vector<flatbuffers::Offset<rpc::flatbuf::TaskArg>> task_args_;
 };
 
 }  // namespace ray
