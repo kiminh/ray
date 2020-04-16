@@ -16,6 +16,9 @@ class TaskSpecBuilder {
 
   /// Build the `TaskSpecification` object.
   TaskSpecification Build() {
+    // Note that this should be invoked before task_spec_builder created.
+    auto task_args_offset = fbb_.CreateVector(task_args_);
+
     task_spec_builder_ = std::make_shared<rpc::flatbuf::TaskSpecBuilder>(fbb_);
     task_spec_builder_->add_type(type_);
     task_spec_builder_->add_language(language_);
@@ -32,8 +35,7 @@ class TaskSpecBuilder {
     task_spec_builder_->add_actor_creation_task_spec(actor_creation_task_spec_);
     task_spec_builder_->add_actor_task_spec(actor_task_spec_);
     task_spec_builder_->add_max_retries(max_retries_);
-
-//    task_spec_builder_->add_args(fbb_.CreateVector(task_args_));
+    task_spec_builder_->add_args(task_args_offset);
     auto spec = task_spec_builder_->Finish();
     fbb_.Finish(spec);
     return TaskSpecification(fbb_.GetBufferPointer(), fbb_.GetSize());
