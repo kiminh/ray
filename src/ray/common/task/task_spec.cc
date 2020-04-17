@@ -26,7 +26,7 @@ inline std::unordered_map<std::string, double> MapFromFlatbufResources(const rpc
   auto *resource_names = resources->resource_names();
   auto *capacities = resources->resource_capacities();
   std::unordered_map<std::string, double> result;
-  for (int i = 0; i < resource_names->size(); ++i) {
+  for (size_t i = 0; i < resource_names->size(); ++i) {
     auto name = string_from_flatbuf(*(*resource_names)[i]);
     result[name] = (*capacities)[i];
   }

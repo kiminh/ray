@@ -627,6 +627,51 @@ TEST_F(ZeroNodeTest, TestTaskArg) {
   ASSERT_EQ(*data, *buffer);
 }
 
+
+// Performance benchmark for creating task specifications.
+TEST_F(ZeroNodeTest, TestCreatingTaskSpecPerf) {
+  // Create a dummy actor handle, and then create a number of `TaskSpec`
+  // to benchmark performance.
+  uint8_t array[] = {1, 2, 3};
+  auto buffer = std::make_shared<LocalMemoryBuffer>(array, sizeof(array));
+  RayFunction function(ray::Language::PYTHON,
+                       ray::FunctionDescriptorBuilder::BuildPython("", "", "", ""));
+  std::vector<TaskArg> args;
+  args.emplace_back(TaskArg::PassByValue(
+      std::make_shared<RayObject>(buffer, nullptr, std::vector<ObjectID>())));
+
+//  std::unordered_map<std::string, double> resources = {{"A", 3}, {"B", 4}};
+  std::unordered_map<std::string, double> resources;
+
+  const auto job_id = NextJobId();
+  const auto num_tasks = 10000 * 10;
+  int64_t start_ms = current_time_ms();
+  RAY_LOG(INFO) << "start creating " << num_tasks << " task specs.";
+  rpc::Address address;
+  for (int i = 0; i < num_tasks; i++) {
+    TaskOptions options{1, resources};
+    std::vector<ObjectID> return_ids;
+    auto num_returns = options.num_returns;
+    TaskSpecBuilder builder;
+    builder.SetCommonTaskSpec(RandomTaskId(), function.GetLanguage(),
+        function.GetFunctionDescriptor(), job_id, RandomTaskId(), 0,
+    RandomTaskId(), address, num_returns, resources, resources);
+    // Set task arguments.
+    for (const auto &arg : args) {
+      if (arg.IsPassedByReference()) {
+      builder.AddByRefArg(arg.GetReference());
+      } else {
+      builder.AddByValueArg(arg.GetValue());
+      }
+    }
+    auto task_spec = builder.Build();
+    ASSERT_FALSE(task_spec.IsActorTask());
+  }
+
+  RAY_LOG(INFO) << "Finish creating " << num_tasks << " task specs"
+  << ", which takes " << current_time_ms() - start_ms << " ms";
+}
+
 // Performance batchmark for `PushTaskRequest` creation.
 TEST_F(ZeroNodeTest, TestTaskSpecPerf) {
   // Create a dummy actor handle, and then create a number of `TaskSpec`
