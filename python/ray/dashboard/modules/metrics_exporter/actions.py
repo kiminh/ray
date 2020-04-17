@@ -1,7 +1,7 @@
 import logging
 import typing
 
-from ray.dashboard.metrics_exporter.schema import ActionType, KillAction
+from ray.dashboard.modules.metrics_exporter.schema import ActionType, KillAction
 
 logger = logging.getLogger(__name__)
 

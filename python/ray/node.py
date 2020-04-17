@@ -469,19 +469,19 @@ class Node:
             process_info
         ]
 
-    def start_operation_agent(self):
+    def start_dashboard_agent(self):
         """Start the operation agent."""
-        stdout_file, stderr_file = self.new_log_files("operation_agent", True)
-        process_info = ray.services.start_operation_agent(
+        stdout_file, stderr_file = self.new_log_files("dashboard_agent", True)
+        process_info = ray.services.start_dashboard_agent(
             self.redis_address,
             stdout_file=stdout_file,
             stderr_file=stderr_file,
             redis_password=self._ray_params.redis_password,
             fate_share=self.kernel_fate_share)
-        assert ray_constants.PROCESS_TYPE_OPERATION_AGENT not in \
+        assert ray_constants.PROCESS_TYPE_DASHBOARD_AGENT not in \
             self.all_processes
         if process_info is not None:
-            self.all_processes[ray_constants.PROCESS_TYPE_OPERATION_AGENT] = [
+            self.all_processes[ray_constants.PROCESS_TYPE_DASHBOARD_AGENT] = [
                 process_info
             ]
 
@@ -647,7 +647,7 @@ class Node:
 
         self.start_plasma_store()
         self.start_raylet()
-        self.start_operation_agent()
+        self.start_dashboard_agent()
 
         if self._ray_params.include_log_monitor:
             self.start_log_monitor()
@@ -785,7 +785,7 @@ class Node:
                 dead.
         """
         self._kill_process_type(
-            ray_constants.PROCESS_TYPE_OPERATION_AGENT, check_alive=check_alive)
+            ray_constants.PROCESS_TYPE_DASHBOARD_AGENT, check_alive=check_alive)
 
     def kill_dashboard(self, check_alive=True):
         """Kill the dashboard.

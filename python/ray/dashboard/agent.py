@@ -9,7 +9,7 @@ import ray
 import ray.ray_constants as ray_constants
 import ray.utils
 import ray.services
-import ray.operation.modules.utils as module_utils
+import ray.dashboard.utils as dashboard_utils
 
 # Logger for this module. It should be configured at the entry point
 # into the program using Ray. Ray provides a default configuration at
@@ -30,10 +30,10 @@ class OperationAgent(object):
 
     def _load_modules(self):
         """Load operation agent modules."""
-        agent_cls_list = module_utils.get_all_modules(module_utils.TYPE_AGENT)
+        agent_cls_list = dashboard_utils.get_all_modules(dashboard_utils.TYPE_AGENT)
         modules = []
         for cls in agent_cls_list:
-            logger.info("Load {} module: {}", module_utils.TYPE_AGENT, cls)
+            logger.info("Load {} module: {}", dashboard_utils.TYPE_AGENT, cls)
             c = cls(redis_address=self.redis_address,
                     redis_password=self.redis_password)
             modules.append(c)
@@ -42,7 +42,7 @@ class OperationAgent(object):
 
     async def run(self):
         await self.server.start()
-        self.redis_client.set("OPERATION_AGENT_PORT:{}".format(self.ip),
+        self.redis_client.set("DASHBOARD_AGENT_PORT:{}".format(self.ip),
                               self.port)
         modules = self._load_modules()
         for m in modules:
@@ -96,5 +96,5 @@ if __name__ == "__main__":
         message = ("The agent on node {} failed with the following "
                    "error:\n{}".format(os.uname()[1], traceback_str))
         ray.utils.push_error_to_driver_through_redis(
-                redis_client, ray_constants.OPERATION_AGENT_DIED_ERROR, message)
+                redis_client, ray_constants.DASHBOARD_AGENT_DIED_ERROR, message)
         raise e

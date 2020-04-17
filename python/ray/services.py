@@ -1036,7 +1036,7 @@ def start_log_monitor(redis_address,
     return process_info
 
 
-def start_operation_agent(redis_address,
+def start_dashboard_agent(redis_address,
                           stdout_file=None,
                           stderr_file=None,
                           redis_password=None,
@@ -1056,7 +1056,7 @@ def start_operation_agent(redis_address,
     """
     reporter_filepath = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "operation/agent.py")
+        "dashboard/agent.py")
     command = [
         sys.executable, "-u", reporter_filepath,
         "--redis-address={}".format(redis_address)
@@ -1066,7 +1066,7 @@ def start_operation_agent(redis_address,
 
     process_info = start_ray_process(
         command,
-        ray_constants.PROCESS_TYPE_OPERATION_AGENT,
+        ray_constants.PROCESS_TYPE_DASHBOARD_AGENT,
         stdout_file=stdout_file,
         stderr_file=stderr_file,
         fate_share=fate_share)

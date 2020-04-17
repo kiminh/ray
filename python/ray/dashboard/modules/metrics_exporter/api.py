@@ -7,8 +7,8 @@ except ImportError:
     print("Couldn't import `requests` library. "
           "Be sure to install it on the client side.")
 
-from ray.dashboard.metrics_exporter.schema import AuthRequest, AuthResponse
-from ray.dashboard.metrics_exporter.schema import IngestRequest, IngestResponse
+from ray.dashboard.modules.metrics_exporter.schema import AuthRequest, AuthResponse
+from ray.dashboard.modules.metrics_exporter.schema import IngestRequest, IngestResponse
 
 
 def authentication_request(url, cluster_id) -> AuthResponse:

@@ -3,8 +3,8 @@ import threading
 import traceback
 import time
 
-from ray.dashboard.metrics_exporter import api
-from ray.dashboard.metrics_exporter.actions import ActionHandler
+from ray.dashboard.modules.metrics_exporter import api
+from ray.dashboard.modules.metrics_exporter.actions import ActionHandler
 
 logger = logging.getLogger(__name__)
 

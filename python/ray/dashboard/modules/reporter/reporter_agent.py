@@ -12,7 +12,7 @@ import traceback
 import psutil
 import ray
 import ray.gcs_utils
-import ray.operation.modules.utils as module_utils
+import ray.dashboard.utils as dashboard_utils
 import ray.ray_constants as ray_constants
 import ray.services
 import ray.utils
@@ -79,7 +79,7 @@ def to_posix_time(dt):
     return (dt - datetime.datetime(1970, 1, 1)).total_seconds()
 
 
-@module_utils.agent
+@dashboard_utils.agent
 class Reporter:
     """A monitor process for monitoring Ray nodes.
 
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     reporter = Reporter(args.redis_address, redis_password=args.redis_password)
 
     try:
-        module_utils.run_agent(reporter)
+        dashboard_utils.run_agent(reporter)
     except Exception as e:
         # Something went wrong, so push an error to all drivers.
         redis_client = ray.services.create_redis_client(
@@ -250,5 +250,5 @@ if __name__ == "__main__":
         message = ("The reporter on node {} failed with the following "
                    "error:\n{}".format(os.uname()[1], traceback_str))
         ray.utils.push_error_to_driver_through_redis(
-            redis_client, ray_constants.OPERATION_AGENT_DIED_ERROR, message)
+            redis_client, ray_constants.DASHBOARD_AGENT_DIED_ERROR, message)
         raise e
