@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 routes = dashboard_utils.ClassMethodRouteTable
 
 
-class OperationMaster:
+class DashboardMaster:
     def __init__(self, redis_address, redis_password):
         self.redis_address = redis_address
         self.redis_password = redis_password
@@ -20,7 +20,7 @@ class OperationMaster:
         dashboard_utils.ClassMethodRouteTable.bind(self)
 
     def _load_modules(self):
-        """Load operation master modules."""
+        """Load dashboard master modules."""
         agent_cls_list = dashboard_utils.get_all_modules(dashboard_utils.TYPE_MASTER)
         modules = []
         methods = {}

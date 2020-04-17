@@ -17,7 +17,7 @@ import ray.dashboard.utils as dashboard_utils
 logger = logging.getLogger(__name__)
 
 
-class OperationAgent(object):
+class DashboardAgent(object):
     def __init__(self, redis_address, redis_password=None):
         """Initialize the OperationAgent object."""
         self.redis_address = redis_address
@@ -29,7 +29,7 @@ class OperationAgent(object):
         self.port = self.server.add_insecure_port("[::]:0")
 
     def _load_modules(self):
-        """Load operation agent modules."""
+        """Load dashboard agent modules."""
         agent_cls_list = dashboard_utils.get_all_modules(dashboard_utils.TYPE_AGENT)
         modules = []
         for cls in agent_cls_list:
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     ray.utils.setup_logger(args.logging_level, args.logging_format)
 
     try:
-        agent = OperationAgent(
+        agent = DashboardAgent(
                 args.redis_address, redis_password=args.redis_password)
 
         loop = asyncio.get_event_loop()

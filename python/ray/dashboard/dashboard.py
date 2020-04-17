@@ -78,7 +78,7 @@ class Dashboard:
                 redis_address, password=redis_password)
         self.temp_dir = temp_dir
         self.dashboard_id = str(uuid.uuid4())
-        self.dashboard_master = dashboard_master.OperationMaster(
+        self.dashboard_master = dashboard_master.DashboardMaster(
                 redis_address=redis_address,
                 redis_password=redis_password)
 
