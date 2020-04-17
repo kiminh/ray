@@ -11,7 +11,7 @@ import ray.services
 from ray.core.generated import reporter_pb2
 from ray.core.generated import reporter_pb2_grpc
 
-routes = aiohttp.web.RouteTableDef()
+routes = dashboard_utils.ClassMethodRouteTable
 
 
 @dashboard_utils.master

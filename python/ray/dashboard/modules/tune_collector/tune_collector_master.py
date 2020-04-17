@@ -15,7 +15,7 @@ except ImportError:
 import ray.dashboard.utils as dashboard_utils
 
 logger = logging.getLogger(__name__)
-routes = aiohttp.web.RouteTableDef()
+routes = dashboard_utils.ClassMethodRouteTable
 
 
 @dashboard_utils.master(enable=Analysis is not None)

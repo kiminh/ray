@@ -9,7 +9,7 @@ import ray.dashboard.utils as dashboard_utils
 import aiohttp.web
 
 logger = logging.getLogger(__name__)
-routes = aiohttp.web.RouteTableDef()
+routes = dashboard_utils.ClassMethodRouteTable
 
 
 class OperationMaster:
@@ -17,6 +17,7 @@ class OperationMaster:
         self.redis_address = redis_address
         self.redis_password = redis_password
         self._modules, self._methods = self._load_modules()
+        dashboard_utils.ClassMethodRouteTable.bind(self)
 
     def _load_modules(self):
         """Load operation master modules."""
@@ -27,6 +28,7 @@ class OperationMaster:
             logger.info("Load %s module: %s", dashboard_utils.TYPE_MASTER, cls)
             c = cls(redis_address=self.redis_address,
                     redis_password=self.redis_password)
+            dashboard_utils.ClassMethodRouteTable.bind(c)
             modules.append(c)
             module_methods = inspect.getmembers(
                     c, predicate=ray_utils.is_function_or_method)
@@ -146,7 +148,7 @@ class OperationMaster:
 
     @routes.get("/api/raylet_info")
     async def raylet_info(self, req) -> aiohttp.web.Response:
-        result = self.get_raylet_info()
+        result = self._construct_raylet_info()
         return await dashboard_utils.json_response(result=result)
 
     async def run(self):

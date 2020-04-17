@@ -16,6 +16,7 @@ import uuid
 
 import ray
 import ray.dashboard.master as dashboard_master
+import ray.dashboard.utils as dashboard_utils
 import ray.ray_constants as ray_constants
 import ray.services
 import ray.utils
@@ -24,8 +25,7 @@ import ray.utils
 # into the program using Ray. Ray provides a default configuration at
 # entry/init points.
 logger = logging.getLogger(__name__)
-
-routes = aiohttp.web.RouteTableDef()
+routes = dashboard_utils.ClassMethodRouteTable
 
 
 def setup_static_dir(app):
@@ -89,11 +89,12 @@ class Dashboard:
         self.is_dev = os.environ.get("RAY_DASHBOARD_DEV") == "1"
 
         self.app = aiohttp.web.Application()
-        self.app.add_routes(routes=routes)
+        self.app.add_routes(routes=routes.routes())
 
         # Setup Dashboard Routes
         build_dir = setup_static_dir(self.app)
         setup_speedscope_dir(self.app, build_dir)
+        dashboard_utils.ClassMethodRouteTable.bind(self)
 
     def log_dashboard_url(self):
         url = ray.services.get_webui_url_from_redis(self.redis_client)

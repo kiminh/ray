@@ -18,7 +18,7 @@ from ray.core.generated import node_manager_pb2_grpc
 import aiohttp.web
 
 logger = logging.getLogger(__name__)
-routes = aiohttp.web.RouteTableDef()
+routes = dashboard_utils.ClassMethodRouteTable
 
 
 @dashboard_utils.master

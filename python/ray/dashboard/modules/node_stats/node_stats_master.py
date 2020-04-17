@@ -21,7 +21,7 @@ import ray.services
 import ray.utils
 
 logger = logging.getLogger(__name__)
-routes = aiohttp.web.RouteTableDef()
+routes = dashboard_utils.ClassMethodRouteTable
 
 
 @dashboard_utils.master
