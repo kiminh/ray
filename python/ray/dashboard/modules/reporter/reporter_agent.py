@@ -10,9 +10,11 @@ import sys
 import traceback
 
 import psutil
+
 import ray
-import ray.gcs_utils
+import ray.dashboard.consts as dashboard_consts
 import ray.dashboard.utils as dashboard_utils
+import ray.gcs_utils
 import ray.ray_constants as ray_constants
 import ray.services
 import ray.utils
@@ -35,11 +37,11 @@ class ReporterServer(reporter_pb2_grpc.ReporterServiceServicer):
         profiling_file_path = os.path.join(ray.utils.get_ray_temp_dir(),
                                            "{}_profiling.txt".format(pid))
         process = subprocess.Popen(
-            "sudo $(which py-spy) record -o {} -p {} -d {} -f speedscope"
-            .format(profiling_file_path, pid, duration),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=True)
+                "sudo $(which py-spy) record -o {} -p {} -d {} -f speedscope"
+                    .format(profiling_file_path, pid, duration),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                shell=True)
         stdout, stderr = process.communicate()
         if process.returncode != 0:
             profiling_stats = ""
@@ -47,7 +49,7 @@ class ReporterServer(reporter_pb2_grpc.ReporterServiceServicer):
             with open(profiling_file_path, "r") as f:
                 profiling_stats = f.read()
         return reporter_pb2.GetProfilingStatsReply(
-            profiling_stats=profiling_stats, stdout=stdout, stderr=stderr)
+                profiling_stats=profiling_stats, stdout=stdout, stderr=stderr)
 
 
 def recursive_asdict(o):
@@ -97,10 +99,8 @@ class Reporter:
 
         _ = psutil.cpu_percent()  # For initialization
 
-        self.redis_key = "{}.{}".format(ray.gcs_utils.REPORTER_CHANNEL,
-                                        self.hostname)
         self.redis_client = ray.services.create_redis_client(
-            redis_address, password=redis_password)
+                redis_address, password=redis_password)
 
         self.network_stats_hist = [(0, (0.0, 0.0))]  # time, (sent, recv)
 
@@ -188,14 +188,14 @@ class Reporter:
         stats = self.get_all_stats()
 
         self.redis_client.publish(
-            self.redis_key,
-            jsonify_asdict(stats),
+                "{}{}".format(dashboard_consts.REPORTER_PREFIX, self.hostname),
+                jsonify_asdict(stats),
         )
 
     async def run(self, server):
         """Publish the port."""
         reporter_pb2_grpc.add_ReporterServiceServicer_to_server(
-            ReporterServer(), server)
+                ReporterServer(), server)
         """Run the reporter."""
         while True:
             try:
@@ -209,32 +209,32 @@ class Reporter:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description=("Parse Redis server for the "
-                     "reporter to connect to."))
+            description=("Parse Redis server for the "
+                         "reporter to connect to."))
     parser.add_argument(
-        "--redis-address",
-        required=True,
-        type=str,
-        help="The address to use for Redis.")
+            "--redis-address",
+            required=True,
+            type=str,
+            help="The address to use for Redis.")
     parser.add_argument(
-        "--redis-password",
-        required=False,
-        type=str,
-        default=None,
-        help="the password to use for Redis")
+            "--redis-password",
+            required=False,
+            type=str,
+            default=None,
+            help="the password to use for Redis")
     parser.add_argument(
-        "--logging-level",
-        required=False,
-        type=str,
-        default=ray_constants.LOGGER_LEVEL,
-        choices=ray_constants.LOGGER_LEVEL_CHOICES,
-        help=ray_constants.LOGGER_LEVEL_HELP)
+            "--logging-level",
+            required=False,
+            type=str,
+            default=ray_constants.LOGGER_LEVEL,
+            choices=ray_constants.LOGGER_LEVEL_CHOICES,
+            help=ray_constants.LOGGER_LEVEL_HELP)
     parser.add_argument(
-        "--logging-format",
-        required=False,
-        type=str,
-        default=ray_constants.LOGGER_FORMAT,
-        help=ray_constants.LOGGER_FORMAT_HELP)
+            "--logging-format",
+            required=False,
+            type=str,
+            default=ray_constants.LOGGER_FORMAT,
+            help=ray_constants.LOGGER_FORMAT_HELP)
     args = parser.parse_args()
     ray.utils.setup_logger(args.logging_level, args.logging_format)
 
@@ -245,10 +245,10 @@ if __name__ == "__main__":
     except Exception as e:
         # Something went wrong, so push an error to all drivers.
         redis_client = ray.services.create_redis_client(
-            args.redis_address, password=args.redis_password)
+                args.redis_address, password=args.redis_password)
         traceback_str = ray.utils.format_error_message(traceback.format_exc())
         message = ("The reporter on node {} failed with the following "
                    "error:\n{}".format(os.uname()[1], traceback_str))
         ray.utils.push_error_to_driver_through_redis(
-            redis_client, ray_constants.DASHBOARD_AGENT_DIED_ERROR, message)
+                redis_client, ray_constants.DASHBOARD_AGENT_DIED_ERROR, message)
         raise e

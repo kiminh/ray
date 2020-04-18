@@ -157,7 +157,7 @@ if __name__ == "__main__":
     parser.add_argument(
             "--logging-level",
             required=False,
-            type=str,
+            type=lambda s: logging.getLevelName(s.upper()),
             default=ray_constants.LOGGER_LEVEL,
             choices=ray_constants.LOGGER_LEVEL_CHOICES,
             help=ray_constants.LOGGER_LEVEL_HELP)
@@ -174,7 +174,7 @@ if __name__ == "__main__":
             default=None,
             help="Specify the path of the temporary directory use by Ray process.")
     args = parser.parse_args()
-    ray.utils.setup_logger(args.logging_level, args.logging_format)
+    logging.basicConfig(level=args.logging_level, format=args.logging_format)
 
     # TODO(sang): Add a URL validation.
     metrics_export_address = os.environ.get("METRICS_EXPORT_ADDRESS")

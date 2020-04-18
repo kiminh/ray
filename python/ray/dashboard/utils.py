@@ -1,32 +1,30 @@
 import asyncio
 import datetime
+import functools
 import importlib
 import inspect
 import logging
 import pkgutil
-import functools
 from base64 import b64decode
 
 import aiohttp.web
 from grpc.experimental import aio
 
 import ray
-
-TYPE_AGENT = "agent"
-TYPE_MASTER = "master"
+import ray.dashboard.consts as dashboard_consts
 
 logger = logging.getLogger(__name__)
 
 
 def agent(cls):
-    cls.__ray_module_type__ = TYPE_AGENT
+    cls.__ray_module_type__ = dashboard_consts.TYPE_AGENT
     return cls
 
 
 def master(enable):
     def _wrapper(cls):
         if enable:
-            cls.__ray_module_type__ = TYPE_MASTER
+            cls.__ray_module_type__ = dashboard_consts.TYPE_MASTER
         return cls
 
     if inspect.isclass(enable):
@@ -100,7 +98,7 @@ def get_all_modules(module_type):
 
 def get_agent_port(redis_client, node_ip):
     agent_port = redis_client.get(
-            "DASHBOARD_AGENT_PORT:{}".format(node_ip))
+            "{}{}".format(dashboard_consts.DASHBOARD_AGENT_PORT_PREFIX, node_ip))
     return int(agent_port) if agent_port else None
 
 

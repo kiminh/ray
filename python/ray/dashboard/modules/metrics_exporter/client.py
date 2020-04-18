@@ -136,7 +136,7 @@ class Exporter(threading.Thread):
         while True:
             try:
                 time.sleep(self.update_frequency)
-                self.export(self.dashboard_controller.get_ray_config(),
+                self.export(self.dashboard_controller._get_ray_config(),
                             self.dashboard_controller.get_node_info(),
                             self.dashboard_controller.get_raylet_info(),
                             self.dashboard_controller.tune_info(),

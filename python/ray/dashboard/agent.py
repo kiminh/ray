@@ -1,15 +1,17 @@
-import asyncio
 import argparse
+import asyncio
 import logging
-import traceback
 import os
+import traceback
+
 from grpc.experimental import aio
 
 import ray
-import ray.ray_constants as ray_constants
-import ray.utils
-import ray.services
+import ray.dashboard.consts as dashboard_consts
 import ray.dashboard.utils as dashboard_utils
+import ray.ray_constants as ray_constants
+import ray.services
+import ray.utils
 
 # Logger for this module. It should be configured at the entry point
 # into the program using Ray. Ray provides a default configuration at
@@ -19,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class DashboardAgent(object):
     def __init__(self, redis_address, redis_password=None):
-        """Initialize the OperationAgent object."""
+        """Initialize the DashboardAgent object."""
         self.redis_address = redis_address
         self.redis_password = redis_password
         self.ip = ray.services.get_node_ip_address()
@@ -30,10 +32,10 @@ class DashboardAgent(object):
 
     def _load_modules(self):
         """Load dashboard agent modules."""
-        agent_cls_list = dashboard_utils.get_all_modules(dashboard_utils.TYPE_AGENT)
+        agent_cls_list = dashboard_utils.get_all_modules(dashboard_consts.TYPE_AGENT)
         modules = []
         for cls in agent_cls_list:
-            logger.info("Load {} module: {}", dashboard_utils.TYPE_AGENT, cls)
+            logger.info("Load %s module: %s", dashboard_consts.TYPE_AGENT, cls)
             c = cls(redis_address=self.redis_address,
                     redis_password=self.redis_password)
             modules.append(c)
@@ -42,11 +44,10 @@ class DashboardAgent(object):
 
     async def run(self):
         await self.server.start()
-        self.redis_client.set("DASHBOARD_AGENT_PORT:{}".format(self.ip),
+        self.redis_client.set("{}{}".format(dashboard_consts.DASHBOARD_AGENT_PORT_PREFIX, self.ip),
                               self.port)
         modules = self._load_modules()
-        for m in modules:
-            await m.run(self.server)
+        await asyncio.gather(*(m.run(self.server) for m in modules))
         await self.server.wait_for_termination()
 
 
@@ -68,7 +69,7 @@ if __name__ == "__main__":
     parser.add_argument(
             "--logging-level",
             required=False,
-            type=str,
+            type=lambda s: logging.getLevelName(s.upper()),
             default=ray_constants.LOGGER_LEVEL,
             choices=ray_constants.LOGGER_LEVEL_CHOICES,
             help=ray_constants.LOGGER_LEVEL_HELP)
@@ -79,7 +80,7 @@ if __name__ == "__main__":
             default=ray_constants.LOGGER_FORMAT,
             help=ray_constants.LOGGER_FORMAT_HELP)
     args = parser.parse_args()
-    ray.utils.setup_logger(args.logging_level, args.logging_format)
+    logging.basicConfig(level=args.logging_level, format=args.logging_format)
 
     try:
         agent = DashboardAgent(
