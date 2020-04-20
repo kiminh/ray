@@ -3,7 +3,7 @@ import logging
 import traceback
 
 import aiohttp.web
-import grpc
+from grpc.experimental import aio
 from google.protobuf.json_format import MessageToDict
 
 import ray
@@ -46,7 +46,7 @@ class RayletStats:
             node_id = node["NodeID"]
             if node_id not in self.stubs:
                 node_ip = node["NodeManagerAddress"]
-                channel = grpc.insecure_channel("{}:{}".format(
+                channel = aio.insecure_channel("{}:{}".format(
                         node_ip, node["NodeManagerPort"]))
                 stub = node_manager_pb2_grpc.NodeManagerServiceStub(
                         channel)
@@ -58,19 +58,15 @@ class RayletStats:
         ip_address = req.query.get("ip_address")
         port = req.query.get("port")
         return await dashboard_utils.json_response(
-                self._kill_actor(actor_id, ip_address, port))
+                await self._kill_actor(actor_id, ip_address, port))
 
-    def _kill_actor(self, actor_id, ip_address, port):
-        channel = grpc.insecure_channel("{}:{}".format(ip_address, int(port)))
+    async def _kill_actor(self, actor_id, ip_address, port):
+        channel = aio.insecure_channel("{}:{}".format(ip_address, int(port)))
         stub = core_worker_pb2_grpc.CoreWorkerServiceStub(channel)
 
-        def _callback(reply_future):
-            _ = reply_future.result()
-
-        reply_future = stub.KillActor.future(
+        await stub.KillActor(
                 core_worker_pb2.KillActorRequest(
                         intended_actor_id=ray.utils.hex_to_binary(actor_id)))
-        reply_future.add_done_callback(_callback)
         return {}
 
     async def run(self):
@@ -83,7 +79,7 @@ class RayletStats:
                 for node in self.nodes:
                     node_id = node["NodeID"]
                     stub = self.stubs[node_id]
-                    reply = stub.GetNodeStats(
+                    reply = await stub.GetNodeStats(
                             node_manager_pb2.GetNodeStatsRequest(), timeout=2)
                     reply_dict = MessageToDict(reply)
                     reply_dict["nodeId"] = node_id

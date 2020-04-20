@@ -18,6 +18,8 @@ import ray.utils
 # entry/init points.
 logger = logging.getLogger(__name__)
 
+aio.init_grpc_aio()
+
 
 class DashboardAgent(object):
     def __init__(self, redis_address, redis_password=None):
