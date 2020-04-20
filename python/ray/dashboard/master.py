@@ -17,7 +17,8 @@ aio.init_grpc_aio()
 
 class DashboardMaster:
     def __init__(self, redis_address, redis_password):
-        self.redis_address = redis_address
+        ip, port = redis_address.split(":")
+        self.redis_address = (ip, int(port))
         self.redis_password = redis_password
         self.redis_client = ray.services.create_redis_client(
                 redis_address, password=redis_password)
@@ -26,13 +27,9 @@ class DashboardMaster:
                 redis_password=redis_password)
         self._modules = self._load_modules()
 
-    async def create_aioredis_client(self):
-        ip, port = self.redis_address.split(":")
-        return await aioredis.create_redis(
-                (ip, int(port)), password=self.redis_password)
-
     async def _update_agents(self):
-        aioredis_client = await self.create_aioredis_client()
+        aioredis_client = await aioredis.create_redis(
+                address=self.redis_address, password=self.redis_password)
 
         while True:
             try:

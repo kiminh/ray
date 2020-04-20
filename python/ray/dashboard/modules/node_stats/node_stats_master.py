@@ -4,6 +4,7 @@ import re
 import traceback
 
 import aiohttp.web
+import aioredis
 from aioredis.pubsub import Receiver
 
 import ray
@@ -53,7 +54,9 @@ class NodeStats:
         return errors
 
     async def run(self):
-        p = await self.dashboard_master.create_aioredis_client()
+        p = await aioredis.create_redis(
+                address=self.dashboard_master.redis_address,
+                password=self.dashboard_master.redis_password)
         mpsc = Receiver()
 
         log_channel = ray.gcs_utils.LOG_FILE_CHANNEL

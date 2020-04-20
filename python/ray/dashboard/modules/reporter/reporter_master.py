@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import json
 import logging
@@ -8,8 +7,9 @@ from operator import itemgetter
 from typing import Dict
 
 import aiohttp.web
-import grpc
+import aioredis
 from aioredis.pubsub import Receiver
+from grpc.experimental import aio
 
 import ray
 import ray.dashboard.consts as dashboard_consts
@@ -29,33 +29,22 @@ routes = dashboard_utils.ClassMethodRouteTable
 class ReportMaster:
     def __init__(self, dashboard_master):
         self.dashboard_master = dashboard_master
-        self.reporter_stubs = {}
+        self.stubs = {}
         self._profiling_stats = {}
-        self._update_stubs()
+        datacenter.agents.signal.append(self._update_stubs)
 
-    def _update_stubs(self):
-        nodes = ray.nodes()
-        node_ids = [node["NodeID"] for node in nodes]
-
-        # First remove node connections of disconnected nodes.
-        for node_id in self.reporter_stubs.keys():
-            if node_id not in node_ids:
-                reporter_stub = self.reporter_stubs.pop(node_id)
-                reporter_stub.close()
-
-        # Now add node connections of new nodes.
-        for node in nodes:
-            node_id = node["NodeID"]
-            if node_id not in self.reporter_stubs:
-                node_ip = node["NodeManagerAddress"]
-                reporter_port = dashboard_utils.get_agent_port(self.dashboard_master.redis_client, node_ip)
-                if not reporter_port:
-                    continue
-                reporter_channel = grpc.insecure_channel("{}:{}".format(
-                        node_ip, int(reporter_port)))
-                reporter_stub = reporter_pb2_grpc.ReporterServiceStub(
-                        reporter_channel)
-                self.reporter_stubs[node_id] = reporter_stub
+    async def _update_stubs(self, change):
+        if change.new:
+            ip, port = next(iter(change.new.items()))
+            channel = aio.insecure_channel("{}:{}".format(
+                    ip, int(port)))
+            stub = reporter_pb2_grpc.ReporterServiceStub(
+                    channel)
+            self.stubs[ip] = stub
+        if change.old:
+            ip, port = next(iter(change.new.items()))
+            stub = self.stubs.pop(ip)
+            stub.close()
 
     @routes.get("/api/node_info")
     async def node_info(self, req) -> aiohttp.web.Response:
@@ -124,7 +113,7 @@ class ReportMaster:
             reply = reply_future.result()
             self._profiling_stats[profiling_id] = reply
 
-        reporter_stub = self.reporter_stubs[node_id]
+        reporter_stub = self.stubs[node_id]
         reply_future = reporter_stub.GetProfilingStats.future(
                 reporter_pb2.GetProfilingStatsRequest(pid=pid, duration=duration))
         reply_future.add_done_callback(_callback)
@@ -160,26 +149,20 @@ class ReportMaster:
         return json.loads(profiling_stats.profiling_stats)
 
     async def run(self):
-        p = await self.dashboard_master.create_aioredis_client()
+        p = await aioredis.create_redis(
+                address=self.dashboard_master.redis_address,
+                password=self.dashboard_master.redis_password)
         mpsc = Receiver()
 
         reporter_key = "{}*".format(dashboard_consts.REPORTER_PREFIX)
         await p.psubscribe(mpsc.pattern(reporter_key))
         logger.info("subscribed to {}".format(reporter_key))
 
-        async def _update_node_stats():
-            async for sender, msg in mpsc.iter():
-                try:
-                    channel = ray.utils.decode(sender.name)
-                    _, data = msg
-                    data = json.loads(ray.utils.decode(data))
-                    datacenter.node_stats[data["hostname"]] = data
-                except Exception:
-                    logger.exception(traceback.format_exc())
-
-        async def _update_stubs():
-            while True:
-                self._update_stubs()
-                await asyncio.sleep(10.0)
-
-        await asyncio.gather(_update_node_stats(), _update_stubs())
+        async for sender, msg in mpsc.iter():
+            try:
+                channel = ray.utils.decode(sender.name)
+                _, data = msg
+                data = json.loads(ray.utils.decode(data))
+                datacenter.node_stats[data["hostname"]] = data
+            except Exception:
+                logger.exception(traceback.format_exc())

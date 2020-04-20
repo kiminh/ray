@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import functools
 import importlib
+import aioredis
 import inspect
 import logging
 import pkgutil
@@ -81,7 +82,7 @@ class ClassMethodRouteTable:
 
 
 def get_all_modules(module_type):
-    logger.info("get all by type: {}".format(module_type))
+    logger.info("Get all modules by type: {}".format(module_type))
     import ray.dashboard.modules
 
     result = []

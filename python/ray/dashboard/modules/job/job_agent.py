@@ -22,8 +22,9 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
 
 @dashboard_utils.agent
 class JobAgent:
-    def __init__(self, redis_address, redis_password=None):
+    def __init__(self, dashboard_agent):
         """Initialize the JobAgent object."""
+        self.dashboard_agent = dashboard_agent
 
     async def run(self, server):
         job_pb2_grpc.add_JobServiceServicer_to_server(

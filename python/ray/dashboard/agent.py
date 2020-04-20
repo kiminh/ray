@@ -24,7 +24,8 @@ aio.init_grpc_aio()
 class DashboardAgent(object):
     def __init__(self, redis_address, redis_password=None):
         """Initialize the DashboardAgent object."""
-        self.redis_address = redis_address
+        ip, port = redis_address.split(":")
+        self.redis_address = (ip, int(port))
         self.redis_password = redis_password
         self.ip = ray.services.get_node_ip_address()
         self.redis_client = ray.services.create_redis_client(
@@ -38,8 +39,7 @@ class DashboardAgent(object):
         modules = []
         for cls in agent_cls_list:
             logger.info("Load %s module: %s", dashboard_consts.TYPE_AGENT, cls)
-            c = cls(redis_address=self.redis_address,
-                    redis_password=self.redis_password)
+            c = cls(self)
             modules.append(c)
         logger.info("Load {} modules.".format(len(modules)))
         return modules

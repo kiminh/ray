@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import datetime
 import json
@@ -9,21 +8,18 @@ import subprocess
 import sys
 import traceback
 
+import aioredis
 import psutil
 
 import ray
 import ray.dashboard.consts as dashboard_consts
 import ray.dashboard.utils as dashboard_utils
 import ray.gcs_utils
-import ray.ray_constants as ray_constants
 import ray.services
 import ray.utils
 from ray.core.generated import reporter_pb2
 from ray.core.generated import reporter_pb2_grpc
 
-# Logger for this module. It should be configured at the entry point
-# into the program using Ray. Ray provides a default configuration at
-# entry/init points.
 logger = logging.getLogger(__name__)
 
 
@@ -86,21 +82,17 @@ class Reporter:
     """A monitor process for monitoring Ray nodes.
 
     Attributes:
-        hostname (str): The hostname of this machine. Used to improve the log
-            messages published to Redis.
-        redis_client: A client used to communicate with the Redis server.
+        dashboard_agent: The DashboardAgent object contains global config
     """
 
-    def __init__(self, redis_address, redis_password=None):
+    def __init__(self, dashboard_agent):
         """Initialize the reporter object."""
+        self.dashboard_agent = dashboard_agent
         self.cpu_counts = (psutil.cpu_count(), psutil.cpu_count(logical=False))
         self.ip = ray.services.get_node_ip_address()
         self.hostname = socket.gethostname()
 
         _ = psutil.cpu_percent()  # For initialization
-
-        self.redis_client = ray.services.create_redis_client(
-                redis_address, password=redis_password)
 
         self.network_stats_hist = [(0, (0.0, 0.0))]  # time, (sent, recv)
 
@@ -183,72 +175,24 @@ class Reporter:
             "net": netstats,
         }
 
-    def perform_iteration(self):
+    async def perform_iteration(self):
         """Get any changes to the log files and push updates to Redis."""
-        stats = self.get_all_stats()
+        aioredis_client = await aioredis.create_redis(
+                address=self.dashboard_agent.redis_address,
+                password=self.dashboard_agent.redis_password)
 
-        self.redis_client.publish(
-                "{}{}".format(dashboard_consts.REPORTER_PREFIX, self.hostname),
-                jsonify_asdict(stats),
-        )
+        while True:
+            try:
+                stats = self.get_all_stats()
+                await aioredis_client.publish(
+                        "{}{}".format(dashboard_consts.REPORTER_PREFIX, self.hostname),
+                        jsonify_asdict(stats))
+            except Exception:
+                traceback.print_exc()
+            await asyncio.sleep(dashboard_consts.REPORTER_UPDATE_INTERVAL_MS / 1000)
 
     async def run(self, server):
         """Publish the port."""
         reporter_pb2_grpc.add_ReporterServiceServicer_to_server(
                 ReporterServer(), server)
-        """Run the reporter."""
-        while True:
-            try:
-                self.perform_iteration()
-            except Exception:
-                traceback.print_exc()
-                pass
-
-            await asyncio.sleep(ray_constants.REPORTER_UPDATE_INTERVAL_MS / 1000)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-            description=("Parse Redis server for the "
-                         "reporter to connect to."))
-    parser.add_argument(
-            "--redis-address",
-            required=True,
-            type=str,
-            help="The address to use for Redis.")
-    parser.add_argument(
-            "--redis-password",
-            required=False,
-            type=str,
-            default=None,
-            help="the password to use for Redis")
-    parser.add_argument(
-            "--logging-level",
-            required=False,
-            type=str,
-            default=ray_constants.LOGGER_LEVEL,
-            choices=ray_constants.LOGGER_LEVEL_CHOICES,
-            help=ray_constants.LOGGER_LEVEL_HELP)
-    parser.add_argument(
-            "--logging-format",
-            required=False,
-            type=str,
-            default=ray_constants.LOGGER_FORMAT,
-            help=ray_constants.LOGGER_FORMAT_HELP)
-    args = parser.parse_args()
-    ray.utils.setup_logger(args.logging_level, args.logging_format)
-
-    reporter = Reporter(args.redis_address, redis_password=args.redis_password)
-
-    try:
-        dashboard_utils.run_agent(reporter)
-    except Exception as e:
-        # Something went wrong, so push an error to all drivers.
-        redis_client = ray.services.create_redis_client(
-                args.redis_address, password=args.redis_password)
-        traceback_str = ray.utils.format_error_message(traceback.format_exc())
-        message = ("The reporter on node {} failed with the following "
-                   "error:\n{}".format(os.uname()[1], traceback_str))
-        ray.utils.push_error_to_driver_through_redis(
-                redis_client, ray_constants.DASHBOARD_AGENT_DIED_ERROR, message)
-        raise e
+        await self.perform_iteration()
