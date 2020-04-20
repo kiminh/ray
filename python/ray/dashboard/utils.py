@@ -1,15 +1,13 @@
-import asyncio
 import datetime
 import functools
 import importlib
-import aioredis
 import inspect
 import logging
 import pkgutil
 from base64 import b64decode
 
 import aiohttp.web
-from grpc.experimental import aio
+from aiohttp import hdrs
 
 import ray
 import ray.dashboard.consts as dashboard_consts
@@ -49,8 +47,7 @@ class ClassMethodRouteTable:
         return cls._routes
 
     @classmethod
-    def get(cls, path, **kwargs):
-
+    def _register_route(cls, method, path, **kwargs):
         def _wrapper(handler):
             if path in cls._bind_map:
                 bind_info = cls._bind_map[path]
@@ -65,9 +62,37 @@ class ClassMethodRouteTable:
 
             cls._bind_map[path] = bind_info
             _handler_route.__route_path__ = path
-            return cls._routes.get(path, **kwargs)(_handler_route)
+            return cls._routes.route(method, path, **kwargs)(_handler_route)
 
         return _wrapper
+
+    @classmethod
+    def head(cls, path, **kwargs):
+        return cls._register_route(hdrs.METH_HEAD, path, **kwargs)
+
+    @classmethod
+    def get(cls, path, **kwargs):
+        return cls._register_route(hdrs.METH_GET, path, **kwargs)
+
+    @classmethod
+    def post(cls, path, **kwargs):
+        return cls._register_route(hdrs.METH_POST, path, **kwargs)
+
+    @classmethod
+    def put(cls, path, **kwargs):
+        return cls._register_route(hdrs.METH_PUT, path, **kwargs)
+
+    @classmethod
+    def patch(cls, path, **kwargs):
+        return cls._register_route(hdrs.METH_PATCH, path, **kwargs)
+
+    @classmethod
+    def delete(cls, path, **kwargs):
+        return cls._register_route(hdrs.METH_DELETE, path, **kwargs)
+
+    @classmethod
+    def view(cls, path, **kwargs):
+        return cls._register_route(hdrs.METH_ANY, path, **kwargs)
 
     @classmethod
     def bind(cls, master_instance):
@@ -95,21 +120,6 @@ def get_all_modules(module_type):
                 if mtype == module_type:
                     result.append(v)
     return result
-
-
-def get_agent_port(redis_client, node_ip):
-    agent_port = redis_client.get(
-            "{}{}".format(dashboard_consts.DASHBOARD_AGENT_PORT_PREFIX, node_ip))
-    return int(agent_port) if agent_port else None
-
-
-def run_agent(agent):
-    server = aio.server(options=(("grpc.so_reuseport", 0),))
-    loop = asyncio.get_event_loop()
-    server.start()
-    loop.create_task(agent.run())
-    server.wait_for_termination()
-    loop.run_forever()
 
 
 def to_unix_time(dt):
