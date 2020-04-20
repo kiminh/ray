@@ -12,7 +12,7 @@ import aioredis
 import psutil
 
 import ray
-import ray.dashboard.consts as dashboard_consts
+import ray.dashboard.modules.reporter.reporter_consts as reporter_consts
 import ray.dashboard.utils as dashboard_utils
 import ray.gcs_utils
 import ray.services
@@ -185,11 +185,11 @@ class Reporter:
             try:
                 stats = self.get_all_stats()
                 await aioredis_client.publish(
-                        "{}{}".format(dashboard_consts.REPORTER_PREFIX, self.hostname),
+                        "{}{}".format(reporter_consts.REPORTER_PREFIX, self.hostname),
                         jsonify_asdict(stats))
             except Exception:
                 traceback.print_exc()
-            await asyncio.sleep(dashboard_consts.REPORTER_UPDATE_INTERVAL_MS / 1000)
+            await asyncio.sleep(reporter_consts.REPORTER_UPDATE_INTERVAL_MS / 1000)
 
     async def run(self, server):
         """Publish the port."""

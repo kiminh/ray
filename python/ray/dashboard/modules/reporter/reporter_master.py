@@ -12,8 +12,8 @@ from aioredis.pubsub import Receiver
 from grpc.experimental import aio
 
 import ray
-import ray.dashboard.consts as dashboard_consts
 import ray.dashboard.datacenter as datacenter
+import ray.dashboard.modules.reporter.reporter_consts as reporter_consts
 import ray.dashboard.utils as dashboard_utils
 import ray.gcs_utils
 import ray.services
@@ -102,21 +102,16 @@ class ReportMaster:
         node_id = req.query.get("node_id")
         pid = int(req.query.get("pid"))
         duration = int(req.query.get("duration"))
-        profiling_id = self._launch_profiling(
+        profiling_id = await self._launch_profiling(
                 node_id, pid, duration)
         return await dashboard_utils.json_response(result=str(profiling_id))
 
-    def _launch_profiling(self, node_id, pid, duration):
+    async def _launch_profiling(self, node_id, pid, duration):
         profiling_id = str(uuid.uuid4())
-
-        def _callback(reply_future):
-            reply = reply_future.result()
-            self._profiling_stats[profiling_id] = reply
-
         reporter_stub = self.stubs[node_id]
-        reply_future = reporter_stub.GetProfilingStats.future(
+        reply = await reporter_stub.GetProfilingStats(
                 reporter_pb2.GetProfilingStatsRequest(pid=pid, duration=duration))
-        reply_future.add_done_callback(_callback)
+        self._profiling_stats[profiling_id] = reply
         return profiling_id
 
     @routes.get("/api/check_profiling_status")
@@ -154,7 +149,7 @@ class ReportMaster:
                 password=self.dashboard_master.redis_password)
         mpsc = Receiver()
 
-        reporter_key = "{}*".format(dashboard_consts.REPORTER_PREFIX)
+        reporter_key = "{}*".format(reporter_consts.REPORTER_PREFIX)
         await p.psubscribe(mpsc.pattern(reporter_key))
         logger.info("subscribed to {}".format(reporter_key))
 
