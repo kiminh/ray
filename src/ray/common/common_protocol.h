@@ -130,7 +130,7 @@ flatbuffers::Offset<flatbuffers::String> to_flatbuf(flatbuffers::FlatBufferBuild
 
 template <typename ID>
 ID from_flatbuf(const flatbuffers::String &string) {
-  return ID::FromBinary(string.str());
+  return ID::FromBinaryStr(string.c_str(), string.size());
 }
 
 template <typename ID>
