@@ -18,34 +18,29 @@ package ray.rpc;
 
 import "src/ray/protobuf/common.proto";
 
-enum JobState {
-    SUBMITTED = 0;
-    // Job resources are ready.
-    READY = 1;
-    // Job is running.
-    RUNNING = 2;
-    // Job completed successfully.
-    COMPLETED = 3;
-    // Job canceled by user.
-    CANCELED = 4;
-    // Job failed.
-    FAILED = 5;
+enum JobStatus {
+  // Job OK.
+  OK = 0;
+  // Job failed.
+  FAILED = 1;
 }
 
-message StartJobRequest {
+message DispatchJobInfoRequest {
   // The job ID.
-  bytes job_id = 1;
+  string job_id = 1;
+  // Start driver or not.
+  bool start_driver = 2;
 }
 
-message StartJobReply {
+message DispatchJobInfoReply {
   // The job ID.
-  bytes job_id = 1;
-  // Current state of this job.
-  JobState state = 2;
+  string job_id = 1;
+  // Current status of dispatched job.
+  JobStatus status = 2;
 }
 
 // Service for communicating with the job_agent.py process on a remote node.
 service JobService {
-  // Start job.
-  rpc StartJob(StartJobRequest) returns (StartJobReply);
+  // Dispatch job info.
+  rpc DispatchJobInfo(DispatchJobInfoRequest) returns (DispatchJobInfoReply);
 }

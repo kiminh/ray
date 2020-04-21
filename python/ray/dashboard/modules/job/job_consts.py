@@ -12,3 +12,4 @@ PYTHON_REQUIREMENTS_FILE = "/tmp/ray/{job_id}/requirements.txt"
 JOB_TABLE_NAME = "job table"
 JOB_RETRY_INTERVAL_SECONDS = 10
 JOB_RETRY_TIMES = 10
+JOB_DRIVER_ENTRY_FILE = "/tmp/ray{job_id}/driver.py"

@@ -21,15 +21,11 @@ class JobMaster:
 
     @routes.get("/job/start")
     async def start_job(self, req):
-        job_id = req.query.get("job_id")
-        if not job_id:
-            job_id = "aaa"
+        job_id = req.query.get("job_id", "default")
         stub = next(iter(self.stubs.values()))
-        reply = await stub.StartJob(
-                job_pb2.StartJobRequest(job_id=job_id.encode("ascii")))
-        D = MessageToDict(reply)
-        D["jobId"] = reply.job_id.decode("ascii")
-        return await dashboard_utils.json_response(result=D)
+        reply = await stub.DispatchJobInfo(
+                job_pb2.DispatchJobInfoRequest(job_id=job_id))
+        return await dashboard_utils.json_response(result=MessageToDict(reply))
 
     async def _update_stubs(self, change):
         if change.new:

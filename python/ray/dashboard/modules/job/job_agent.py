@@ -142,8 +142,8 @@ ray.init(ignore_reinit_error=True,
          redis_password={redis_password},
          load_code_from_local=True,
          job_id=ray.JobID({job_id}))
-import {entry}
-{entry}.main()
+import {driver_entry}
+{entry_entry}.main()
 '''
 
     def __init__(self, job_info, redis_address, redis_password):
@@ -154,12 +154,16 @@ import {entry}
     def _gen_driver_code(self):
         job_id = self.job_info.job_id()
         package_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(job_id=job_id)
+        driver_entry_file = job_consts.JOB_DRIVER_ENTRY_FILE.format(job_id=job_id)
         driver_code = self._template.format(import_path=repr(package_dir),
                                             redis_address=repr(self.redis_address),
-                                            redis_password=repr(self.redis_password), )
+                                            redis_password=repr(self.redis_password),
+                                            driver_entry=self.job_info.driver_entry())
+        with open(driver_entry_file, "w") as fp:
+            fp.write(driver_code)
 
     async def run(self):
-        pass
+        self._gen_driver_code()
 
 
 class JobAgentServer(job_pb2_grpc.JobServiceServicer):
@@ -194,10 +198,10 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
                                     self.dashboard_agent.redis_address,
                                     self.dashboard_agent.redis_password).run()
 
-    async def StartJob(self, request, context):
-        return job_pb2.StartJobReply(
+    async def DispatchJobInfo(self, request, context):
+        return job_pb2.DispatchJobInfoReply(
                 job_id=request.job_id,
-                state=job_pb2.JobState.RUNNING)
+                status=job_pb2.JobStatus.OK)
 
 
 @dashboard_utils.agent
