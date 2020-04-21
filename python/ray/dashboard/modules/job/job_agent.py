@@ -24,18 +24,22 @@ class JobInfo:
         return self.job_info["url"]
 
     def job_id(self):
-        return self.job_info["job_id"]
+        return self.job_info["id"]
+
+    def driver_entry(self):
+        return self.job_info["driver_entry"]
 
     def python_requirements_file(self):
-        if self.job_info["requirements"]:
+        requirements = self.job_info.get("dependencies", {}).get("python", {})
+        if not requirements:
             return None
         filename = job_consts.PYTHON_REQUIREMENTS_FILE.format(job_id=self.job_id())
         with open(filename, "w") as fp:
-            fp.writelines(self.job_info["requirements"])
+            fp.writelines(requirements)
         return filename
 
 
-class PackageProcessor:
+class JobProcessor:
     def __init__(self, job_info):
         self.job_info = job_info
 
@@ -59,13 +63,13 @@ class PackageProcessor:
         pass
 
 
-class DownloadPackage(PackageProcessor):
-    def __init__(self, http_session, job_info):
-        self.http_session = http_session
+class DownloadPackage(JobProcessor):
+    def __init__(self, job_info, http_session):
         super().__init__(job_info)
+        self.http_session = http_session
 
     async def _download_package(self, url, filename):
-        with async_timeout.timeout(job_consts.DOWNLOAD_TIMEOUT):
+        with async_timeout.timeout(job_consts.DOWNLOAD_TIMEOUT_SECONDS):
             async with self.http_session.get(url) as response:
                 logger.info("Download %s to %s", url, filename)
                 with open(filename, 'wb') as f:
@@ -87,13 +91,13 @@ class DownloadPackage(PackageProcessor):
     async def run(self):
         url = self.job_info.url()
         job_id = self.job_info.job_id()
-        filename = job_consts.DOWNLOAD_FILE.format(job_id=job_id)
-        unzip_dir = job_consts.DOWNLOAD_FILE_UNZIP_DIR.format(job_id=job_id)
+        filename = job_consts.DOWNLOAD_PACKAGE.format(job_id=job_id)
+        unzip_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(job_id=job_id)
         await self._download_package(url, filename)
         await self._unzip_package(filename, unzip_dir)
 
 
-class PreparePython(PackageProcessor):
+class PreparePythonEnviron(JobProcessor):
     async def _create_virtualenv(self, path):
         python = self._get_python()
         create_venv_cmd = "{} -m virtualenv --system-site-packages --no-download {}".format(python, path)
@@ -128,6 +132,36 @@ class PreparePython(PackageProcessor):
             await self._install_python_requirements(virtualenv_path, requirements_file)
 
 
+class StartPythonDriver(JobProcessor):
+    _template = '''import sys
+sys.path.append({import_path})
+import ray
+from ray.utils import hex_to_binary
+ray.init(ignore_reinit_error=True,
+         redis_address={redis_address},
+         redis_password={redis_password},
+         load_code_from_local=True,
+         job_id=ray.JobID({job_id}))
+import {entry}
+{entry}.main()
+'''
+
+    def __init__(self, job_info, redis_address, redis_password):
+        super().__init__(job_info)
+        self.redis_address = redis_address
+        self.redis_password = redis_password
+
+    def _gen_driver_code(self):
+        job_id = self.job_info.job_id()
+        package_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(job_id=job_id)
+        driver_code = self._template.format(import_path=repr(package_dir),
+                                            redis_address=repr(self.redis_address),
+                                            redis_password=repr(self.redis_password), )
+
+    async def run(self):
+        pass
+
+
 class JobAgentServer(job_pb2_grpc.JobServiceServicer):
     def __init__(self, dashboard_agent):
         loop = asyncio.get_event_loop()
@@ -135,6 +169,17 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
         self.http_session = aiohttp.ClientSession(loop=loop)
         self.job_queue = asyncio.Queue()
         self.job_table = {}
+
+    async def _prepare_job_environ(self, job_info):
+        job_info = JobInfo(job_info)
+        concurrent_tasks = [DownloadPackage(job_info, self.http_session).run(),
+                            PreparePythonEnviron(job_info).run()]
+        for i in range(job_consts.JOB_RETRY_TIMES):
+            try:
+                await asyncio.gather(*concurrent_tasks)
+            except Exception as ex:
+                logger.exception(ex)
+                await asyncio.sleep(job_consts.JOB_RETRY_INTERVAL_SECONDS)
 
     async def _run(self):
         aioredis_client = await aioredis.create_redis(
@@ -144,7 +189,10 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
             job_id = self.job_queue.get()
             job_info = await aioredis_client.hget(job_consts.JOB_TABLE_NAME, job_id)
             self.job_table[job_id] = job_info
-            JobInfo(job_info)
+            await self._prepare_job_environ(job_info)
+            await StartPythonDriver(job_info,
+                                    self.dashboard_agent.redis_address,
+                                    self.dashboard_agent.redis_password).run()
 
     async def StartJob(self, request, context):
         return job_pb2.StartJobReply(
