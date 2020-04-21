@@ -8,6 +8,12 @@ import ray.dashboard.utils as dashboard_utils
 from ray.core.generated import job_pb2
 from ray.core.generated import job_pb2_grpc
 
+import aioredis
+import asyncio
+
+from ray.dashboard.modules.job.job_info import JobInfo
+import ray.dashboard.modules.job.job_updater as job_updater
+
 logger = logging.getLogger(__name__)
 routes = dashboard_utils.ClassMethodRouteTable
 
@@ -15,17 +21,68 @@ routes = dashboard_utils.ClassMethodRouteTable
 @dashboard_utils.master
 class JobMaster:
     def __init__(self, dashboard_master):
-        self.dashboard_master = dashboard_master
-        self.stubs = {}
+        # The dashboard master.
+        self._dashboard_master = dashboard_master
+        # The stubs to all job agents.
+        self._stubs = {}
+        # Register the signal to detect the node changing.
         datacenter.agents.signal.append(self._update_stubs)
+        # Redis client
+        self._aioredis_client = aioredis.create_redis(
+            address=self._dashboard_master.redis_address,
+            password=self._dashboard_master.redis_password)
 
-    @routes.get("/job/start")
-    async def start_job(self, req):
-        job_id = req.query.get("job_id", "default")
-        stub = next(iter(self.stubs.values()))
-        reply = await stub.DispatchJobInfo(
-                job_pb2.DispatchJobInfoRequest(job_id=job_id))
-        return await dashboard_utils.json_response(result=MessageToDict(reply))
+        # How to connect to all agents when job master failed over?
+
+    @routes.get("/jobs/new")
+    async def new_job(self, req):
+        job_info = JobInfo.from_request(req.query)
+        job_info.id = job_updater.next_job_id(self._aioredis_client)
+        job_info.state = "submitted"
+        # We select the first agent to start driver for this job.
+        ip_to_start_driver = list(self._stubs.keys())[0]
+        job_info.assigned_node_name = ip_to_start_driver
+
+        # Write job info to GCS synchronously.
+        await job_updater.submit_job(self._aioredis_client, job_info.to_dict())
+
+        # If there is no agents now, let's reject it.
+        if len(self._stubs) == 0:
+            log_msg = "Failed to submit job because there is no agent connected to job master."
+            logger.info(log_msg)
+            return await dashboard_utils.json_response(
+                result={
+                    "status": "rejected",
+                    "msg": log_msg,
+                    "job_id": job_info.id
+                })
+
+        # Dispatch job info to all job agents. Note that here we use a
+        # local variable `all_agent_keys` to avoid iters getting changed.
+        all_agent_keys = self._stubs.keys()
+        for agent_ip in all_agent_keys:
+            try:
+                agent_stub = self._stubs[agent_ip]
+            except KeyError:
+                logger.info("The job agent might be lost from job manager. But this is not a "
+                            "critical error because job agent will handle it when it restarted.")
+                continue
+
+            if agent_ip == ip_to_start_driver:
+                reply = await agent_stub.DispatchJobInfo(
+                    job_pb2.DispatchJobInfoRequest(job_id=job_info.id, start_drvier=True))
+            else:
+                reply = await agent_stub.DispatchJobInfo(
+                    job_pb2.DispatchJobInfoRequest(job_id=job_info.id, start_drvier=False))
+            # Check the reply status and write the records which node has reply.
+
+        logger.info("Succeeded to submit job %s", job_info.id)
+        return await dashboard_utils.json_response(
+            result={
+                "status": "ok",
+                "msg": "Succeeded to submit job.",
+                "job_id": job_info.id
+            })
 
     async def _update_stubs(self, change):
         if change.new:
@@ -34,10 +91,10 @@ class JobMaster:
                     ip, int(port)))
             stub = job_pb2_grpc.JobServiceStub(
                     channel)
-            self.stubs[ip] = stub
+            self._stubs[ip] = stub
         if change.old:
             ip, port = next(iter(change.new.items()))
-            stub = self.stubs.pop(ip)
+            stub = self._stubs.pop(ip)
             stub.close()
 
     async def run(self):

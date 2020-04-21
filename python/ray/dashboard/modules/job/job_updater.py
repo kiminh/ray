@@ -2,7 +2,7 @@ import copy
 import datetime
 import json
 import ray.dashboard.modules.job.job_consts as job_consts
-
+import ray
 
 class JobStatusKey:
     State = "state"
@@ -15,6 +15,16 @@ class JobStatusKey:
 class JobState:
     Submitted = "submitted"
     Dispatched = "dispatched"
+
+
+# The counter to mock job id generator.
+job_id_counter = 0
+
+
+async def next_job_id(aioredis_client):
+    global job_id_counter
+    job_id_counter = job_id_counter + 1
+    return ray.JobID.from_int(job_id_counter).hex()
 
 
 async def submit_job(aioredis_client, job_info):
