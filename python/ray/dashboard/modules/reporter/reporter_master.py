@@ -9,7 +9,7 @@ from typing import Dict
 import aiohttp.web
 import aioredis
 from aioredis.pubsub import Receiver
-from grpc.experimental import aio
+from grpc.experimental import aio as aiogrpc
 
 import ray
 import ray.dashboard.datacenter as datacenter
@@ -36,7 +36,7 @@ class ReportMaster:
     async def _update_stubs(self, change):
         if change.new:
             ip, port = next(iter(change.new.items()))
-            channel = aio.insecure_channel("{}:{}".format(
+            channel = aiogrpc.insecure_channel("{}:{}".format(
                     ip, int(port)))
             stub = reporter_pb2_grpc.ReporterServiceStub(
                     channel)

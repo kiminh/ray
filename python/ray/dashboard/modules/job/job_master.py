@@ -1,7 +1,7 @@
 import logging
 
 from google.protobuf.json_format import MessageToDict
-from grpc.experimental import aio
+from grpc.experimental import aio as aiogrpc
 
 import ray.dashboard.datacenter as datacenter
 import ray.dashboard.utils as dashboard_utils
@@ -30,7 +30,7 @@ class JobMaster:
     async def _update_stubs(self, change):
         if change.new:
             ip, port = next(iter(change.new.items()))
-            channel = aio.insecure_channel("{}:{}".format(
+            channel = aiogrpc.insecure_channel("{}:{}".format(
                     ip, int(port)))
             stub = job_pb2_grpc.JobServiceStub(
                     channel)

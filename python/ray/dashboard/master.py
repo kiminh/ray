@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 import aioredis
-from grpc.experimental import aio
+from grpc.experimental import aio as aiogrpc
 
 import ray.dashboard.consts as dashboard_consts
 import ray.dashboard.datacenter as datacenter
@@ -12,7 +12,7 @@ import ray.services
 logger = logging.getLogger(__name__)
 routes = dashboard_utils.ClassMethodRouteTable
 
-aio.init_grpc_aio()
+aiogrpc.init_grpc_aio()
 
 
 class DashboardMaster:

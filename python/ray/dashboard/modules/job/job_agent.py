@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os.path
 import sys
@@ -12,8 +13,10 @@ import ray.dashboard.modules.job.job_consts as job_consts
 import ray.dashboard.utils as dashboard_utils
 from ray.core.generated import job_pb2
 from ray.core.generated import job_pb2_grpc
+from ray.utils import hex_to_binary
 
 logger = logging.getLogger(__name__)
+DEBUG = False
 
 
 class JobInfo:
@@ -30,12 +33,12 @@ class JobInfo:
         return self.job_info["driver_entry"]
 
     def python_requirements_file(self):
-        requirements = self.job_info.get("dependencies", {}).get("python", {})
+        requirements = self.job_info.get("dependencies", {}).get("python", [])
         if not requirements:
             return None
         filename = job_consts.PYTHON_REQUIREMENTS_FILE.format(job_id=self.job_id())
         with open(filename, "w") as fp:
-            fp.writelines(requirements)
+            fp.writelines(r.strip() + os.linesep for r in requirements)
         return filename
 
 
@@ -50,13 +53,14 @@ class JobProcessor:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE)
 
+        logger.info("Run cmd {}".format(repr(cmd)))
         stdout, stderr = await proc.communicate()
         if stdout:
-            logger.info(stdout)
+            logger.info(stdout.decode("utf-8"))
         if stderr:
-            logger.error(stderr)
+            logger.error(stderr.decode("utf-8"))
         if proc.returncode != 0:
-            raise Exception("Run {} exit with {}".format(cmd, proc.returncode))
+            raise Exception("Run cmd {} exit with {}".format(repr(cmd), proc.returncode))
 
     @abstractmethod
     async def run(self):
@@ -143,7 +147,7 @@ ray.init(ignore_reinit_error=True,
          load_code_from_local=True,
          job_id=ray.JobID({job_id}))
 import {driver_entry}
-{entry_entry}.main()
+{driver_entry}.main()
 '''
 
     def __init__(self, job_info, redis_address, redis_password):
@@ -155,7 +159,8 @@ import {driver_entry}
         job_id = self.job_info.job_id()
         package_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(job_id=job_id)
         driver_entry_file = job_consts.JOB_DRIVER_ENTRY_FILE.format(job_id=job_id)
-        driver_code = self._template.format(import_path=repr(package_dir),
+        driver_code = self._template.format(job_id=repr(hex_to_binary(job_id)),
+                                            import_path=repr(package_dir),
                                             redis_address=repr(self.redis_address),
                                             redis_password=repr(self.redis_password),
                                             driver_entry=self.job_info.driver_entry())
@@ -172,26 +177,31 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
         self.dashboard_agent = dashboard_agent
         self.http_session = aiohttp.ClientSession(loop=loop)
         self.job_queue = asyncio.Queue()
+        self.submitted_jobs = set()
+        self.failed_jobs = set()
         self.job_table = {}
 
     async def _prepare_job_environ(self, job_info):
-        job_info = JobInfo(job_info)
-        concurrent_tasks = [DownloadPackage(job_info, self.http_session).run(),
-                            PreparePythonEnviron(job_info).run()]
+        os.makedirs(job_consts.JOB_DIR.format(job_id=job_info.job_id()), exist_ok=True)
         for i in range(job_consts.JOB_RETRY_TIMES):
             try:
+                concurrent_tasks = [DownloadPackage(job_info, self.http_session).run(),
+                                    PreparePythonEnviron(job_info).run()]
                 await asyncio.gather(*concurrent_tasks)
+                break
             except Exception as ex:
                 logger.exception(ex)
                 await asyncio.sleep(job_consts.JOB_RETRY_INTERVAL_SECONDS)
 
-    async def _run(self):
+    async def run(self):
         aioredis_client = await aioredis.create_redis(
                 address=self.dashboard_agent.redis_address,
                 password=self.dashboard_agent.redis_password)
         while True:
-            job_id = self.job_queue.get()
-            job_info = await aioredis_client.hget(job_consts.JOB_TABLE_NAME, job_id)
+            request = await self.job_queue.get()
+            job_id = request.job_id
+            job_info = await aioredis_client.hget(job_consts.JOB_INFO_TABLE_NAME, job_id)
+            job_info = JobInfo(json.loads(job_info))
             self.job_table[job_id] = job_info
             await self._prepare_job_environ(job_info)
             await StartPythonDriver(job_info,
@@ -214,3 +224,25 @@ class JobAgent:
     async def run(self, server):
         job_pb2_grpc.add_JobServiceServicer_to_server(
                 self.job_agent_server, server)
+
+        if DEBUG:
+            test_job = {
+                'id': '0300',
+                'name': 'rayag_darknet',
+                'owner': 'abc.xyz',
+                'language': 'java',
+                'url': 'http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/tensorcache/tensorcache_service_app-0.4.9-py36-test.zip',
+                'driver_entry': 'com.alipay.argh.Xxx',
+                'driver_args': ['arg1', 'arg2'],
+                'custom_config': {'k1': 'v1', 'k2': 'v2'},
+                'jvm_options': '-Dabc=123 -Daaa=xxx',
+                'dependencies': {
+                    'python': ['aiohttp', 'click', 'colorama', 'filelock', 'google', 'grpcio', 'jsonschema',
+                               'msgpack >= 0.6.0, < 1.0.0', 'numpy >= 1.16', 'protobuf >= 3.8.0', 'py-spy >= 0.2.0',
+                               'pyyaml', 'redis >= 3.3.2']
+                }
+            }
+            self.dashboard_agent.redis_client.hset(job_consts.JOB_INFO_TABLE_NAME, test_job["id"], json.dumps(test_job))
+            self.job_agent_server.job_queue.put_nowait(
+                    job_pb2.DispatchJobInfoRequest(job_id=test_job["id"], start_driver=False))
+            await self.job_agent_server.run()

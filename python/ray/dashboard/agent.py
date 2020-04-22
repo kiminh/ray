@@ -4,7 +4,7 @@ import logging
 import os
 import traceback
 
-from grpc.experimental import aio
+from grpc.experimental import aio as aiogrpc
 
 import ray
 import ray.dashboard.consts as dashboard_consts
@@ -18,7 +18,7 @@ import ray.utils
 # entry/init points.
 logger = logging.getLogger(__name__)
 
-aio.init_grpc_aio()
+aiogrpc.init_grpc_aio()
 
 
 class DashboardAgent(object):
@@ -30,7 +30,7 @@ class DashboardAgent(object):
         self.ip = ray.services.get_node_ip_address()
         self.redis_client = ray.services.create_redis_client(
                 redis_address, password=redis_password)
-        self.server = aio.server(options=(("grpc.so_reuseport", 0),))
+        self.server = aiogrpc.server(options=(("grpc.so_reuseport", 0),))
         self.port = self.server.add_insecure_port("[::]:0")
 
     def _load_modules(self):

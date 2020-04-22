@@ -3,7 +3,7 @@ import logging
 import traceback
 
 import aiohttp.web
-from grpc.experimental import aio
+from grpc.experimental import aio as aiogrpc
 from google.protobuf.json_format import MessageToDict
 
 import ray
@@ -46,7 +46,7 @@ class RayletStats:
             node_id = node["NodeID"]
             if node_id not in self.stubs:
                 node_ip = node["NodeManagerAddress"]
-                channel = aio.insecure_channel("{}:{}".format(
+                channel = aiogrpc.insecure_channel("{}:{}".format(
                         node_ip, node["NodeManagerPort"]))
                 stub = node_manager_pb2_grpc.NodeManagerServiceStub(
                         channel)
@@ -61,7 +61,7 @@ class RayletStats:
                 await self._kill_actor(actor_id, ip_address, port))
 
     async def _kill_actor(self, actor_id, ip_address, port):
-        channel = aio.insecure_channel("{}:{}".format(ip_address, int(port)))
+        channel = aiogrpc.insecure_channel("{}:{}".format(ip_address, int(port)))
         stub = core_worker_pb2_grpc.CoreWorkerServiceStub(channel)
 
         await stub.KillActor(
