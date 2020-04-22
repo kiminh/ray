@@ -19,11 +19,25 @@ aiogrpc.init_grpc_aio()
 
 
 class DashboardAgent(object):
-    def __init__(self, redis_address, redis_password=None):
+    def __init__(self,
+                 raylet_socket_name,
+                 store_socket_name,
+                 node_ip_address,
+                 node_manager_port,
+                 redis_address,
+                 redis_password,
+                 session_dir,
+                 temp_dir):
         """Initialize the DashboardAgent object."""
         ip, port = redis_address.split(":")
+        self.raylet_socket_name = raylet_socket_name
+        self.store_socket_name = store_socket_name
+        self.node_ip_address = node_ip_address
+        self.node_manager_port = node_manager_port
         self.redis_address = (ip, int(port))
         self.redis_password = redis_password
+        self.session_dir = session_dir
+        self.temp_dir = temp_dir
         self.ip = ray.services.get_node_ip_address()
         self.redis_client = ray.services.create_redis_client(
                 redis_address, password=redis_password)
@@ -55,6 +69,26 @@ if __name__ == "__main__":
             description=("Parse Redis server for the "
                          "reporter to connect to."))
     parser.add_argument(
+            "--raylet-socket-name",
+            required=True,
+            type=str,
+            help="The socket path of the raylet process")
+    parser.add_argument(
+            "--store-socket-name",
+            required=True,
+            type=str,
+            help="The socket name of the plasma store")
+    parser.add_argument(
+            "--node-ip-address",
+            required=True,
+            type=str,
+            help="The ip address to use for connecting the node manager")
+    parser.add_argument(
+            "--node-manager-port",
+            required=True,
+            type=int,
+            help="The port to use for connecting the node manager")
+    parser.add_argument(
             "--redis-address",
             required=True,
             type=str,
@@ -64,7 +98,7 @@ if __name__ == "__main__":
             required=False,
             type=str,
             default=None,
-            help="the password to use for Redis")
+            help="The password to use for Redis")
     parser.add_argument(
             "--logging-level",
             required=False,
@@ -78,12 +112,29 @@ if __name__ == "__main__":
             type=str,
             default=ray_constants.LOGGER_FORMAT,
             help=ray_constants.LOGGER_FORMAT_HELP)
+    parser.add_argument(
+            "--session-dir",
+            required=False,
+            default=None,
+            help="The session dir of the Ray process")
+    parser.add_argument(
+            "--temp-dir",
+            required=False,
+            default=None,
+            help="The root temporary dir of the Ray process")
     args = parser.parse_args()
     logging.basicConfig(level=args.logging_level, format=args.logging_format)
 
     try:
         agent = DashboardAgent(
-                args.redis_address, redis_password=args.redis_password)
+                raylet_socket_name=args.raylet_socket_name,
+                store_socket_name=args.store_socket_name,
+                node_ip_address=args.node_ip_address,
+                node_manager_port=args.node_manager_port,
+                redis_address=args.redis_address,
+                redis_password=args.redis_password,
+                session_dir=args.session_dir,
+                temp_dir=args.temp_dir)
 
         loop = asyncio.get_event_loop()
         loop.create_task(agent.run())
