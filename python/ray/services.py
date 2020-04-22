@@ -1036,14 +1036,28 @@ def start_log_monitor(redis_address,
     return process_info
 
 
-def start_dashboard_agent(redis_address,
+def start_dashboard_agent(node_ip_address,
+                          node_manager_port,
+                          raylet_name,
+                          plasma_store_name,
+                          temp_dir,
+                          session_dir,
+                          redis_address,
+                          redis_password=None,
                           stdout_file=None,
                           stderr_file=None,
-                          redis_password=None,
                           fate_share=None):
     """Start a operation agent process.
 
     Args:
+        node_ip_address (str): The IP address of this node.
+        node_manager_port(int): The port to use for the node manager. This must
+            not be 0.
+        raylet_name (str): The name of the raylet socket to create.
+        plasma_store_name (str): The name of the plasma store socket to connect
+             to.
+        temp_dir (str): The path of the temporary directory Ray will use.
+        session_dir (str): The path of this session.
         redis_address (str): The address of the Redis instance.
         stdout_file: A file handle opened for writing to redirect stdout to. If
             no redirection should happen, then this should be None.
@@ -1059,7 +1073,13 @@ def start_dashboard_agent(redis_address,
         "dashboard/agent.py")
     command = [
         sys.executable, "-u", reporter_filepath,
-        "--redis-address={}".format(redis_address)
+        "--redis-address={}".format(redis_address),
+        "--raylet-socket-name={}".format(raylet_name),
+        "--store-socket-name={}".format(plasma_store_name),
+        "--node-ip-address={}".format(node_ip_address),
+        "--node-manager-port={}".format(node_manager_port),
+        "--temp-dir={}".format(temp_dir),
+        "--session-dir={}".format(session_dir),
     ]
     if redis_password:
         command += ["--redis-password", redis_password]

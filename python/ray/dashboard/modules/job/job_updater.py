@@ -1,6 +1,7 @@
 import copy
 import datetime
 import json
+
 import ray.dashboard.modules.job.job_consts as job_consts
 
 
@@ -47,3 +48,7 @@ async def get_job(aioredis_client, job_id):
             value = await aioredis_client.hget(job_consts.JOB_STATUS_TABLE_NAME, job_id + ":" + key)
             job_info[key] = json.loads(value)
     return job_info
+
+
+async def get_all_job_ids(aioredis_client):
+    return await aioredis_client.hgetall(job_consts.JOB_INFO_TABLE_NAME)

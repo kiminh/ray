@@ -13,6 +13,7 @@ import ray.dashboard.modules.job.job_updater as job_updater
 import ray.dashboard.utils as dashboard_utils
 from ray.core.generated import job_pb2
 from ray.core.generated import job_pb2_grpc
+from ray.experimental import set_resource
 from ray.utils import hex_to_binary
 
 logger = logging.getLogger(__name__)
@@ -197,6 +198,11 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
         aioredis_client = await aioredis.create_redis(
                 address=self.dashboard_agent.redis_address,
                 password=self.dashboard_agent.redis_password)
+        all_job_ids = await job_updater.get_all_job_ids(aioredis_client)
+        logger.info("Put %s jobs to queue.", len(all_job_ids))
+        # TODO(fyrestone): this logic needs to be executed after master connected to agent.
+        for job_id in all_job_ids:
+            self.job_queue.put_nowait(job_pb2.DispatchJobInfoRequest(job_id=job_id, start_driver=False))
         while True:
             request = await self.job_queue.get()
             job_id = request.job_id
@@ -249,3 +255,4 @@ class JobAgent:
             self.job_agent_server.job_queue.put_nowait(
                     job_pb2.DispatchJobInfoRequest(job_id=test_job["id"], start_driver=False))
             await self.job_agent_server.run()
+        await self.job_agent_server.run()
