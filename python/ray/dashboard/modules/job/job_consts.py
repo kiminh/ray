@@ -1,8 +1,9 @@
 import os
 
-# Job constants
+# Job table constants
 JOB_INFO_TABLE_NAME = "JOB_INFO_TABLE"
 JOB_STATUS_TABLE_NAME = "JOB_STATUS_TABLE"
+# Job agent consts
 JOB_RETRY_INTERVAL_SECONDS = 10
 JOB_RETRY_TIMES = 10
 JOB_DIR = "/tmp/ray/job/{job_id}/"

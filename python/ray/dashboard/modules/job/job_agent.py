@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import os.path
 import sys
@@ -10,6 +9,7 @@ import aioredis
 import async_timeout
 
 import ray.dashboard.modules.job.job_consts as job_consts
+import ray.dashboard.modules.job.job_updater as job_updater
 import ray.dashboard.utils as dashboard_utils
 from ray.core.generated import job_pb2
 from ray.core.generated import job_pb2_grpc
@@ -200,8 +200,8 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
         while True:
             request = await self.job_queue.get()
             job_id = request.job_id
-            job_info = await aioredis_client.hget(job_consts.JOB_INFO_TABLE_NAME, job_id)
-            job_info = JobInfo(json.loads(job_info))
+            job_info = await job_updater.get_job(aioredis_client, job_id)
+            job_info = JobInfo(job_info)
             self.job_table[job_id] = job_info
             await self._prepare_job_environ(job_info)
             await StartPythonDriver(job_info,
@@ -242,7 +242,10 @@ class JobAgent:
                                'pyyaml', 'redis >= 3.3.2']
                 }
             }
-            self.dashboard_agent.redis_client.hset(job_consts.JOB_INFO_TABLE_NAME, test_job["id"], json.dumps(test_job))
+            aioredis_client = await aioredis.create_redis(
+                    address=self.dashboard_agent.redis_address,
+                    password=self.dashboard_agent.redis_password)
+            await job_updater.submit_job(aioredis_client, test_job)
             self.job_agent_server.job_queue.put_nowait(
                     job_pb2.DispatchJobInfoRequest(job_id=test_job["id"], start_driver=False))
             await self.job_agent_server.run()
