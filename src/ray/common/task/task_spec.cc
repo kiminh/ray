@@ -253,7 +253,7 @@ const rpc::Address &TaskSpecification::CallerAddress() const {
 ActorID TaskSpecification::ActorId() const {
   RAY_CHECK(IsActorTask());
   auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
-  return ActorID::FromBinary(string_from_flatbuf(*(message->actor_task_spec()->actor_id())));
+  return from_flatbuf<ActorID>(*(message->actor_task_spec()->actor_id()));
 }
 
 uint64_t TaskSpecification::ActorCounter() const {
