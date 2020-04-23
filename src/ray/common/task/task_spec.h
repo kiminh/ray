@@ -65,11 +65,17 @@ typedef int SchedulingClass;
   flatbuffers::Offset<flatbuffers::String> ToFlatbuffer(
       flatbuffers::FlatBufferBuilder &fbb) const;
 
+//  std::string Serialize() const {
+//    flatbuffers::FlatBufferBuilder fbb;
+//    auto string = ToFlatbuffer(fbb);
+//    fbb.Finish(string);
+//    return std::string(fbb.GetBufferPointer(), fbb.GetBufferPointer() + fbb.GetSize());
+//  }
+
   std::string Serialize() const {
-    flatbuffers::FlatBufferBuilder fbb;
-    auto string = ToFlatbuffer(fbb);
-    fbb.Finish(string);
-    return std::string(fbb.GetBufferPointer(), fbb.GetBufferPointer() + fbb.GetSize());
+    std::string ret(spec_.size(), 0);
+    ret.assign(spec_.data(), spec_.data() + spec_.size());
+    return ret;
   }
 
   // TODO(swang): Finalize and document these methods.
