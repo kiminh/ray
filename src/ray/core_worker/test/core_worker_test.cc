@@ -681,7 +681,7 @@ TEST_F(ZeroNodeTest, TestDeserializePerf) {
   const uint64_t num = 10000000;
   RAY_LOG(INFO) << "start testing deserialize perf with num " << num;
   const uint64_t start_ms = current_time_ms();
-  for (int i = 0; i < num; ++i) {
+  for (uint64_t i = 0; i < num; ++i) {
     auto spec = TaskSpecification(serialized);
     ASSERT_TRUE(original_job_id == spec.JobId());
     ASSERT_TRUE(original_task_id == spec.TaskId());
