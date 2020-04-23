@@ -15,8 +15,8 @@ import ray.dashboard.utils as dashboard_utils
 from ray.core.generated import job_pb2
 from ray.core.generated import job_pb2_grpc
 from ray.experimental import set_resource
-from ray.utils import hex_to_binary
 from ray.gcs_utils import JOB_RESOURCE_PREFIX
+from ray.utils import hex_to_binary
 
 logger = logging.getLogger(__name__)
 DEBUG = False
@@ -192,15 +192,22 @@ import {driver_entry}
         await self._start_driver(driver_cmd, stdout_file, stderr_file)
 
 
-class JobAgentServer(job_pb2_grpc.JobServiceServicer):
+@dashboard_utils.agent
+class JobAgent(job_pb2_grpc.JobServiceServicer):
     def __init__(self, dashboard_agent):
+        ip, port = dashboard_agent.redis_address
+        ray.init(ignore_reinit_error=True,
+                 address=ip + ":" + str(port),
+                 redis_password=dashboard_agent.redis_password)
         loop = asyncio.get_event_loop()
         self.dashboard_agent = dashboard_agent
         self.http_session = aiohttp.ClientSession(loop=loop)
+        self.aioredis_client = None
         self.job_queue = asyncio.Queue()
         self.submitted_jobs = set()
         self.failed_jobs = set()
         self.job_table = {}
+        self.connected = False
 
     async def _prepare_job_environ(self, job_info):
         os.makedirs(job_consts.JOB_DIR.format(job_id=job_info.job_id()), exist_ok=True)
@@ -213,50 +220,39 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
             except Exception as ex:
                 logger.exception(ex)
                 await asyncio.sleep(job_consts.JOB_RETRY_INTERVAL_SECONDS)
+        else:
+            logger.error("Prepare job %s environment failed.", job_info.job_id())
+            self.failed_jobs.add(job_info.job_id())
+            return
         set_resource(JOB_RESOURCE_PREFIX + job_info.job_id().upper(), 1000)
 
-    async def run(self):
-        aioredis_client = await aioredis.create_redis(
-                address=self.dashboard_agent.redis_address,
-                password=self.dashboard_agent.redis_password)
-        all_job_ids = await job_updater.get_all_job_ids(aioredis_client)
+    async def _load_all_jobs_from_store(self):
+        all_job_ids = await job_updater.get_all_job_ids(self.aioredis_client)
         logger.info("Put %s jobs to queue.", len(all_job_ids))
-        # TODO(fyrestone): this logic needs to be executed after master connected to agent.
         for job_id in all_job_ids:
             request = job_pb2.DispatchJobInfoRequest(job_id=job_id, start_driver=True)
+            self._submit_job(request)
+
+    def _submit_job(self, request):
+        if request.job_id not in self.submitted_jobs:
+            self.submitted_jobs.add(request.job_id)
             self.job_queue.put_nowait(request)
-        while True:
-            request = await self.job_queue.get()
-            job_id = request.job_id
-            job_info = await job_updater.get_job(aioredis_client, job_id)
-            job_info = JobInfo(job_info)
-            self.job_table[job_id] = job_info
-            await self._prepare_job_environ(job_info)
-            if request.start_driver:
-                await StartPythonDriver(job_info,
-                                        self.dashboard_agent.redis_address,
-                                        self.dashboard_agent.redis_password).run()
 
     async def DispatchJobInfo(self, request, context):
+        if not self.connected:
+            self.connected = True
+            await self._load_all_jobs_from_store()
+        self._submit_job(request)
         return job_pb2.DispatchJobInfoReply(
                 job_id=request.job_id,
                 status=job_pb2.JobStatus.OK)
 
-
-@dashboard_utils.agent
-class JobAgent:
-    def __init__(self, dashboard_agent):
-        """Initialize the JobAgent object."""
-        self.dashboard_agent = dashboard_agent
-        self.job_agent_server = JobAgentServer(dashboard_agent)
-        ip, port = self.dashboard_agent.redis_address
-        ray.init(ignore_reinit_error=True,
-                 address=ip + ":" + str(port),
-                 redis_password=self.dashboard_agent.redis_password)
-
     async def run(self, server):
         job_pb2_grpc.add_JobServiceServicer_to_server(
-                self.job_agent_server, server)
+                self, server)
+        self.aioredis_client = await aioredis.create_redis(
+                address=self.dashboard_agent.redis_address,
+                password=self.dashboard_agent.redis_password)
 
         if DEBUG:
             job_id = ray.JobID.from_int(
@@ -277,8 +273,18 @@ class JobAgent:
                                'pyyaml', 'redis >= 3.3.2']
                 }
             }
-            aioredis_client = await aioredis.create_redis(
-                    address=self.dashboard_agent.redis_address,
-                    password=self.dashboard_agent.redis_password)
-            await job_updater.submit_job(aioredis_client, test_job)
-        await self.job_agent_server.run()
+
+            await job_updater.submit_job(self.aioredis_client, test_job)
+
+        await self._load_all_jobs_from_store()
+        while True:
+            request = await self.job_queue.get()
+            job_id = request.job_id
+            job_info = await job_updater.get_job(self.aioredis_client, job_id)
+            job_info = JobInfo(job_info)
+            self.job_table[job_id] = job_info
+            await self._prepare_job_environ(job_info)
+            if request.start_driver:
+                await StartPythonDriver(job_info,
+                                        self.dashboard_agent.redis_address,
+                                        self.dashboard_agent.redis_password).run()
