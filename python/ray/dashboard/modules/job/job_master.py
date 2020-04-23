@@ -32,9 +32,11 @@ class JobMaster:
             address=self._dashboard_master.redis_address,
             password=self._dashboard_master.redis_password)
 
-        # How to connect to all agents when job master failed over?
+        # How many fixed nodes?
+        self._fixed_node_num = 10
+        self._submitted_jobs_cache = {}
 
-    @routes.get("/jobs/new")
+    @routes.post("/jobs/new")
     async def new_job(self, req):
         job_info = JobInfo.from_request(req.query)
         job_info.id = job_updater.next_job_id(self._aioredis_client)
@@ -74,7 +76,9 @@ class JobMaster:
             else:
                 reply = await agent_stub.DispatchJobInfo(
                     job_pb2.DispatchJobInfoRequest(job_id=job_info.id, start_drvier=False))
-            # Check the reply status and write the records which node has reply.
+            if reply.status != job_pb2.JobStatus.OK:
+                logger.info()
+                # Check the reply status and write the records which node has reply.
 
         logger.info("Succeeded to submit job %s", job_info.id)
         return await dashboard_utils.json_response(

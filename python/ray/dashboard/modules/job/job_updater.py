@@ -5,6 +5,7 @@ import json
 import ray.dashboard.modules.job.job_consts as job_consts
 import ray
 
+
 class JobStatusKey:
     State = "state"
     DriverStarted = "driver_started"
@@ -43,6 +44,12 @@ async def submit_job(aioredis_client, job_info):
         await aioredis_client.hset(job_consts.JOB_STATUS_TABLE_NAME,
                                    job_info["id"] + ":" + key,
                                    json.dumps(value))
+
+
+async def update_job_state(aioredis_client, job_id, state):
+    await aioredis_client.hset(job_consts.JOB_STATUS_TABLE_NAME,
+                               "{}:{}".format(job_id, JobStatusKey.State),
+                               json.dumps(state))
 
 
 async def get_job(aioredis_client, job_id):
