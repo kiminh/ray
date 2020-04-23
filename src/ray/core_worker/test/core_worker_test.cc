@@ -668,7 +668,18 @@ inline TaskSpecification NewDummyActorTaskSpec() {
 
 }
 TEST_F(ZeroNodeTest, TestSerializePerf) {
+  const auto original_task_spec = NewDummyActorTaskSpec();
 
+  const uint64_t num = 10000000;
+  RAY_LOG(INFO) << "start testing serialize perf with num " << num;
+  const uint64_t start_ms = current_time_ms();
+  for (uint64_t i = 0; i < num; ++i) {
+    const auto serialized = original_task_spec.Serialize();
+    ASSERT_FALSE(serialized.empty());
+  }
+
+  RAY_LOG(INFO) << "Finish testing serialize perf with num " << num
+      << ", which takes " << current_time_ms() - start_ms << " ms.";
 }
 
 TEST_F(ZeroNodeTest, TestDeserializePerf) {
