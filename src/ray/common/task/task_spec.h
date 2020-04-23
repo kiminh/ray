@@ -46,7 +46,7 @@ typedef int SchedulingClass;
  class TaskSpecification {
  public:
   /// Construct an empty task specification. This should not be used directly.
-  TaskSpecification(const flatbuffers::String &string);
+  explicit TaskSpecification(const flatbuffers::String &string);
 
    TaskSpecification() {}
 
@@ -58,6 +58,15 @@ typedef int SchedulingClass;
      AssignSpecification(reinterpret_cast<const uint8_t *>(serialized_binary.data()), serialized_binary.size());
    }
 
+   TaskSpecification &operator= (const TaskSpecification &task_spec) {
+     if (this == &task_spec) {
+       return *this;
+     }
+     
+     this->spec_ = task_spec.spec_;
+     ComputeResources();
+   }
+
   /// Serialize the TaskSpecification to a flatbuffer.
   ///
   /// \param fbb The flatbuffer builder to serialize with.
@@ -65,16 +74,13 @@ typedef int SchedulingClass;
   flatbuffers::Offset<flatbuffers::String> ToFlatbuffer(
       flatbuffers::FlatBufferBuilder &fbb) const;
 
-//  std::string Serialize() const {
-//    flatbuffers::FlatBufferBuilder fbb;
-//    auto string = ToFlatbuffer(fbb);
-//    fbb.Finish(string);
-//    return std::string(fbb.GetBufferPointer(), fbb.GetBufferPointer() + fbb.GetSize());
-//  }
-
   std::string Serialize() const {
-    std::string ret(spec_.size(), 0);
-    ret.assign(spec_.data(), spec_.data() + spec_.size());
+    if (spec_ == nullptr) {
+      return std::string();
+    }
+
+    std::string ret(spec_->size(), 0);
+    ret.assign(spec_->data(), spec_->data() + spec_->size());
     return ret;
   }
 
@@ -201,18 +207,22 @@ typedef int SchedulingClass;
 
   /// Get a pointer to the byte data.
   const uint8_t *Data() const {
-    return spec_.data();
+    return spec_->data();
   }
 
   /// Get the size in bytes of the task specification.
   size_t Size() const {
-    return spec_.size();
+    return spec_->size();
   }
 
   private:
   /// Assign the specification data from a pointer.
   void AssignSpecification(const uint8_t *spec, size_t spec_size) {
-    spec_.assign(spec, spec + spec_size);
+    if (spec_ == nullptr) {
+      spec_ = std::make_shared<std::vector<uint8_t>>();
+    }
+
+    spec_->assign(spec, spec + spec_size);
     ComputeResources();
   }
 
@@ -223,7 +233,7 @@ typedef int SchedulingClass;
   /// caller address.
   mutable rpc::Address caller_address_;
   /// The task specification data.
-  std::vector<uint8_t> spec_;
+  std::shared_ptr<std::vector<uint8_t>> spec_;
 
 
 

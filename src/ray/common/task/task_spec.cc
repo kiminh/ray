@@ -34,7 +34,7 @@ inline std::unordered_map<std::string, double> MapFromFlatbufResources(const rpc
 }
 
 void TaskSpecification::ComputeResources() {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   auto required_resources = MapFromFlatbufResources(message->required_resources());
   auto required_placement_resources =
       MapFromFlatbufResources(message->required_placement_resources());
@@ -79,29 +79,29 @@ void TaskSpecification::ComputeResources() {
 
 // Task specification getter methods.
 TaskID TaskSpecification::TaskId() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return from_flatbuf<TaskID>(*message->task_id());
 
 }
 
 JobID TaskSpecification::JobId() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return from_flatbuf<JobID>(*message->job_id());
 }
 
 TaskID TaskSpecification::ParentTaskId() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return from_flatbuf<TaskID>(*message->parent_task_id());
 }
 
 size_t TaskSpecification::ParentCounter() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return static_cast<size_t>(message->parent_counter());
 
 }
 
 ray::FunctionDescriptor TaskSpecification::FunctionDescriptor() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   // Avoid this copy.
   return ray::FunctionDescriptorBuilder::Deserialize(
       std::string(message->function_descriptor()->data(), message->function_descriptor()->size()));
@@ -113,12 +113,12 @@ const SchedulingClass TaskSpecification::GetSchedulingClass() const {
 }
 
 size_t TaskSpecification::NumArgs() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return static_cast<size_t>(message->args()->size());
 }
 
 size_t TaskSpecification::NumReturns() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return static_cast<size_t>(message->num_returns());
 }
 
@@ -133,39 +133,39 @@ bool TaskSpecification::ArgByRef(size_t arg_index) const {
 }
 
 size_t TaskSpecification::ArgIdCount(size_t arg_index) const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return (*message->args())[arg_index]->object_ids()->size();
 }
 
 
 ObjectID TaskSpecification::ArgId(size_t arg_index, size_t id_index) const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   const auto &object_ids = from_flatbuf<ObjectID>(*message->args()->Get(arg_index)->object_ids());
   return object_ids[id_index];
 }
 
 const uint8_t *TaskSpecification::ArgData(size_t arg_index) const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return reinterpret_cast<const uint8_t *>(message->args()->Get(arg_index)->data()->c_str());
 }
 
 size_t TaskSpecification::ArgDataSize(size_t arg_index) const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return message->args()->Get(arg_index)->data()->size();
 }
 
 const uint8_t *TaskSpecification::ArgMetadata(size_t arg_index) const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return reinterpret_cast<const uint8_t *>(message->args()->Get(arg_index)->metadata()->c_str());
 }
 
 size_t TaskSpecification::ArgMetadataSize(size_t arg_index) const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return message->args()->Get(arg_index)->metadata()->size();
 }
 
 const std::vector<ObjectID> TaskSpecification::ArgInlinedIds(size_t arg_index) const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return from_flatbuf<ObjectID>(*(message->args()->Get(arg_index)->nested_inlined_ids()));
 }
 
@@ -192,27 +192,27 @@ const ResourceSet &TaskSpecification::GetRequiredPlacementResources() const {
 }
 
 bool TaskSpecification::IsDriverTask() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return message->type() == rpc::flatbuf::TaskType::DRIVER_TASK;
 }
 
 Language TaskSpecification::GetLanguage() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return FromFlatbufLanguage(message->language());
 }
 
 bool TaskSpecification::IsNormalTask() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return message->type() == rpc::flatbuf::TaskType::NORMAL_TASK;
 }
 
 bool TaskSpecification::IsActorCreationTask() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return message->type() == rpc::flatbuf::TaskType::ACTOR_CREATION_TASK;
 }
 
 bool TaskSpecification::IsActorTask() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return message->type() == rpc::flatbuf::TaskType::ACTOR_TASK;
 }
 
@@ -220,29 +220,29 @@ bool TaskSpecification::IsActorTask() const {
 
 ActorID TaskSpecification::ActorCreationId() const {
   RAY_CHECK(IsActorCreationTask());
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return ActorID::FromBinary(string_from_flatbuf(*(message->actor_creation_task_spec()->actor_id())));
 }
 
 uint64_t TaskSpecification::MaxActorReconstructions() const {
   RAY_CHECK(IsActorCreationTask());
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return message->actor_creation_task_spec()->max_actor_reconstructions();
 }
 
 std::vector<std::string> TaskSpecification::DynamicWorkerOptions() const {
   RAY_CHECK(IsActorCreationTask());
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return string_vec_from_flatbuf(*(message->actor_creation_task_spec()->dynamic_worker_options()));
 }
 
 TaskID TaskSpecification::CallerId() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return TaskID::FromBinary(string_from_flatbuf(*(message->caller_id())));
 }
 
 const rpc::Address &TaskSpecification::CallerAddress() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   auto *caller_address = message->caller_address();
   caller_address_.ParseFromArray(caller_address->data(), caller_address->size());
   return caller_address_;
@@ -252,25 +252,25 @@ const rpc::Address &TaskSpecification::CallerAddress() const {
 
 ActorID TaskSpecification::ActorId() const {
   RAY_CHECK(IsActorTask());
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return from_flatbuf<ActorID>(*(message->actor_task_spec()->actor_id()));
 }
 
 uint64_t TaskSpecification::ActorCounter() const {
   RAY_CHECK(IsActorTask());
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return message->actor_task_spec()->actor_counter();
 }
 
 ObjectID TaskSpecification::ActorCreationDummyObjectId() const {
   RAY_CHECK(IsActorTask());
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return from_flatbuf<ObjectID>(*(message->actor_task_spec()->actor_creation_dummy_object_id()));
 }
 
 ObjectID TaskSpecification::PreviousActorTaskDummyObjectId() const {
   RAY_CHECK(IsActorTask());
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return from_flatbuf<ObjectID>(*(message->actor_task_spec()->previous_actor_task_dummy_object_id()));
 }
 
@@ -281,18 +281,18 @@ ObjectID TaskSpecification::ActorDummyObject() const {
 
 int TaskSpecification::MaxActorConcurrency() const {
   RAY_CHECK(IsActorCreationTask());
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return message->actor_creation_task_spec()->max_concurrency();
 }
 
 bool TaskSpecification::IsAsyncioActor() const {
   RAY_CHECK(IsActorCreationTask());
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return message->actor_creation_task_spec()->is_asyncio();
 }
 
 bool TaskSpecification::IsDetachedActor() const {
-  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_.data());
+  auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(spec_->data());
   return IsActorCreationTask() && message->actor_creation_task_spec()->is_detached();
 }
 
