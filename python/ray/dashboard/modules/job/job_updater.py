@@ -18,14 +18,9 @@ class JobState:
     Dispatched = "dispatched"
 
 
-# The counter to mock job id generator.
-job_id_counter = 0
-
-
 async def next_job_id(aioredis_client):
-    global job_id_counter
-    job_id_counter = job_id_counter + 1
-    return ray.JobID.from_int(job_id_counter).hex()
+    counter_str = await aioredis_client.incr("JobCounter")
+    return ray.JobID.from_int(int(counter_str))
 
 
 async def submit_job(aioredis_client, job_info):
