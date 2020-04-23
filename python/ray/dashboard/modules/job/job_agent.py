@@ -8,6 +8,7 @@ import aiohttp
 import aioredis
 import async_timeout
 
+import ray
 import ray.dashboard.modules.job.job_consts as job_consts
 import ray.dashboard.modules.job.job_updater as job_updater
 import ray.dashboard.utils as dashboard_utils
@@ -15,6 +16,7 @@ from ray.core.generated import job_pb2
 from ray.core.generated import job_pb2_grpc
 from ray.experimental import set_resource
 from ray.utils import hex_to_binary
+from ray.gcs_utils import JOB_RESOURCE_PREFIX
 
 logger = logging.getLogger(__name__)
 DEBUG = False
@@ -63,6 +65,14 @@ class JobProcessor:
         if proc.returncode != 0:
             raise Exception("Run cmd {} exit with {}".format(repr(cmd), proc.returncode))
 
+    @staticmethod
+    def _get_current_python():
+        return sys.executable
+
+    @staticmethod
+    def _get_virtualenv_python(virtualenv_path):
+        return os.path.join(virtualenv_path, "bin/python")
+
     @abstractmethod
     async def run(self):
         pass
@@ -104,7 +114,7 @@ class DownloadPackage(JobProcessor):
 
 class PreparePythonEnviron(JobProcessor):
     async def _create_virtualenv(self, path):
-        python = self._get_python()
+        python = self._get_current_python()
         create_venv_cmd = "{} -m virtualenv --system-site-packages --no-download {}".format(python, path)
         await self._run_cmd(create_venv_cmd)
 
@@ -119,14 +129,6 @@ class PreparePythonEnviron(JobProcessor):
                 python, job_consts.PYTHON_PIP_CACHE, pypi, requirements_file)
         await self._run_cmd(pip_download_cmd)
         await self._run_cmd(pip_install_cmd)
-
-    @staticmethod
-    def _get_python():
-        return sys.executable
-
-    @staticmethod
-    def _get_virtualenv_python(path):
-        return os.path.join(path, "bin/python")
 
     async def run(self):
         job_id = self.job_info.job_id()
@@ -143,7 +145,7 @@ sys.path.append({import_path})
 import ray
 from ray.utils import hex_to_binary
 ray.init(ignore_reinit_error=True,
-         redis_address={redis_address},
+         address={redis_address},
          redis_password={redis_password},
          load_code_from_local=True,
          job_id=ray.JobID({job_id}))
@@ -160,16 +162,34 @@ import {driver_entry}
         job_id = self.job_info.job_id()
         package_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(job_id=job_id)
         driver_entry_file = job_consts.JOB_DRIVER_ENTRY_FILE.format(job_id=job_id)
+        ip, port = self.redis_address
         driver_code = self._template.format(job_id=repr(hex_to_binary(job_id)),
                                             import_path=repr(package_dir),
-                                            redis_address=repr(self.redis_address),
+                                            redis_address=repr(ip + ":" + str(port)),
                                             redis_password=repr(self.redis_password),
                                             driver_entry=self.job_info.driver_entry())
         with open(driver_entry_file, "w") as fp:
             fp.write(driver_code)
+        return driver_entry_file
+
+    @staticmethod
+    async def _start_driver(cmd, stdout, stderr):
+        proc = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=stdout,
+                stderr=stderr)
+
+        logger.info("Start driver cmd {}".format(repr(cmd)))
+        await proc.wait()
 
     async def run(self):
-        self._gen_driver_code()
+        job_id = self.job_info.job_id()
+        virtualenv_path = job_consts.PYTHON_VIRTUAL_ENV_DIR.format(job_id=job_id)
+        python = self._get_virtualenv_python(virtualenv_path)
+        driver_file = self._gen_driver_code()
+        driver_cmd = "{} -u {}".format(python, driver_file)
+        stdout_file, stderr_file = ray.worker._global_node.new_log_files("driver_{}".format(job_id))
+        await self._start_driver(driver_cmd, stdout_file, stderr_file)
 
 
 class JobAgentServer(job_pb2_grpc.JobServiceServicer):
@@ -193,6 +213,7 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
             except Exception as ex:
                 logger.exception(ex)
                 await asyncio.sleep(job_consts.JOB_RETRY_INTERVAL_SECONDS)
+        set_resource(JOB_RESOURCE_PREFIX + job_info.job_id().upper(), 1000)
 
     async def run(self):
         aioredis_client = await aioredis.create_redis(
@@ -202,7 +223,8 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
         logger.info("Put %s jobs to queue.", len(all_job_ids))
         # TODO(fyrestone): this logic needs to be executed after master connected to agent.
         for job_id in all_job_ids:
-            self.job_queue.put_nowait(job_pb2.DispatchJobInfoRequest(job_id=job_id, start_driver=False))
+            request = job_pb2.DispatchJobInfoRequest(job_id=job_id, start_driver=True)
+            self.job_queue.put_nowait(request)
         while True:
             request = await self.job_queue.get()
             job_id = request.job_id
@@ -210,9 +232,10 @@ class JobAgentServer(job_pb2_grpc.JobServiceServicer):
             job_info = JobInfo(job_info)
             self.job_table[job_id] = job_info
             await self._prepare_job_environ(job_info)
-            await StartPythonDriver(job_info,
-                                    self.dashboard_agent.redis_address,
-                                    self.dashboard_agent.redis_password).run()
+            if request.start_driver:
+                await StartPythonDriver(job_info,
+                                        self.dashboard_agent.redis_address,
+                                        self.dashboard_agent.redis_password).run()
 
     async def DispatchJobInfo(self, request, context):
         return job_pb2.DispatchJobInfoReply(
@@ -226,19 +249,25 @@ class JobAgent:
         """Initialize the JobAgent object."""
         self.dashboard_agent = dashboard_agent
         self.job_agent_server = JobAgentServer(dashboard_agent)
+        ip, port = self.dashboard_agent.redis_address
+        ray.init(ignore_reinit_error=True,
+                 address=ip + ":" + str(port),
+                 redis_password=self.dashboard_agent.redis_password)
 
     async def run(self, server):
         job_pb2_grpc.add_JobServiceServicer_to_server(
                 self.job_agent_server, server)
 
         if DEBUG:
+            job_id = ray.JobID.from_int(
+                    int(self.dashboard_agent.redis_client.incr("JobCounter")))
             test_job = {
-                'id': '0300',
+                'id': job_id.hex(),
                 'name': 'rayag_darknet',
                 'owner': 'abc.xyz',
                 'language': 'java',
-                'url': 'http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/tensorcache/tensorcache_service_app-0.4.9-py36-test.zip',
-                'driver_entry': 'com.alipay.argh.Xxx',
+                'url': 'http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/po/simple_job.zip',
+                'driver_entry': 'simple_job',
                 'driver_args': ['arg1', 'arg2'],
                 'custom_config': {'k1': 'v1', 'k2': 'v2'},
                 'jvm_options': '-Dabc=123 -Daaa=xxx',
@@ -252,7 +281,4 @@ class JobAgent:
                     address=self.dashboard_agent.redis_address,
                     password=self.dashboard_agent.redis_password)
             await job_updater.submit_job(aioredis_client, test_job)
-            self.job_agent_server.job_queue.put_nowait(
-                    job_pb2.DispatchJobInfoRequest(job_id=test_job["id"], start_driver=False))
-            await self.job_agent_server.run()
         await self.job_agent_server.run()

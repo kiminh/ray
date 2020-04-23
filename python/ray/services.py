@@ -1289,7 +1289,9 @@ def start_raylet(redis_address,
 
     # Create the command that the Raylet will use to start workers.
     start_worker_command = [
-        sys.executable, worker_path,
+        # TODO(fyrestone): use job config.
+        "/tmp/ray/job/{job_id}/pyenv/bin/python",
+        worker_path,
         "--node-ip-address={}".format(node_ip_address),
         "--node-manager-port={}".format(node_manager_port),
         "--object-store-name={}".format(plasma_store_name),

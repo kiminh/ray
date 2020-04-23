@@ -230,7 +230,7 @@ class FunctionActorManager:
             # Load function from local code.
             # Currently, we don't support isolating code by jobs,
             # thus always set job ID to NIL here.
-            job_id = ray.JobID.nil()
+            # TODO(fyrestone): use job isolation solution.
             if not function_descriptor.is_actor_method():
                 self._load_function_from_local(job_id, function_descriptor)
         else:
@@ -253,6 +253,7 @@ class FunctionActorManager:
         return info
 
     def _load_function_from_local(self, job_id, function_descriptor):
+        ray.utils.inject_job_local_path(job_id)
         assert not function_descriptor.is_actor_method()
         function_id = function_descriptor.function_id
         if (job_id in self._function_execution_info
@@ -387,7 +388,7 @@ class FunctionActorManager:
         if actor_class is None:
             # Load actor class.
             if self._worker.load_code_from_local:
-                job_id = ray.JobID.nil()
+                # TODO(fyrestone): use job isolation solution.
                 # Load actor class from local code.
                 actor_class = self._load_actor_class_from_local(
                     job_id, actor_creation_function_descriptor)
@@ -435,6 +436,7 @@ class FunctionActorManager:
                                      actor_creation_function_descriptor):
         """Load actor class from local code."""
         assert isinstance(job_id, ray.JobID)
+        ray.utils.inject_job_local_path(job_id)
         module_name, class_name = (
             actor_creation_function_descriptor.module_name,
             actor_creation_function_descriptor.class_name)

@@ -306,6 +306,37 @@ def set_cuda_visible_devices(gpu_ids):
     last_set_gpu_ids = gpu_ids
 
 
+def inject_job_local_path(job_id):
+    """Inject job path for loading object from local code."""
+    job_local_path = "/tmp/ray/job/{job_id}/package".format(job_id=job_id.hex())
+    if job_local_path not in sys.path:
+        sys.path.insert(0, job_local_path)
+
+
+def resources_from_job_resources(runtime_resources):
+    """Add the job resources to task requirements
+
+    Args:
+        runtime_resources: The custom resources requested when the task was
+            invoked.
+
+    Returns:
+        A dictionary of the resource requirements for the task.
+    """
+    _global_node = ray.worker._global_node
+    if not _global_node:
+        return runtime_resources
+    if not getattr(_global_node, "_ray_params", None):
+        return runtime_resources
+    job_id = ray.worker.global_worker.current_job_id
+    if job_id.is_nil():
+        return runtime_resources
+    resources = runtime_resources.copy()
+    resource_name = ray.gcs_utils.JOB_RESOURCE_PREFIX + job_id.hex().upper()
+    resources[resource_name] = 1
+    return resources
+
+
 def resources_from_resource_arguments(
         default_num_cpus, default_num_gpus, default_memory,
         default_object_store_memory, default_resources, runtime_num_cpus,
@@ -370,7 +401,7 @@ def resources_from_resource_arguments(
         resources["object_store_memory"] = ray_constants.to_memory_units(
             object_store_memory, round_up=True)
 
-    return resources
+    return resources_from_job_resources(resources)
 
 
 _default_handler = None

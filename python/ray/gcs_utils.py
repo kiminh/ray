@@ -37,6 +37,8 @@ __all__ = [
 
 FUNCTION_PREFIX = "RemoteFunction:"
 LOG_FILE_CHANNEL = "RAY_LOG_CHANNEL"
+# Avoid conflict with TablePrefix_JOB_string
+JOB_RESOURCE_PREFIX = "RAY_JOB_RESOURCE:"
 
 # xray heartbeats
 XRAY_HEARTBEAT_CHANNEL = str(

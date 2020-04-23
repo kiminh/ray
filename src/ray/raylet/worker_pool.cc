@@ -102,7 +102,7 @@ WorkerPool::WorkerPool(boost::asio::io_service &io_service, int num_workers,
     state.worker_command = entry.second;
     RAY_CHECK(!state.worker_command.empty()) << "Worker command must not be empty.";
   }
-  Start(num_workers);
+  // Start(num_workers);
 }
 
 void WorkerPool::Start(int num_workers) {
@@ -111,7 +111,7 @@ void WorkerPool::Start(int num_workers) {
     int num_worker_processes = static_cast<int>(
         std::ceil(static_cast<double>(num_workers) / state.num_workers_per_process));
     for (int i = 0; i < num_worker_processes; i++) {
-      StartWorkerProcess(entry.first);
+      StartWorkerProcess(entry.first, JobID::Nil());
     }
   }
 }
@@ -148,6 +148,7 @@ uint32_t WorkerPool::Size(const Language &language) const {
 }
 
 Process WorkerPool::StartWorkerProcess(const Language &language,
+                                       const JobID &job_id,
                                        const std::vector<std::string> &dynamic_options) {
   auto &state = GetStateForLanguage(language);
   // If we are already starting up too many workers, then return without starting
@@ -222,6 +223,17 @@ Process WorkerPool::StartWorkerProcess(const Language &language,
             << language;
       }
       continue;
+    }
+
+    // TODO(fyrestone): use job config instead.
+    if (!job_id.IsNil()) {
+      auto pos = token.find(kWorkerCommandJobIdPlaceholder);
+      if (pos != std::string::npos) {
+        std::string new_token(token);
+        new_token.replace(pos, strlen(kWorkerCommandJobIdPlaceholder), job_id.Hex());
+        worker_command_args.push_back(new_token);
+        continue;
+      }
     }
 
     worker_command_args.push_back(token);
@@ -382,7 +394,8 @@ std::shared_ptr<Worker> WorkerPool::PopWorker(const TaskSpecification &task_spec
       // We are not pending a registration from a worker for this task,
       // so start a new worker process for this task.
       proc =
-          StartWorkerProcess(task_spec.GetLanguage(), task_spec.DynamicWorkerOptions());
+          StartWorkerProcess(task_spec.GetLanguage(), task_spec.JobId(),
+            task_spec.DynamicWorkerOptions());
       if (proc.IsValid()) {
         state.dedicated_workers_to_tasks[proc] = task_spec.TaskId();
         state.tasks_to_dedicated_workers[task_spec.TaskId()] = proc;
@@ -396,7 +409,7 @@ std::shared_ptr<Worker> WorkerPool::PopWorker(const TaskSpecification &task_spec
     } else {
       // There are no more non-actor workers available to execute this task.
       // Start a new worker process.
-      proc = StartWorkerProcess(task_spec.GetLanguage());
+      proc = StartWorkerProcess(task_spec.GetLanguage(), task_spec.JobId());
     }
   } else {
     // Code path of actor task.
