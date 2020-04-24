@@ -1,13 +1,12 @@
 import aiohttp
 import asyncio
-import pytest
 import aioredis
 
 import ray.dashboard.modules.job.job_updater as job_updater
 import ray
 
 
-def test_next_job_id():
+async def test_next_job_id():
     ray.init()
     redis_address = ray._get_runtime_context().redis_address
     aioredis_client = await aioredis.create_redis(

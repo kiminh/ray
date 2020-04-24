@@ -21,7 +21,7 @@ class JobState:
 
 async def next_job_id(aioredis_client):
     counter_str = await aioredis_client.incr("JobCounter")
-    return ray.JobID.from_int(int(counter_str))
+    return ray.JobID.from_int(int(counter_str)).hex().upper()
 
 
 async def submit_job(aioredis_client, job_info):
