@@ -51,10 +51,19 @@ class JobProcessor:
 
     @staticmethod
     async def _run_cmd(cmd):
+        proc = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE)
+
         logger.info("Run cmd {}".format(repr(cmd)))
-        r = os.system(cmd)
-        if r != 0:
-            raise Exception("Run cmd {} exit with {}".format(repr(cmd), r))
+        stdout, stderr = await proc.communicate()
+        if stdout:
+            logger.info(stdout.decode("utf-8"))
+        if stderr:
+            logger.error(stderr.decode("utf-8"))
+        if proc.returncode != 0:
+            raise Exception("Run cmd {} exit with {}".format(repr(cmd), proc.returncode))
 
     @staticmethod
     def _get_current_python():
@@ -165,8 +174,11 @@ import {driver_entry}
 
     @staticmethod
     async def _start_driver(cmd, stdout, stderr):
-        logger.info("Start driver cmd {}".format(repr(cmd)))
-        os.system(cmd)
+        proc = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=stdout,
+                stderr=stderr)
+        logger.info("Start driver cmd {} with pid {}".format(repr(cmd), proc.pid))
 
     async def run(self):
         job_id = self.job_info.job_id()

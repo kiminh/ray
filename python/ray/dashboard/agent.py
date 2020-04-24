@@ -15,6 +15,7 @@ import ray.utils
 
 logger = logging.getLogger(__name__)
 
+os.environ["GRPC_ENABLE_FORK_SUPPORT"] = "False"
 aiogrpc.init_grpc_aio()
 
 
