@@ -51,19 +51,10 @@ class JobProcessor:
 
     @staticmethod
     async def _run_cmd(cmd):
-        proc = await asyncio.create_subprocess_shell(
-                cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE)
-
         logger.info("Run cmd {}".format(repr(cmd)))
-        stdout, stderr = await proc.communicate()
-        if stdout:
-            logger.info(stdout.decode("utf-8"))
-        if stderr:
-            logger.error(stderr.decode("utf-8"))
-        if proc.returncode != 0:
-            raise Exception("Run cmd {} exit with {}".format(repr(cmd), proc.returncode))
+        r = os.system(cmd)
+        if r != 0:
+            raise Exception("Run cmd {} exit with {}".format(repr(cmd), r))
 
     @staticmethod
     def _get_current_python():
@@ -174,13 +165,8 @@ import {driver_entry}
 
     @staticmethod
     async def _start_driver(cmd, stdout, stderr):
-        proc = await asyncio.create_subprocess_shell(
-                cmd,
-                stdout=stdout,
-                stderr=stderr)
-
         logger.info("Start driver cmd {}".format(repr(cmd)))
-        await proc.wait()
+        os.system(cmd)
 
     async def run(self):
         job_id = self.job_info.job_id()
@@ -197,6 +183,7 @@ class JobAgent(job_pb2_grpc.JobServiceServicer):
     def __init__(self, dashboard_agent):
         ip, port = dashboard_agent.redis_address
         ray.init(ignore_reinit_error=True,
+                 log_to_driver=False,
                  address=ip + ":" + str(port),
                  redis_password=dashboard_agent.redis_password)
         loop = asyncio.get_event_loop()
