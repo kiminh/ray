@@ -84,6 +84,8 @@ message WorkerStats {
   CoreWorkerStats core_worker_stats = 3;
   // Error string if fetching core worker stats failed.
   string fetch_error = 4;
+  // Worker id of core worker.
+  bytes worker_id = 5;
 }
 
 message GetNodeStatsReply {
@@ -92,6 +94,7 @@ message GetNodeStatsReply {
   uint32 num_workers = 3;
   repeated TaskSpec infeasible_tasks = 4;
   repeated TaskSpec ready_tasks = 5;
+  int32 pid = 6;
 }
 
 message GlobalGCRequest {

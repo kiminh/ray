@@ -52,49 +52,15 @@ class ReportMaster:
         D = self._get_node_info()
         return await dashboard_utils.json_response(result=D, ts=now)
 
-    @staticmethod
-    def _purge_outdated_stats():
-        def current(then, now):
-            if (now - then) > 5:
-                return False
-
-            return True
-
-        now = dashboard_utils.to_unix_time(datetime.datetime.utcnow())
-        datacenter.node_stats = {
-            k: v
-            for k, v in datacenter.node_stats.items() if current(v["now"], now)
-        }
-
-    @staticmethod
-    def _calculate_log_counts():
-        return {
-            ip: {
-                pid: len(logs_for_pid)
-                for pid, logs_for_pid in logs_for_ip.items()
-            }
-            for ip, logs_for_ip in datacenter.logs.items()
-        }
-
-    @staticmethod
-    def _calculate_error_counts():
-        return {
-            ip: {
-                pid: len(errors_for_pid)
-                for pid, errors_for_pid in errors_for_ip.items()
-            }
-            for ip, errors_for_ip in datacenter.errors.items()
-        }
-
     def _get_node_info(self) -> Dict:
-        self._purge_outdated_stats()
+        datacenter.purge_outdated_stats()
         node_stats = sorted(
                 (v for v in datacenter.node_stats.values()),
                 key=itemgetter("boot_time"))
         return {
             "clients": node_stats,
-            "log_counts": self._calculate_log_counts(),
-            "error_counts": self._calculate_error_counts(),
+            "log_counts": datacenter.calculate_log_counts(),
+            "error_counts": datacenter.calculate_error_counts(),
         }
 
     @routes.get("/api/launch_profiling")

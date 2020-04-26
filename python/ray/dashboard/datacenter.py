@@ -1,5 +1,6 @@
 import copy
 import asyncio
+import datetime
 from queue import Queue
 from collections import defaultdict
 from collections.abc import MutableMapping
@@ -81,3 +82,42 @@ errors = defaultdict(lambda: defaultdict(list))
 actors = {}
 
 agents = Dict()
+
+
+# TODO(fyrestone): To be organized.
+def calculate_log_counts():
+    return {
+        ip: {
+            pid: len(logs_for_pid)
+            for pid, logs_for_pid in logs_for_ip.items()
+        }
+        for ip, logs_for_ip in logs.items()
+    }
+
+
+def calculate_error_counts():
+    return {
+        ip: {
+            pid: len(errors_for_pid)
+            for pid, errors_for_pid in errors_for_ip.items()
+        }
+        for ip, errors_for_ip in errors.items()
+    }
+
+
+# TODO(fyrestone): Add to get node_stats data logic.
+def purge_outdated_stats():
+    def current(then, now):
+        if (now - then) > 5:
+            return False
+
+        return True
+
+    dt = datetime.datetime.utcnow()
+    now = (dt - datetime.datetime(1970, 1, 1)).total_seconds()
+    purged_node_stats = {
+        k: v
+        for k, v in node_stats.items() if current(v["now"], now)
+    }
+    node_stats.clear()
+    node_stats.update(purged_node_stats)

@@ -83,6 +83,7 @@ class RayletStats:
                             node_manager_pb2.GetNodeStatsRequest(), timeout=2)
                     reply_dict = MessageToDict(reply)
                     reply_dict["nodeId"] = node_id
+                    reply_dict["nodeManagerPort"] = node["NodeManagerPort"]
                     replies[node["NodeManagerAddress"]] = reply_dict
                 for address, reply_dict in replies.items():
                     datacenter.raylet_stats[address] = reply_dict

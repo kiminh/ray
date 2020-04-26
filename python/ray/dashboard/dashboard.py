@@ -37,6 +37,7 @@ def setup_static_dir(app):
                               "from source, please follow the additional steps "
                               "required to build the dashboard"
                               "(cd python/ray/dashboard/client "
+                              "&& npm install "
                               "&& npm ci "
                               "&& npm run build)", build_dir)
 

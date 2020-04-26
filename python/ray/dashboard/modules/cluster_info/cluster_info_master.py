@@ -3,8 +3,10 @@ import json
 import logging
 import os
 import time
+import datetime
 from base64 import b64decode
-from typing import Dict
+from typing import Dict, List
+from operator import itemgetter
 
 import aiohttp.web
 import yaml
@@ -14,6 +16,7 @@ import ray.dashboard.datacenter as datacenter
 import ray.dashboard.utils as dashboard_utils
 import ray.services
 import ray.utils
+from ray.core.generated import gcs_pb2
 
 logger = logging.getLogger(__name__)
 routes = dashboard_utils.ClassMethodRouteTable
@@ -26,7 +29,7 @@ class ClusterInfo:
 
     @staticmethod
     def _get_actor_tree(workers_info_by_node, infeasible_tasks,
-                        ready_tasks) -> Dict:
+                        ready_tasks, flat=False) -> Dict:
         now = time.time()
 
         # default info
@@ -60,7 +63,7 @@ class ClusterInfo:
             addr_to_actor_id[addr] = actor_data["ActorID"]
             addr_to_extra_info_dict[addr] = {
                 "jobId": actor_data["JobID"],
-                "state": actor_data["State"],
+                "state": gcs_pb2.ActorTableData.ActorState.Name(actor_data["State"]),
                 "isDirectCall": actor_data["IsDirectCall"],
                 "timestamp": actor_data["Timestamp"]
             }
@@ -117,25 +120,32 @@ class ClusterInfo:
 
         # construct actor tree
         actor_tree = flattened_tree
-        for actor_id, parent_id in child_to_parent.items():
-            actor_tree[parent_id]["children"][actor_id] = actor_tree[actor_id]
-        return actor_tree["root"]["children"]
+        if flat:
+            actor_tree.pop("root")
+            return actor_tree
+        else:
+            for actor_id, parent_id in child_to_parent.items():
+                actor_tree[parent_id]["children"][actor_id] = actor_tree[actor_id]
+            return actor_tree["root"]["children"]
 
-    def _construct_raylet_info(self):
-        D = copy.deepcopy(datacenter.raylet_stats)
+    def _get_actor_tree2(self, raylet_stats, flat=False):
         workers_info_by_node = {
             data["nodeId"]: data.get("workersStats")
-            for data in D.values()
+            for data in raylet_stats.values()
         }
         infeasible_tasks = sum(
-                (data.get("infeasibleTasks", []) for data in D.values()), [])
+                (data.get("infeasibleTasks", []) for data in raylet_stats.values()), [])
         # ready_tasks are used to render tasks that are not schedulable
         # due to resource limitations.
         # (e.g., Actor requires 2 GPUs but there is only 1 gpu available).
-        ready_tasks = sum((data.get("readyTasks", []) for data in D.values()),
+        ready_tasks = sum((data.get("readyTasks", []) for data in raylet_stats.values()),
                           [])
-        actor_tree = self._get_actor_tree(
-                workers_info_by_node, infeasible_tasks, ready_tasks)
+        return self._get_actor_tree(
+                workers_info_by_node, infeasible_tasks, ready_tasks, flat=flat)
+
+    def _construct_raylet_info(self):
+        D = copy.deepcopy(datacenter.raylet_stats)
+        actor_tree = self._get_actor_tree2(D)
         for address, data in D.items():
             # process view data
             measures_dicts = {}
@@ -159,7 +169,7 @@ class ClusterInfo:
                         dashboard_utils.format_resource(resource_name,
                                                         total_resource - available_resource),
                         dashboard_utils.format_resource(resource_name, total_resource)))
-            data["extraInfo"] = ", ".join(extra_info_strings) + "\n"
+            data["extraInfo"] = ", ".join(extra_info_strings)
             if os.environ.get("RAY_DASHBOARD_DEBUG"):
                 # process object store info
                 extra_info_strings = []
@@ -182,6 +192,71 @@ class ClusterInfo:
                     to_print.append(line + (max_line_length - len(line)) * " ")
                 data["extraInfo"] += "\n" + "\n".join(to_print)
         return {"nodes": D, "actors": actor_tree}
+
+    @staticmethod
+    def _get_node_list2() -> List:
+        datacenter.purge_outdated_stats()
+        node_stats = sorted(
+                (copy.deepcopy(v) for v in datacenter.node_stats.values()),
+                key=itemgetter("boot_time"))
+        log_counts = datacenter.calculate_log_counts()
+        error_counts = datacenter.calculate_error_counts()
+        for node_stat in node_stats:
+            node_stat["log_counts"] = sum(count for count in log_counts.get(node_stat["ip"], {}).values())
+            node_stat["error_counts"] = sum(count for count in error_counts.get(node_stat["ip"], {}).values())
+        return node_stats
+
+    @routes.get("/node/list")
+    async def node_list(self, req) -> aiohttp.web.Response:
+        now = datetime.datetime.utcnow()
+        D = self._get_node_list()
+        return await dashboard_utils.json_response(result=D, ts=now)
+
+    def _get_node_list(self):
+        node_list = self._get_node_list2()
+        raylet_stats = copy.deepcopy(datacenter.raylet_stats)
+        for node in node_list:
+            node_ip = node["ip"]
+            raylet_info = raylet_stats.get(node_ip, {})
+            raylet_info.pop("workersStats", None)
+            raylet_info.pop("viewData", None)
+            node.pop("workers", None)
+            node["raylet"] = raylet_info
+        return node_list
+
+    @routes.get("/node/detail")
+    async def node_detail(self, req) -> aiohttp.web.Response:
+        now = datetime.datetime.utcnow()
+        hostname = req.query.get("hostname")
+        D = self._get_node_detail(hostname)
+        return await dashboard_utils.json_response(result=D, ts=now)
+
+    def _get_node_detail(self, hostname):
+        node_list = self._get_node_list2()
+        raylet_stats = copy.deepcopy(datacenter.raylet_stats)
+        actors = self._get_actor_tree2(raylet_stats, flat=True)
+        for node in node_list:
+            if node["hostname"] != hostname:
+                continue
+            node_ip = node["ip"]
+            raylet_info = raylet_stats.get(node_ip, {})
+            node["raylet"] = raylet_info
+            # merge worker stats to worker info
+            workers_stats = raylet_info.pop("workersStats", {})
+            pid_to_worker_stats = {}
+            for stats in workers_stats:
+                d = pid_to_worker_stats.setdefault(stats["pid"], {}).setdefault(
+                        stats["workerId"], stats["coreWorkerStats"])
+                d["workerId"] = stats["workerId"]
+            for worker in node["workers"]:
+                worker_stats = pid_to_worker_stats.get(worker["pid"], {})
+                worker["coreWorkerStats"] = list(worker_stats.values())
+            # filter actors by node id
+            node["actors"] = dict((actor_id, actor)
+                                  for actor_id, actor in actors.items()
+                                  if actor.get("nodeId") == raylet_info["nodeId"])
+            return node
+        return {}
 
     @staticmethod
     def _get_ray_config():
