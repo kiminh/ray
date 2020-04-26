@@ -75,10 +75,9 @@ class NodeStats:
         for actor_data in current_actor_table.values():
             datacenter.actors[actor_data["ActorID"]] = actor_data
 
-        async for sender, msg in mpsc.iter():
+        async for sender, data in mpsc.iter():
             try:
                 channel = ray.utils.decode(sender.name)
-                _, data = msg
                 if channel == log_channel:
                     data = json.loads(ray.utils.decode(data))
                     ip = data["ip"]
@@ -101,9 +100,24 @@ class NodeStats:
                         })
                 elif channel == str(actor_channel):
                     gcs_entry = ray.gcs_utils.GcsEntry.FromString(data)
-                    actor_data = ray.gcs_utils.ActorTableData.FromString(
-                            gcs_entry.entries[0])
-                    datacenter.actors[actor_data["ActorID"]] = actor_data
+                    actor_table_data = ray.gcs_utils.ActorTableData.FromString(
+                            gcs_entry.entries[-1])
+                    actor_info = {
+                        "ActorID": ray.utils.binary_to_hex(actor_table_data.actor_id),
+                        "JobID": ray.utils.binary_to_hex(actor_table_data.job_id),
+                        "Address": {
+                            "IPAddress": actor_table_data.address.ip_address,
+                            "Port": actor_table_data.address.port
+                        },
+                        "OwnerAddress": {
+                            "IPAddress": actor_table_data.owner_address.ip_address,
+                            "Port": actor_table_data.owner_address.port
+                        },
+                        "IsDirectCall": True,
+                        "State": actor_table_data.state,
+                        "Timestamp": actor_table_data.timestamp,
+                    }
+                    datacenter.actors[actor_info["ActorID"]] = actor_info
 
             except Exception:
                 logger.exception(traceback.format_exc())
