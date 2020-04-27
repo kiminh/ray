@@ -1,4 +1,5 @@
 import logging
+import datetime
 
 from google.protobuf.json_format import MessageToDict
 from grpc.experimental import aio as aiogrpc
@@ -8,6 +9,7 @@ import ray.dashboard.utils as dashboard_utils
 from ray.core.generated import job_pb2
 from ray.core.generated import job_pb2_grpc
 
+import aiohttp.web
 import aioredis
 import asyncio
 
@@ -87,6 +89,16 @@ class JobMaster:
                     "msg": "Succeeded to submit job.",
                     "job_id": job_id,
                 })
+
+    @routes.get("/job/list")
+    async def job_list(self, req) -> aiohttp.web.Response:
+        now = datetime.datetime.utcnow()
+        D = await self._get_job_list()
+        return await dashboard_utils.json_response(result=D, ts=now)
+
+    async def _get_job_list(self):
+        all_job_info = await job_updater.get_all_job_info(self._aioredis_client)
+        return list(all_job_info.values())
 
     async def _update_stubs(self, change):
         if change.new:
