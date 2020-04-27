@@ -184,7 +184,12 @@ class RedisJobInfoAccessor : public JobInfoAccessor {
 
   void AsyncResubscribe(bool is_pubsub_server_restarted) override {}
 
+  JobConfigs GetConfigs(const JobID &job_id) override;
+
  private:
+  /// A helper method to parse to job configs from job entry.
+  JobConfigs ParseAndCacheJobConfigs(const JobID &job_id, JobTableData &job_data);
+
   /// Append job information to GCS asynchronously.
   ///
   /// \param data_ptr The job information that will be appended to GCS.
@@ -197,6 +202,10 @@ class RedisJobInfoAccessor : public JobInfoAccessor {
 
   typedef SubscriptionExecutor<JobID, JobTableData, JobTable> JobSubscriptionExecutor;
   JobSubscriptionExecutor job_sub_executor_;
+
+ private:
+  /// The cache to store the configs of fetched jobs.
+  std::unordered_map<JobID, JobConfigs> cache_;
 };
 
 /// \class RedisTaskInfoAccessor

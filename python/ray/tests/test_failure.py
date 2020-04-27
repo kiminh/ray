@@ -19,6 +19,7 @@ from ray.test_utils import (
     wait_for_errors,
     RayTestTimeoutException,
     SignalActor,
+    simple_remote_call,
 )
 
 
@@ -149,7 +150,7 @@ def temporary_helper_function():
 
     # Invoke the function so that the definition is exported.
     g.remote(1, y=2)
-
+    simple_remote_call()
     wait_for_errors(ray_constants.REGISTER_REMOTE_FUNCTION_PUSH_ERROR, 2)
     errors = relevant_errors(ray_constants.REGISTER_REMOTE_FUNCTION_PUSH_ERROR)
     assert len(errors) >= 2, errors
@@ -175,6 +176,7 @@ def test_failed_function_to_run(ray_start_2_cpus):
             raise Exception("Function to run failed.")
 
     ray.worker.global_worker.run_function_on_all_workers(f)
+    simple_remote_call(2)
     wait_for_errors(ray_constants.FUNCTION_TO_RUN_PUSH_ERROR, 2)
     # Check that the error message is in the task info.
     errors = relevant_errors(ray_constants.FUNCTION_TO_RUN_PUSH_ERROR)
@@ -523,8 +525,8 @@ def test_version_mismatch(shutdown_only):
 
     ray.init(num_cpus=1)
 
+    simple_remote_call()
     wait_for_errors(ray_constants.VERSION_MISMATCH_PUSH_ERROR, 1)
-
     # Reset the version.
     ray.__version__ = ray_version
 

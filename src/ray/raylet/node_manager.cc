@@ -1181,7 +1181,8 @@ void NodeManager::ProcessRegisterClientRequestMessage(
     if (status.ok()) {
       local_queues_.AddDriverTaskId(driver_task_id);
       auto job_data_ptr = gcs::CreateJobTableData(
-          job_id, /*is_dead*/ false, std::time(nullptr), worker_ip_address, pid);
+          job_id, /*is_dead*/ false, std::time(nullptr), worker_ip_address, pid,
+          message->serialized_job_configs()->str());
       RAY_CHECK_OK(gcs_client_->Jobs().AsyncAdd(job_data_ptr, nullptr));
     } else {
       // Return -1 to signal to the worker that registration failed.

@@ -189,7 +189,7 @@ class WorkerPool {
   /// \return The id of the process that we started if it's positive,
   /// otherwise it means we didn't start a process.
   Process StartWorkerProcess(const Language &language,
-                             const std::vector<std::string> &dynamic_options = {});
+                             std::vector<std::string> dynamic_options = {});
 
   /// The implementation of how to start a new worker process with command arguments.
   /// The lifetime of the process is tied to that of the returned object,
@@ -202,11 +202,15 @@ class WorkerPool {
   /// Push an warning message to user if worker pool is getting to big.
   virtual void WarnAboutSize();
 
+  /// Fetch the configs by the given job id.
+  virtual gcs::JobConfigs FetchJobConfigs(const JobID &job_id);
+
   /// An internal data structure that maintains the pool state per language.
   struct State {
     /// The commands and arguments used to start the worker process
     std::vector<std::string> worker_command;
     /// The number of workers per process.
+    /// Note that this field is not used for Java workers any more.
     int num_workers_per_process;
     /// The pool of dedicated workers for actor creation tasks
     /// with prefix or suffix worker command.

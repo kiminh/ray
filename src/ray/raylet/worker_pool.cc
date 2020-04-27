@@ -88,9 +88,6 @@ WorkerPool::WorkerPool(boost::asio::io_service &io_service, int num_workers,
       RAY_LOG(FATAL) << "The number of workers per process for "
                      << Language_Name(entry.first) << " worker is not set.";
     }
-    RAY_CHECK(state.num_workers_per_process > 0)
-        << "Number of workers per process of language " << Language_Name(entry.first)
-        << " must be positive.";
     state.multiple_for_warning =
         std::max(state.num_workers_per_process,
                  std::max(num_workers, maximum_startup_concurrency));
@@ -110,7 +107,6 @@ WorkerPool::WorkerPool(boost::asio::io_service &io_service, int num_workers,
       free_ports_->push(port);
     }
   }
-  Start(num_workers);
 }
 
 void WorkerPool::Start(int num_workers) {
@@ -154,7 +150,7 @@ uint32_t WorkerPool::Size(const Language &language) const {
 }
 
 Process WorkerPool::StartWorkerProcess(const Language &language,
-                                       const std::vector<std::string> &dynamic_options) {
+                                       std::vector<std::string> dynamic_options) {
   auto &state = GetStateForLanguage(language);
   // If we are already starting up too many workers, then return without starting
   // more.
@@ -162,6 +158,7 @@ Process WorkerPool::StartWorkerProcess(const Language &language,
   for (auto &entry : state.starting_worker_processes) {
     starting_workers += entry.second;
   }
+
   if (starting_workers >= maximum_startup_concurrency_) {
     // Workers have been started, but not registered. Force start disabled -- returning.
     RAY_LOG(DEBUG) << "Worker not started, " << starting_workers
@@ -174,11 +171,18 @@ Process WorkerPool::StartWorkerProcess(const Language &language,
                  << state.idle_actor.size() << " actor workers, and " << state.idle.size()
                  << " non-actor workers";
 
+  const gcs::JobConfigs configs = FetchJobConfigs(job_id);
   int workers_to_start;
-  if (dynamic_options.empty()) {
-    workers_to_start = state.num_workers_per_process;
+  if (dynamic_options.empty() && language == Language::JAVA) {
+    workers_to_start = configs.num_java_workers_per_process;
   } else {
     workers_to_start = 1;
+  }
+
+  if (!configs.jvm_options.empty()) {
+    // Note that we push the item to the front of the vector to make
+    // sure this is the freshest option than others.
+    dynamic_options.insert(dynamic_options.begin(), configs.jvm_options);
   }
 
   // Extract pointers from the worker command to pass into execvp.
@@ -221,6 +225,8 @@ Process WorkerPool::StartWorkerProcess(const Language &language,
         worker_command_args.push_back(
             "-Dray.raylet.config.num_workers_per_process_java=" +
             std::to_string(workers_to_start));
+        worker_command_args.push_back("-Dray.job.num-java-workers-per-process=" +
+                                      std::to_string(workers_to_start));
         break;
       default:
         RAY_LOG(FATAL)
@@ -246,6 +252,10 @@ Process WorkerPool::StartWorkerProcess(const Language &language,
   MonitorStartingWorkerProcess(proc, language);
   state.starting_worker_processes.emplace(proc, workers_to_start);
   return proc;
+}
+
+gcs::JobConfigs WorkerPool::FetchJobConfigs(const JobID &job_id) {
+  return gcs_client_->Jobs().GetConfigs(job_id);
 }
 
 void WorkerPool::MonitorStartingWorkerProcess(const Process &proc,

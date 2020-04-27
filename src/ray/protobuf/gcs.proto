@@ -252,6 +252,11 @@ message TaskLeaseData {
   uint64 timeout = 4;
 }
 
+message JobConfigs {
+  uint32 num_java_workers_per_process = 1;
+  string jvm_options = 2;
+}
+
 message JobTableData {
   // The job ID.
   bytes job_id = 1;
@@ -263,6 +268,8 @@ message JobTableData {
   string driver_ip_address = 4;
   // Process ID of the driver running this job.
   int64 driver_pid = 5;
+  // The configs of this job.
+  JobConfigs configs = 6;
 }
 
 // This table stores the actor checkpoint data. An actor checkpoint

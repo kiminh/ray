@@ -29,6 +29,8 @@ public class RayConfig {
   public static final String DEFAULT_CONFIG_FILE = "ray.default.conf";
   public static final String CUSTOM_CONFIG_FILE = "ray.conf";
 
+  private static int DEFAULT_NUM_JAVA_WORKER_PER_PROCESS = 10;
+
   private static final Random RANDOM = new Random();
 
   private static final DateTimeFormatter DATE_TIME_FORMATTER =
@@ -90,6 +92,8 @@ public class RayConfig {
 
   public final int numWorkersPerProcess;
 
+  public final String jvmOptionsForJavaWorker;
+
   private void validate() {
     if (workerMode == WorkerType.WORKER) {
       Preconditions.checkArgument(redisAddress != null,
@@ -140,6 +144,9 @@ public class RayConfig {
     } else {
       this.jobId = JobId.NIL;
     }
+
+    // jvm options for java workers of this job.
+    jvmOptionsForJavaWorker = config.getString("ray.job.jvm-options");
 
     updateSessionDir();
     // Object store configurations.
@@ -206,7 +213,12 @@ public class RayConfig {
       jobResourcePath = null;
     }
 
-    numWorkersPerProcess = config.getInt("ray.raylet.config.num_workers_per_process_java");
+    final int localNumWorkersPerProcess = config.getInt("ray.job.num-java-workers-per-process");
+    if (localNumWorkersPerProcess <= 0) {
+      numWorkersPerProcess = DEFAULT_NUM_JAVA_WORKER_PER_PROCESS;
+    } else {
+      numWorkersPerProcess = localNumWorkersPerProcess;
+    }
 
     // Validate config.
     validate();

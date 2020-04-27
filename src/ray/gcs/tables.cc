@@ -539,6 +539,25 @@ std::string ProfileTable::DebugString() const {
 
 void ClientTable::RegisterNodeChangeCallback(const NodeChangeCallback &callback) {
   RAY_CHECK(node_change_callback_ == nullptr);
+Status JobTable::GetJobData(const JobID &job_id, JobTableData *data) {
+  RAY_CHECK(data != nullptr);
+  auto key = TablePrefix_Name(prefix_) + job_id.Binary();
+  auto reply = GetRedisContext(job_id)->RunArgvSync({"LRANGE", key, "-1", "-1"});
+  if (!reply || reply->IsNil()) {
+    return Status::IOError("Failed to get job data by job_id " + job_id.Hex());
+  }
+
+  std::vector<std::string> data_list;
+  reply->ReadAsStringArray(&data_list);
+  if (data_list.empty()) {
+    return Status::IOError("Failed to get job data by job_id " + job_id.Hex());
+  }
+
+  RAY_CHECK(data_list.size() == 1);
+  data->ParseFromString(data_list.front());
+  return Status::OK();
+}
+
   node_change_callback_ = callback;
   // Call the callback for any added clients that are cached.
   for (const auto &entry : node_cache_) {

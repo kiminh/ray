@@ -712,6 +712,8 @@ class JobTable : public Log<JobID, JobTableData> {
   };
 
   virtual ~JobTable() {}
+
+  Status GetJobData(const JobID &job_id, JobTableData *data);
 };
 
 /// Log-based Actor table starts with an ALIVE entry, which represents the first time the

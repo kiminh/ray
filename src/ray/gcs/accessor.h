@@ -163,6 +163,12 @@ class ActorInfoAccessor {
   ActorInfoAccessor() = default;
 };
 
+/// The structure to represents all the configs of a job.
+struct JobConfigs {
+  size_t num_java_workers_per_process;
+  std::string jvm_options;
+};
+
 /// \class JobInfoAccessor
 /// `JobInfoAccessor` is a sub-interface of `GcsClient`.
 /// This class includes all the methods that are related to accessing
@@ -211,6 +217,13 @@ class JobInfoAccessor {
   ///
   /// \param is_pubsub_server_restarted Whether pubsub server is restarted.
   virtual void AsyncResubscribe(bool is_pubsub_server_restarted) = 0;
+
+  /// Get the configs of the given job.
+  ///
+  /// Return immediately from local cache if the local cache has the configs of the
+  /// given job id, otherwise it will fetch the configs from GCS.
+  /// \return The configs structure of the given job.
+  virtual JobConfigs GetConfigs(const JobID &job_id) = 0;
 
  protected:
   JobInfoAccessor() = default;

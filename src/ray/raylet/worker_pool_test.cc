@@ -54,6 +54,17 @@ class WorkerPoolMock : public WorkerPool {
 
   using WorkerPool::StartWorkerProcess;  // we need this to be public for testing
 
+  gcs::JobConfigs FetchJobConfigs(const JobID &job_id) override {
+    RAY_UNUSED(job_id);
+    gcs::JobConfigs mock_configs;
+    mock_configs.num_java_workers_per_process = num_java_workers_per_process_;
+    return mock_configs;
+  }
+
+  void SetNumJavaWorkerPerProcess(int num_java_workers_per_process) {
+    num_java_workers_per_process_ = num_java_workers_per_process;
+  }
+
   Process StartProcess(const std::vector<std::string> &worker_command_args) override {
     // Use a bogus process ID that won't conflict with those in the system
     pid_t pid = static_cast<pid_t>(PID_MAX_LIMIT + 1 + worker_commands_by_proc_.size());
@@ -92,6 +103,8 @@ class WorkerPoolMock : public WorkerPool {
   Process last_worker_process_;
   // The worker commands by process.
   std::unordered_map<Process, std::vector<std::string>> worker_commands_by_proc_;
+  // The number of java workers per process.
+  int num_java_workers_per_process_ = 10;
 };
 
 class WorkerPoolTest : public ::testing::Test {
@@ -131,6 +144,9 @@ class WorkerPoolTest : public ::testing::Test {
     int desired_initial_worker_process_count = 100;
     int expected_worker_process_count = static_cast<int>(std::ceil(
         static_cast<double>(MAXIMUM_STARTUP_CONCURRENCY) / num_workers_per_process));
+
+    worker_pool_.SetNumJavaWorkerPerProcess(num_workers_per_process);
+
     ASSERT_TRUE(expected_worker_process_count <
                 static_cast<int>(desired_initial_worker_process_count));
     Process last_started_worker_process;
@@ -201,11 +217,13 @@ TEST_F(WorkerPoolTest, CompareWorkerProcessObjects) {
 }
 
 TEST_F(WorkerPoolTest, HandleWorkerRegistration) {
+  worker_pool_.SetNumJavaWorkerPerProcess(NUM_WORKERS_PER_PROCESS_JAVA);
   Process proc = worker_pool_->StartWorkerProcess(Language::JAVA);
   std::vector<std::shared_ptr<Worker>> workers;
   for (int i = 0; i < NUM_WORKERS_PER_PROCESS_JAVA; i++) {
     workers.push_back(CreateWorker(Process(), Language::JAVA));
   }
+
   for (const auto &worker : workers) {
     // Check that there's still a starting worker process
     // before all workers have been registered
@@ -235,10 +253,13 @@ TEST_F(WorkerPoolTest, StartupJavaWorkerProcessCount) {
       Language::JAVA, NUM_WORKERS_PER_PROCESS_JAVA,
       {"dummy_java_worker_command",
        std::string("-Dray.raylet.config.num_workers_per_process_java=") +
+           std::to_string(NUM_WORKERS_PER_PROCESS_JAVA),
+       std::string("-Dray.job.num-java-workers-per-process=") +
            std::to_string(NUM_WORKERS_PER_PROCESS_JAVA)});
 }
 
 TEST_F(WorkerPoolTest, InitialWorkerProcessCount) {
+  worker_pool_.SetNumJavaWorkerPerProcess(NUM_WORKERS_PER_PROCESS_JAVA);
   worker_pool_->Start(1);
   // Here we try to start only 1 worker for each worker language. But since each Java
   // worker process contains exactly NUM_WORKERS_PER_PROCESS_JAVA (3) workers here,
@@ -331,10 +352,10 @@ TEST_F(WorkerPoolTest, StartWorkerWithDynamicOptionsCommand) {
   worker_pool_->StartWorkerProcess(Language::JAVA, task_spec.DynamicWorkerOptions());
   const auto real_command =
       worker_pool_->GetWorkerCommand(worker_pool_->LastStartedWorkerProcess());
-  ASSERT_EQ(real_command,
-            std::vector<std::string>(
-                {"test_op_0", "dummy_java_worker_command",
-                 "-Dray.raylet.config.num_workers_per_process_java=1", "test_op_1"}));
+  ASSERT_EQ(real_command, std::vector<std::string>(
+                              {"test_op_0", "dummy_java_worker_command",
+                               "-Dray.raylet.config.num_workers_per_process_java=1",
+                               "-Dray.job.num-java-workers-per-process=1", "test_op_1"}));
 }
 
 }  // namespace raylet

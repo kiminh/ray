@@ -10,6 +10,7 @@ import io.ray.runtime.gcs.GcsClient;
 import io.ray.runtime.gcs.GcsClientOptions;
 import io.ray.runtime.gcs.RedisClient;
 import io.ray.runtime.generated.Common.WorkerType;
+import org.ray.runtime.generated.Gcs.JobConfigs;
 import io.ray.runtime.object.NativeObjectStore;
 import io.ray.runtime.runner.RunManager;
 import io.ray.runtime.task.NativeTaskExecutor;
@@ -82,6 +83,15 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
     }
     int numWorkersPerProcess =
         rayConfig.workerMode == WorkerType.DRIVER ? 1 : rayConfig.numWorkersPerProcess;
+
+    byte[] serializedJobConfigs = null;
+    if (rayConfig.workerMode == WorkerType.DRIVER) {
+      serializedJobConfigs = JobConfigs.newBuilder()
+          .setNumJavaWorkersPerProcess(rayConfig.numWorkersPerProcess)
+          .setJvmOptions(rayConfig.jvmOptionsForJavaWorker)
+          .build().toByteArray();
+    }
+
     // TODO(qwang): Get object_store_socket_name and raylet_socket_name from Redis.
     nativeInitialize(rayConfig.workerMode.getNumber(),
         rayConfig.nodeIp, rayConfig.getNodeManagerPort(),
@@ -89,7 +99,7 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
         rayConfig.objectStoreSocketName, rayConfig.rayletSocketName,
         (rayConfig.workerMode == WorkerType.DRIVER ? rayConfig.getJobId() : JobId.NIL).getBytes(),
         new GcsClientOptions(rayConfig), numWorkersPerProcess,
-        rayConfig.logDir, rayConfig.rayletConfigParameters);
+        rayConfig.logDir, rayConfig.rayletConfigParameters, serializedJobConfigs);
 
     taskExecutor = new NativeTaskExecutor(this);
     workerContext = new NativeWorkerContext();
@@ -158,7 +168,7 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
   private static native void nativeInitialize(int workerMode, String ndoeIpAddress,
       int nodeManagerPort, String driverName, String storeSocket, String rayletSocket,
       byte[] jobId, GcsClientOptions gcsClientOptions, int numWorkersPerProcess,
-      String logDir, Map<String, String> rayletConfigParameters);
+      String logDir, Map<String, String> rayletConfigParameters, byte[] serializedJobConfigs);
 
   private static native void nativeRunTaskExecutor(TaskExecutor taskExecutor);
 
