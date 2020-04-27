@@ -64,7 +64,7 @@ async def get_job(aioredis_client, job_id):
 
 async def get_all_job_info(aioredis_client):
     job_info_dict = await aioredis_client.hgetall(job_consts.JOB_INFO_TABLE_NAME)
-    return dict((k, json.loads(v)) for k, v in job_info_dict.items())
+    return dict((k.decode("utf-8"), json.loads(v)) for k, v in job_info_dict.items())
 
 
 async def get_all_job_ids(aioredis_client):

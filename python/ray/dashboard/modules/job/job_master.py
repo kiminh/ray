@@ -1,13 +1,19 @@
 import logging
 import datetime
+import time
+import copy
+from base64 import b64decode
+from typing import Dict, List
 
 from google.protobuf.json_format import MessageToDict
 from grpc.experimental import aio as aiogrpc
 
 import ray.dashboard.datacenter as datacenter
 import ray.dashboard.utils as dashboard_utils
+from ray.core.generated import gcs_pb2
 from ray.core.generated import job_pb2
 from ray.core.generated import job_pb2_grpc
+import ray.utils
 
 import aiohttp.web
 import aioredis
@@ -99,6 +105,162 @@ class JobMaster:
     async def _get_job_list(self):
         all_job_info = await job_updater.get_all_job_info(self._aioredis_client)
         return list(all_job_info.values())
+
+    @routes.get("/job/detail")
+    async def node_detail(self, req) -> aiohttp.web.Response:
+        now = datetime.datetime.utcnow()
+        job_id = req.query.get("job_id")
+        D = await self._get_job_detail(job_id)
+        return await dashboard_utils.json_response(result=D, ts=now)
+
+    async def _get_job_detail(self, job_id):
+        job_info = await job_updater.get_job(self._aioredis_client, job_id)
+        job_actors = []
+        all_actors = self._get_actor_tree2(copy.deepcopy(datacenter.raylet_stats), flat=True)
+        for actor_info in all_actors.values():
+            if actor_info["jobId"] == job_id:
+                job_actors.append(actor_info)
+        job_workers = []
+        for hostname, node_stats in copy.deepcopy(datacenter.node_stats).items():
+            pid_to_worker_stats = {}
+            raylet_stats = datacenter.raylet_stats.get(node_stats["ip"])
+            job_worker_pid = set()
+            for worker_stats in raylet_stats["workersStats"]:
+                d = pid_to_worker_stats.setdefault(worker_stats["pid"], {}).setdefault(
+                        worker_stats["workerId"], worker_stats["coreWorkerStats"])
+                d["workerId"] = worker_stats["workerId"]
+                worker_job_id = ray.JobID(b64decode(d["jobId"])).hex()
+                if worker_job_id == job_id:
+                    job_worker_pid.add(worker_stats["pid"])
+            for worker in node_stats["workers"]:
+                worker_stats = pid_to_worker_stats.get(worker["pid"], {})
+                worker["coreWorkerStats"] = list(worker_stats.values())
+                if worker["pid"] in job_worker_pid:
+                    job_workers.append(worker)
+
+        return {
+            "job_info": job_info,
+            "job_actors": job_actors,
+            "job_workers": job_workers,
+        }
+
+    # TODO(fyrestone): collect actor info to datacenter
+    @staticmethod
+    def _get_actor_tree(workers_info_by_node, infeasible_tasks,
+                        ready_tasks, flat=False) -> Dict:
+        now = time.time()
+
+        # default info
+        default_info = {
+            "actorId": "",
+            "children": {},
+            "currentTaskFuncDesc": [],
+            "ipAddress": "",
+            "isDirectCall": False,
+            "jobId": "",
+            "numExecutedTasks": 0,
+            "numLocalObjects": 0,
+            "numObjectIdsInScope": 0,
+            "port": 0,
+            "state": 0,
+            "taskQueueLength": 0,
+            "usedObjectStoreMemory": 0,
+            "usedResources": {},
+        }
+
+        # actor relationship
+        addr_to_owner_addr = {}
+        addr_to_actor_id = {}
+        addr_to_extra_info_dict = {}
+        for actor_data in datacenter.actors.values():
+            addr = (actor_data["Address"]["IPAddress"],
+                    str(actor_data["Address"]["Port"]))
+            owner_addr = (actor_data["OwnerAddress"]["IPAddress"],
+                          str(actor_data["OwnerAddress"]["Port"]))
+            addr_to_owner_addr[addr] = owner_addr
+            addr_to_actor_id[addr] = actor_data["ActorID"]
+            addr_to_extra_info_dict[addr] = {
+                "jobId": actor_data["JobID"],
+                "state": gcs_pb2.ActorTableData.ActorState.Name(actor_data["State"]),
+                "isDirectCall": actor_data["IsDirectCall"],
+                "timestamp": actor_data["Timestamp"]
+            }
+
+        # construct flattened actor tree
+        flattened_tree = {"root": {"children": {}}}
+        child_to_parent = {}
+        for addr, actor_id in addr_to_actor_id.items():
+            flattened_tree[actor_id] = copy.deepcopy(default_info)
+            flattened_tree[actor_id].update(
+                    addr_to_extra_info_dict[addr])
+            parent_id = addr_to_actor_id.get(
+                    addr_to_owner_addr[addr], "root")
+            child_to_parent[actor_id] = parent_id
+
+        for node_id, workers_info in workers_info_by_node.items():
+            for worker_info in workers_info:
+                if "coreWorkerStats" in worker_info:
+                    core_worker_stats = worker_info["coreWorkerStats"]
+                    addr = (core_worker_stats["ipAddress"],
+                            str(core_worker_stats["port"]))
+                    if addr in addr_to_actor_id:
+                        actor_info = flattened_tree[addr_to_actor_id[
+                            addr]]
+                        dashboard_utils.format_reply_id(core_worker_stats)
+                        actor_info.update(core_worker_stats)
+                        actor_info["averageTaskExecutionSpeed"] = round(
+                                actor_info["numExecutedTasks"] /
+                                (now - actor_info["timestamp"] / 1000), 2)
+                        actor_info["nodeId"] = node_id
+                        actor_info["pid"] = worker_info["pid"]
+
+        def _update_flatten_tree(task, task_spec_type, invalid_state_type):
+            actor_id = ray.utils.binary_to_hex(
+                    b64decode(task[task_spec_type]["actorId"]))
+            caller_addr = (task["callerAddress"]["ipAddress"],
+                           str(task["callerAddress"]["port"]))
+            caller_id = addr_to_actor_id.get(caller_addr, "root")
+            child_to_parent[actor_id] = caller_id
+            task["state"] = -1
+            task["invalidStateType"] = invalid_state_type
+            task["actorTitle"] = task["functionDescriptor"][
+                "pythonFunctionDescriptor"]["className"]
+            dashboard_utils.format_reply_id(task)
+            flattened_tree[actor_id] = task
+
+        for infeasible_task in infeasible_tasks:
+            _update_flatten_tree(infeasible_task, "actorCreationTaskSpec",
+                                 "infeasibleActor")
+
+        for ready_task in ready_tasks:
+            _update_flatten_tree(ready_task, "actorCreationTaskSpec",
+                                 "pendingActor")
+
+        # construct actor tree
+        actor_tree = flattened_tree
+        if flat:
+            actor_tree.pop("root")
+            return actor_tree
+        else:
+            for actor_id, parent_id in child_to_parent.items():
+                actor_tree[parent_id]["children"][actor_id] = actor_tree[actor_id]
+            return actor_tree["root"]["children"]
+
+    # TODO(fyrestone): collect actor info to datacenter
+    def _get_actor_tree2(self, raylet_stats, flat=False):
+        workers_info_by_node = {
+            data["nodeId"]: data.get("workersStats")
+            for data in raylet_stats.values()
+        }
+        infeasible_tasks = sum(
+                (data.get("infeasibleTasks", []) for data in raylet_stats.values()), [])
+        # ready_tasks are used to render tasks that are not schedulable
+        # due to resource limitations.
+        # (e.g., Actor requires 2 GPUs but there is only 1 gpu available).
+        ready_tasks = sum((data.get("readyTasks", []) for data in raylet_stats.values()),
+                          [])
+        return self._get_actor_tree(
+                workers_info_by_node, infeasible_tasks, ready_tasks, flat=flat)
 
     async def _update_stubs(self, change):
         if change.new:

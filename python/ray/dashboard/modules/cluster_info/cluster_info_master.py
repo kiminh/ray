@@ -27,6 +27,7 @@ class ClusterInfo:
     def __init__(self, dashboard_master):
         self.dashboard_master = dashboard_master
 
+    # TODO(fyrestone): collect actor info to datacenter
     @staticmethod
     def _get_actor_tree(workers_info_by_node, infeasible_tasks,
                         ready_tasks, flat=False) -> Dict:
@@ -128,6 +129,7 @@ class ClusterInfo:
                 actor_tree[parent_id]["children"][actor_id] = actor_tree[actor_id]
             return actor_tree["root"]["children"]
 
+    # TODO(fyrestone): collect actor info to datacenter
     def _get_actor_tree2(self, raylet_stats, flat=False):
         workers_info_by_node = {
             data["nodeId"]: data.get("workersStats")
