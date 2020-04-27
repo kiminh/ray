@@ -54,6 +54,8 @@ async def update_job_state(aioredis_client, job_id, state):
 
 async def get_job(aioredis_client, job_id):
     job_info = await aioredis_client.hget(job_consts.JOB_INFO_TABLE_NAME, job_id)
+    if job_info is None:
+        return {}
     job_info = json.loads(job_info)
     for name, key in vars(JobStatusKey).items():
         if not name.startswith("_"):

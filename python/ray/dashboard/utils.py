@@ -186,6 +186,32 @@ async def json_response(result=None, error=None,
             headers=headers)
 
 
+def to_camel_case(snake_str):
+    components = snake_str.split('_')
+    # We capitalize the first letter of each component except the first one
+    # with the 'title' method and join them together.
+    return components[0] + ''.join(x.title() for x in components[1:])
+
+
+def to_google_json_style(d):
+    new_dict = {}
+    for k, v in d.items():
+        print("to_google_json_style", k, v)
+        if isinstance(v, dict):
+            new_dict[to_camel_case(k)] = to_google_json_style(v)
+        elif isinstance(v, list):
+            new_list = []
+            for i in v:
+                if isinstance(i, dict):
+                    new_list.append(to_google_json_style(i))
+                else:
+                    new_list.append(i)
+            new_dict[to_camel_case(k)] = new_list
+        else:
+            new_dict[to_camel_case(k)] = v
+    return new_dict
+
+
 class Bunch(dict):
     """A dict with attribute-access"""
 

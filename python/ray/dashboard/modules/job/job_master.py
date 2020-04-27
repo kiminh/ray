@@ -145,9 +145,9 @@ class JobMaster:
                     job_workers.append(worker)
 
         return {
-            "job_info": job_info,
-            "job_actors": job_actors,
-            "job_workers": job_workers,
+            "jobInfo": job_info,
+            "jobActors": job_actors,
+            "jobWorkers": job_workers,
         }
 
     # TODO(fyrestone): collect actor info to datacenter
@@ -287,10 +287,10 @@ class JobMaster:
                 'owner': 'abc.xyz',
                 'language': 'java',
                 'url': 'http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/po/simple_job.zip',
-                'driver_entry': 'simple_job',
-                'driver_args': ['arg1', 'arg2'],
-                'custom_config': {'k1': 'v1', 'k2': 'v2'},
-                'jvm_options': '-Dabc=123 -Daaa=xxx',
+                'driverEntry': 'simple_job',
+                'driverArgs': ['arg1', 'arg2'],
+                'customConfig': {'k1': 'v1', 'k2': 'v2'},
+                'jvmOptions': '-Dabc=123 -Daaa=xxx',
                 'dependencies': {
                     'python': ['aiohttp', 'click', 'colorama', 'filelock', 'google', 'grpcio', 'jsonschema',
                                'msgpack >= 0.6.0, < 1.0.0', 'numpy >= 1.16', 'protobuf >= 3.8.0', 'py-spy >= 0.2.0',

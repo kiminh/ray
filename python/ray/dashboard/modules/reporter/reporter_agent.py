@@ -66,7 +66,7 @@ def recursive_asdict(o):
 
 
 def jsonify_asdict(o):
-    return json.dumps(recursive_asdict(o))
+    return json.dumps(dashboard_utils.to_google_json_style(recursive_asdict(o)))
 
 
 def is_worker(cmdline):
@@ -169,8 +169,8 @@ class Reporter:
             "cpus": self.cpu_counts,
             "mem": self.get_mem_usage(),
             "workers": self.get_workers(),
-            "boot_time": self.get_boot_time(),
-            "load_avg": self.get_load_avg(),
+            "bootTime": self.get_boot_time(),
+            "loadAvg": self.get_load_avg(),
             "disk": self.get_disk_usage(),
             "net": netstats,
         }

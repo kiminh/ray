@@ -200,12 +200,12 @@ class ClusterInfo:
         datacenter.purge_outdated_stats()
         node_stats = sorted(
                 (copy.deepcopy(v) for v in datacenter.node_stats.values()),
-                key=itemgetter("boot_time"))
+                key=itemgetter("bootTime"))
         log_counts = datacenter.calculate_log_counts()
         error_counts = datacenter.calculate_error_counts()
         for node_stat in node_stats:
-            node_stat["log_counts"] = sum(count for count in log_counts.get(node_stat["ip"], {}).values())
-            node_stat["error_counts"] = sum(count for count in error_counts.get(node_stat["ip"], {}).values())
+            node_stat["logCounts"] = sum(count for count in log_counts.get(node_stat["ip"], {}).values())
+            node_stat["errorCounts"] = sum(count for count in error_counts.get(node_stat["ip"], {}).values())
         return node_stats
 
     @routes.get("/node/list")
