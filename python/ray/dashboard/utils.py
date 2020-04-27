@@ -4,6 +4,7 @@ import importlib
 import inspect
 import logging
 import pkgutil
+import collections
 from base64 import b64decode
 
 import aiohttp.web
@@ -32,7 +33,7 @@ def master(enable):
 
 
 class ClassMethodRouteTable:
-    _bind_map = {}
+    _bind_map = collections.defaultdict(dict)
     _routes = aiohttp.web.RouteTableDef()
 
     # TODO(fyrestone): use dataclass instead.
@@ -49,8 +50,8 @@ class ClassMethodRouteTable:
     @classmethod
     def _register_route(cls, method, path, **kwargs):
         def _wrapper(handler):
-            if path in cls._bind_map:
-                bind_info = cls._bind_map[path]
+            if path in cls._bind_map[method]:
+                bind_info = cls._bind_map[method][path]
                 raise Exception("Duplicated route path: {}, previous one registered at {}:{}".format(
                         path, bind_info.filename, bind_info.lineno))
 
@@ -60,7 +61,8 @@ class ClassMethodRouteTable:
             async def _handler_route(*args, **kwargs):
                 return await handler(bind_info.instance, *args, **kwargs)
 
-            cls._bind_map[path] = bind_info
+            cls._bind_map[method][path] = bind_info
+            _handler_route.__route_method__ = method
             _handler_route.__route_path__ = path
             return cls._routes.route(method, path, **kwargs)(_handler_route)
 
@@ -98,12 +100,12 @@ class ClassMethodRouteTable:
     def bind(cls, master_instance):
         def predicate(o):
             if inspect.ismethod(o):
-                return hasattr(o, "__route_path__")
+                return hasattr(o, "__route_method__") and hasattr(o, "__route_path__")
             return False
 
         handler_routes = inspect.getmembers(master_instance, predicate)
         for _, h in handler_routes:
-            cls._bind_map[h.__func__.__route_path__].instance = master_instance
+            cls._bind_map[h.__func__.__route_method__][h.__func__.__route_path__].instance = master_instance
 
 
 def get_all_modules(module_type):

@@ -57,7 +57,7 @@ class JobMaster:
         self._fixed_node_num = 10
         self._submitted_jobs_cache = {}
 
-    @routes.post("/jobs/new")
+    @routes.post("/jobs")
     async def new_job(self, req):
         job_info = dict(await req.json())
         job_info["id"] = job_id = await job_updater.next_job_id(self._aioredis_client)
@@ -102,20 +102,27 @@ class JobMaster:
         job_response = JobResponse(success=True, message="Succeeded to submit job.", job_id=job_id).to_dict()
         return await dashboard_utils.json_response(job_response)
 
-    @routes.get("/job/list")
+    @routes.get("/jobs")
     async def job_list(self, req) -> aiohttp.web.Response:
         now = datetime.datetime.utcnow()
-        D = await self._get_job_list()
-        return await dashboard_utils.json_response(result=D, ts=now)
+        view = req.query.get("view")
+        if view == "summary":
+            D = await self._get_job_list()
+            return await dashboard_utils.json_response(result=D, ts=now)
+        else:
+            return aiohttp.web.Response(status=403, text="403 Forbidden")
 
     async def _get_job_list(self):
         all_job_info = await job_updater.get_all_job_info(self._aioredis_client)
         return list(all_job_info.values())
 
-    @routes.get("/job/detail")
+    @routes.get("/jobs/{job_id}")
     async def node_detail(self, req) -> aiohttp.web.Response:
         now = datetime.datetime.utcnow()
-        job_id = req.query.get("job_id")
+        job_id = req.match_info.get("job_id")
+        view = req.query.get("view")
+        if view == "status":
+            return await dashboard_utils.json_response(JobResponse(success=True, message="", job_id=job_id).to_dict())
         D = await self._get_job_detail(job_id)
         return await dashboard_utils.json_response(result=D, ts=now)
 

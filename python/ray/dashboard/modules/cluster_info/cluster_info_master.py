@@ -208,11 +208,15 @@ class ClusterInfo:
             node_stat["errorCounts"] = sum(count for count in error_counts.get(node_stat["ip"], {}).values())
         return node_stats
 
-    @routes.get("/node/list")
+    @routes.get("/nodes")
     async def node_list(self, req) -> aiohttp.web.Response:
         now = datetime.datetime.utcnow()
-        D = self._get_node_list()
-        return await dashboard_utils.json_response(result=D, ts=now)
+        view = req.query.get("view")
+        if view == "summary":
+            D = self._get_node_list()
+            return await dashboard_utils.json_response(result=D, ts=now)
+        else:
+            return aiohttp.web.Response(status=403, text="403 Forbidden")
 
     def _get_node_list(self):
         node_list = self._get_node_list2()
@@ -226,10 +230,10 @@ class ClusterInfo:
             node["raylet"] = raylet_info
         return node_list
 
-    @routes.get("/node/detail")
+    @routes.get("/nodes/{hostname}")
     async def node_detail(self, req) -> aiohttp.web.Response:
         now = datetime.datetime.utcnow()
-        hostname = req.query.get("hostname")
+        hostname = req.match_info.get("hostname")
         D = self._get_node_detail(hostname)
         return await dashboard_utils.json_response(result=D, ts=now)
 

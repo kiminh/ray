@@ -105,10 +105,6 @@ class Dashboard:
             f.write(url)
         logger.info("Dashboard running on {}".format(url))
 
-    @routes.get("/{_}")
-    async def get_forbidden(self, _) -> aiohttp.web.Response:
-        return aiohttp.web.Response(status=403, text="403 Forbidden")
-
     @routes.get("/")
     async def get_index(self, req) -> aiohttp.web.FileResponse:
         return aiohttp.web.FileResponse(
