@@ -27,6 +27,20 @@ routes = dashboard_utils.ClassMethodRouteTable
 DEBUG = False
 
 
+class JobResponse:
+    def __init__(self, success, message, job_id):
+        self.success = success
+        self.message = message
+        self.job_id = job_id
+
+    def to_dict(self):
+        return {
+            "success": self.success,
+            "message": self.message,
+            "jobId": self.job_id,
+        }
+
+
 @dashboard_utils.master
 class JobMaster:
     def __init__(self, dashboard_master):
@@ -53,12 +67,8 @@ class JobMaster:
         if len(self._stubs) == 0:
             log_msg = "Failed to submit job because there is no agent connected to job master."
             logger.info(log_msg)
-            return await dashboard_utils.json_response(
-                    result={
-                        "status": "rejected",
-                        "msg": log_msg,
-                        "job_id": job_id,
-                    })
+            job_response = JobResponse(success=False, message=log_msg, job_id=job_id).to_dict()
+            return await dashboard_utils.json_response(job_response)
 
         # We select the first agent to start driver for this job.
         ip_to_start_driver = list(self._stubs.keys())[0]
@@ -89,12 +99,8 @@ class JobMaster:
                 # Check the reply status and write the records which node has reply.
 
         logger.info("Succeeded to submit job %s", job_id)
-        return await dashboard_utils.json_response(
-                result={
-                    "status": "ok",
-                    "msg": "Succeeded to submit job.",
-                    "job_id": job_id,
-                })
+        job_response = JobResponse(success=True, message="Succeeded to submit job.", job_id=job_id).to_dict()
+        return await dashboard_utils.json_response(job_response)
 
     @routes.get("/job/list")
     async def job_list(self, req) -> aiohttp.web.Response:

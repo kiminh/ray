@@ -8,10 +8,10 @@ import ray
 
 class JobStatusKey:
     State = "state"
-    DriverStarted = "driver_started"
-    SubmitTime = "submit_time"
-    StartTime = "start_time"
-    EndTime = "end_time"
+    DriverStarted = "driverStarted"
+    SubmitTime = "submitTime"
+    StartTime = "startTime"
+    EndTime = "endTime"
 
 
 class JobState:

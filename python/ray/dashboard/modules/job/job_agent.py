@@ -38,7 +38,7 @@ class JobInfo:
         return self.job_info["id"]
 
     def driver_entry(self):
-        return self.job_info["driver_entry"]
+        return self.job_info["driverEntry"]
 
     def java_dependency_list(self):
         dependencies = self.job_info.get("dependencies", {}).get("java", [])
