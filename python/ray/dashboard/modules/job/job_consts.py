@@ -18,5 +18,7 @@ PYTHON_PIP_CACHE = "/tmp/ray/pipcache"
 PYTHON_PACKAGE_INDEX = "https://pypi.antfin-inc.com/simple/"
 PYTHON_VIRTUAL_ENV_DIR = os.path.join(JOB_DIR, "pyenv")
 PYTHON_REQUIREMENTS_FILE = os.path.join(JOB_DIR, "requirements.txt")
+# Java package constants
+JAVA_SHARED_LIBRARY_DIR = "/tmp/ray/shared_java_lib"
 
 JOB_COUNTER_KEY = "JobCounter"

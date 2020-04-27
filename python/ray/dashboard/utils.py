@@ -184,3 +184,16 @@ async def json_response(result=None, error=None,
                 "error": error,
             },
             headers=headers)
+
+
+class Bunch(dict):
+    """A dict with attribute-access"""
+
+    def __getattr__(self, key):
+        try:
+            return self.__getitem__(key)
+        except KeyError:
+            raise AttributeError(key)
+
+    def __setattr__(self, key, value):
+        self.__setitem__(key, value)

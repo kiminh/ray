@@ -3,6 +3,7 @@ import logging
 import os.path
 import sys
 from abc import abstractmethod
+from urllib.parse import urlparse
 
 import aiohttp
 import aioredis
@@ -17,6 +18,7 @@ from ray.core.generated import job_pb2_grpc
 from ray.experimental import set_resource
 from ray.gcs_utils import JOB_RESOURCE_PREFIX
 from ray.utils import hex_to_binary
+from ray.services import RAY_HOME, get_ray_jars_dir
 
 logger = logging.getLogger(__name__)
 DEBUG = False
@@ -26,6 +28,9 @@ class JobInfo:
     def __init__(self, job_info):
         self.job_info = job_info
 
+    def language(self):
+        return self.job_info["language"]
+
     def url(self):
         return self.job_info["url"]
 
@@ -34,6 +39,12 @@ class JobInfo:
 
     def driver_entry(self):
         return self.job_info["driver_entry"]
+
+    def java_dependency_list(self):
+        dependencies = self.job_info.get("dependencies", {}).get("java", [])
+        if not dependencies:
+            return None
+        return [dashboard_utils.Bunch(d) for d in dependencies]
 
     def python_requirements_file(self):
         requirements = self.job_info.get("dependencies", {}).get("python", [])
@@ -50,7 +61,20 @@ class JobProcessor:
         self.job_info = job_info
 
     @staticmethod
-    async def _run_cmd(cmd):
+    async def _download_package(http_session, url, filename):
+        with async_timeout.timeout(job_consts.DOWNLOAD_TIMEOUT_SECONDS):
+            async with http_session.get(url) as response:
+                logger.info("Download %s to %s", url, filename)
+                with open(filename, 'wb') as f:
+                    while True:
+                        chunk = await response.content.read(
+                                job_consts.DOWNLOAD_RESOURCE_BUFFER_SIZE)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+
+    @staticmethod
+    async def _call_cmd(cmd):
         proc = await asyncio.create_subprocess_shell(
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
@@ -62,8 +86,13 @@ class JobProcessor:
             logger.info(stdout.decode("utf-8"))
         if stderr:
             logger.error(stderr.decode("utf-8"))
-        if proc.returncode != 0:
-            raise Exception("Run cmd {} exit with {}".format(repr(cmd), proc.returncode))
+        return proc.returncode
+
+    @classmethod
+    async def _check_call_cmd(cls, cmd):
+        r = await cls._call_cmd(cmd)
+        if r != 0:
+            raise Exception("Run cmd {} exit with {}".format(repr(cmd), r))
 
     @staticmethod
     def _get_current_python():
@@ -83,32 +112,20 @@ class DownloadPackage(JobProcessor):
         super().__init__(job_info)
         self.http_session = http_session
 
-    async def _download_package(self, url, filename):
-        with async_timeout.timeout(job_consts.DOWNLOAD_TIMEOUT_SECONDS):
-            async with self.http_session.get(url) as response:
-                logger.info("Download %s to %s", url, filename)
-                with open(filename, 'wb') as f:
-                    while True:
-                        chunk = await response.content.read(
-                                job_consts.DOWNLOAD_RESOURCE_BUFFER_SIZE)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-
     async def _validate_zip_package(self, filename):
         validate_zip_cmd = "zip -T {}".format(filename)
-        await self._run_cmd(validate_zip_cmd)
+        await self._check_call_cmd(validate_zip_cmd)
 
     async def _unzip_package(self, filename, path):
         unzip_cmd = "unzip -o -d {} {}".format(path, filename)
-        await self._run_cmd(unzip_cmd)
+        await self._check_call_cmd(unzip_cmd)
 
     async def run(self):
         url = self.job_info.url()
         job_id = self.job_info.job_id()
         filename = job_consts.DOWNLOAD_PACKAGE.format(job_id=job_id)
         unzip_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(job_id=job_id)
-        await self._download_package(url, filename)
+        await self._download_package(self.http_session, url, filename)
         await self._unzip_package(filename, unzip_dir)
 
 
@@ -116,7 +133,7 @@ class PreparePythonEnviron(JobProcessor):
     async def _create_virtualenv(self, path):
         python = self._get_current_python()
         create_venv_cmd = "{} -m virtualenv --system-site-packages --no-download {}".format(python, path)
-        await self._run_cmd(create_venv_cmd)
+        await self._check_call_cmd(create_venv_cmd)
 
     async def _install_python_requirements(self, path, requirements_file):
         python = self._get_virtualenv_python(path)
@@ -127,8 +144,8 @@ class PreparePythonEnviron(JobProcessor):
                 python, job_consts.PYTHON_PIP_CACHE, pypi, requirements_file)
         pip_install_cmd = "{} -m pip install --no-index --find-links={}{} -r {}".format(
                 python, job_consts.PYTHON_PIP_CACHE, pypi, requirements_file)
-        await self._run_cmd(pip_download_cmd)
-        await self._run_cmd(pip_install_cmd)
+        await self._check_call_cmd(pip_download_cmd)
+        await self._check_call_cmd(pip_install_cmd)
 
     async def run(self):
         job_id = self.job_info.job_id()
@@ -188,6 +205,98 @@ import {driver_entry}
         driver_cmd = "{} -u {}".format(python, driver_file)
         stdout_file, stderr_file = ray.worker._global_node.new_log_files("driver_{}".format(job_id))
         await self._start_driver(driver_cmd, stdout_file, stderr_file)
+
+
+class PrepareJavaEnviron(JobProcessor):
+    def __init__(self, job_info, http_session):
+        super().__init__(job_info)
+        self.http_session = http_session
+
+    async def run(self):
+        dependencies = self.job_info.java_dependency_list()
+        for d in dependencies:
+            url_path = urlparse(d.url).path
+            filename = os.path.join(job_consts.JAVA_SHARED_LIBRARY_DIR, os.path.basename(url_path))
+            md5_filename = filename + ".md5"
+            check_md5_cmd = "md5sum -c {}".format(md5_filename)
+            r = await self._call_cmd(check_md5_cmd)
+            if r != 0:
+                await self._download_package(self.http_session, d.url, filename)
+                gen_md5_cmd = "md5sum {} > {}".format(filename, md5_filename)
+                await self._check_call_cmd(gen_md5_cmd)
+            else:
+                logger.info("Check md5 for {} OK.".format(filename))
+
+
+class StartJavaDriver(JobProcessor):
+    @staticmethod
+    def _build_java_worker_command(
+            java_worker_options,
+            redis_address,
+            node_manager_port,
+            plasma_store_name,
+            redis_password,
+            session_dir):
+
+        """This method assembles the command used to start a Java worker.
+
+        Args:
+            java_worker_options (list): The command options for Java worker.
+            redis_address (str): Redis address of GCS.
+            plasma_store_name (str): The name of the plasma store socket to connect
+               to.
+            redis_password (str): The password of connect to redis.
+            session_dir (str): The path of this session.
+        Returns:
+            The command string for starting Java worker.
+        """
+        pairs = []
+        if redis_address is not None:
+            pairs.append(("ray.redis.address", redis_address))
+        pairs.append(("ray.raylet.node-manager-port", node_manager_port))
+
+        if plasma_store_name is not None:
+            pairs.append(("ray.object-store.socket-name", plasma_store_name))
+
+        if redis_password is not None:
+            pairs.append(("ray.redis.password", redis_password))
+
+        pairs.append(("ray.home", RAY_HOME))
+        pairs.append(("ray.log-dir", os.path.join(session_dir, "logs")))
+        pairs.append(("ray.session-dir", session_dir))
+
+        command = ["java"] + ["-D{}={}".format(*pair) for pair in pairs]
+
+        command += ["RAY_WORKER_RAYLET_CONFIG_PLACEHOLDER"]
+
+        # Add ray jars path to java classpath
+        ray_jars = os.path.join(get_ray_jars_dir(), "*")
+        if java_worker_options is None:
+            options = []
+        else:
+            assert isinstance(java_worker_options, (tuple, list))
+            options = list(java_worker_options)
+        cp_index = -1
+        for i in range(len(options)):
+            option = options[i]
+            if option == "-cp" or option == "-classpath":
+                cp_index = i + 1
+                break
+        if cp_index != -1:
+            options[cp_index] = options[cp_index] + os.pathsep + ray_jars
+        else:
+            options = ["-cp", ray_jars] + options
+        # Put `java_worker_options` in the last, so it can overwrite the
+        # above options.
+        command += options
+
+        command += ["RAY_WORKER_DYNAMIC_OPTION_PLACEHOLDER_0"]
+        command += ["org.ray.runtime.runner.worker.DefaultWorker"]
+
+        return command
+
+    async def run(self):
+        pass
 
 
 @dashboard_utils.agent
