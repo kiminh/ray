@@ -21,7 +21,7 @@ from ray.utils import hex_to_binary
 from ray.services import RAY_HOME, get_ray_jars_dir
 
 logger = logging.getLogger(__name__)
-DEBUG = False
+DEBUG = True
 
 
 class JobInfo:
@@ -231,10 +231,9 @@ class PrepareJavaEnviron(JobProcessor):
 class StartJavaDriver(JobProcessor):
     @staticmethod
     def _build_java_worker_command(
+            job_info,
             java_worker_options,
             redis_address,
-            node_manager_port,
-            plasma_store_name,
             redis_password,
             session_dir):
 
@@ -243,8 +242,6 @@ class StartJavaDriver(JobProcessor):
         Args:
             java_worker_options (list): The command options for Java worker.
             redis_address (str): Redis address of GCS.
-            plasma_store_name (str): The name of the plasma store socket to connect
-               to.
             redis_password (str): The password of connect to redis.
             session_dir (str): The path of this session.
         Returns:
@@ -253,10 +250,6 @@ class StartJavaDriver(JobProcessor):
         pairs = []
         if redis_address is not None:
             pairs.append(("ray.redis.address", redis_address))
-        pairs.append(("ray.raylet.node-manager-port", node_manager_port))
-
-        if plasma_store_name is not None:
-            pairs.append(("ray.object-store.socket-name", plasma_store_name))
 
         if redis_password is not None:
             pairs.append(("ray.redis.password", redis_password))
@@ -264,10 +257,12 @@ class StartJavaDriver(JobProcessor):
         pairs.append(("ray.home", RAY_HOME))
         pairs.append(("ray.log-dir", os.path.join(session_dir, "logs")))
         pairs.append(("ray.session-dir", session_dir))
+        pairs.append(("ray.job.id", job_info.job_id()))
+        pairs.append(("ray.run-mode", "CLUSTER"))
+        pairs.append(("ray.driver.long-running", "true"))
+        pairs.append(("ray.enable-job-manager", "true"))
 
-        command = ["java"] + ["-D{}={}".format(*pair) for pair in pairs]
-
-        command += ["RAY_WORKER_RAYLET_CONFIG_PLACEHOLDER"]
+        command = ["java", "-ea"] + ["-D{}={}".format(*pair) for pair in pairs]
 
         # Add ray jars path to java classpath
         ray_jars = os.path.join(get_ray_jars_dir(), "*")
@@ -290,8 +285,7 @@ class StartJavaDriver(JobProcessor):
         # above options.
         command += options
 
-        command += ["RAY_WORKER_DYNAMIC_OPTION_PLACEHOLDER_0"]
-        command += ["org.ray.runtime.runner.worker.DefaultWorker"]
+        command += ["org.ray.runtime.runner.worker.DefaultWorker", job_info.driver_entry()]
 
         return command
 

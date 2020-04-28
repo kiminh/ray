@@ -65,7 +65,7 @@ class JobMaster:
             log_msg = "Failed to submit job because there is no agent connected to job master."
             logger.info(log_msg)
             job_response = JobResponse(success=False, message=log_msg, job_id=job_id).to_dict()
-            return await dashboard_utils.json_response(job_response)
+            return aiohttp.web.json_response(job_response)
 
         # We select the first agent to start driver for this job.
         ip_to_start_driver = list(self._stubs.keys())[0]
@@ -97,7 +97,7 @@ class JobMaster:
 
         logger.info("Succeeded to submit job %s", job_id)
         job_response = JobResponse(success=True, message="Succeeded to submit job.", job_id=job_id).to_dict()
-        return await dashboard_utils.json_response(job_response)
+        return aiohttp.web.json_response(job_response)
 
     @routes.get("/jobs")
     async def job_list(self, req) -> aiohttp.web.Response:
@@ -119,7 +119,8 @@ class JobMaster:
         job_id = req.match_info.get("job_id")
         view = req.query.get("view")
         if view == "status":
-            return await dashboard_utils.json_response(JobResponse(success=True, message="", job_id=job_id).to_dict())
+            job_response = JobResponse(success=True, message="", job_id=job_id).to_dict()
+            return aiohttp.web.json_response(job_response)
         D = await self._get_job_detail(job_id)
         return await dashboard_utils.json_response(result=D, ts=now)
 
