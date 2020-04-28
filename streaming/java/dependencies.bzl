@@ -17,6 +17,6 @@ def gen_streaming_java_deps():
             "org.testng:testng:6.9.10",
         ],
         repositories = [
-            "https://repo1.maven.org/maven2/",
+            "http://mvnrepo.alibaba-inc.com/mvn/repository/",
         ],
     )

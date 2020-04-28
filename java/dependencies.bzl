@@ -23,6 +23,6 @@ def gen_java_deps():
             "net.java.dev.jna:jna:5.5.0",
         ],
         repositories = [
-            "https://repo1.maven.org/maven2/",
+            "http://mvnrepo.alibaba-inc.com/mvn/repository/",
         ],
     )
