@@ -29,10 +29,13 @@ public class Exercise01 implements Serializable {
       // Use `Ray.init` to initialize the Ray runtime.
       Ray.init();
       // Use `Ray.call` to call a remote function.
-      RayObject<String> hello = Ray.call(Exercise01::sayHello);
-      RayObject<String> world = Ray.call(Exercise01::sayWorld);
-      System.out.println("First remote call result:" + hello.get());
-      System.out.println("Second remote call result:" + world.get());
+      while (true) {
+        RayObject<String> hello = Ray.call(Exercise01::sayHello);
+        RayObject<String> world = Ray.call(Exercise01::sayWorld);
+        System.out.println("First remote call result:" + hello.get());
+        System.out.println("Second remote call result:" + world.get());
+        Thread.sleep(1000);
+      }
     } catch (Throwable t) {
       t.printStackTrace();
     } finally {
