@@ -1,0 +1,103 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  labels:
+    controller-tools.k8s.io: "1.0"
+    # An unique identifier for the head node and workers of this cluster.
+  name: raycluster-sample
+spec:
+  # An unique identifier for the head node and workers of this cluster.
+  clusterName: raycluster-sample
+  images:
+    # Image for rayproject/autoscaler
+    defaultImage: autoscaler:latest
+  imagePullPolicy: "Always"
+
+  extensions:
+    # the pod replicas in this group typed worker
+    - replicas: 1
+      # logical group name, for this called small-group, also can be functional like hello-group
+      groupName: small-group
+      # pod type
+      type: worker
+
+      # custom labels. NOTE: do not define custom labels start with `raycluster.`, they may be used in controller.
+      # Refer to https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+      labels:
+        raycluster.group.name: small-group
+
+      # Command to start ray
+      command: ulimit -n 65536; ray start --block --num-cpus=$MY_CPU_REQUEST --address=$RAY_HEAD_IP:6379 --object-manager-port=8076
+
+      # resource requirements
+      # Refer to https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+          ephemeral-storage: 2Gi
+        requests:
+          cpu: 1000m
+          memory: 2Gi
+          ephemeral-storage: 2Gi
+
+      containerEnv:
+        - name: MY_CPU_REQUEST
+          valueFrom:
+            resourceFieldRef:
+              resource: requests.cpu
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      # head service suffix: {namespace}.svc , follows Kubernetes standard
+      headServiceSuffix: "default.svc.cluster.local"
+
+    # the pod replicas in this group typed head
+    - replicas: 1
+      # logical group name, also can be functional
+      groupName: head-group
+      # pod type
+      type: head
+
+      # custom labels. NOTE: do not define custom labels start with `raycluster.`, they may be used in controller.
+      # Refer to https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+      labels:
+        raycluster.group.name: head-group
+
+      # Command to start ray
+      command: ulimit -n 65536; ray start --block --head --num-cpus=$MY_CPU_REQUEST --redis-port=6379 --object-manager-port=8076 --webui-host 0.0.0.0
+
+      # resource requirements
+      # Refer to https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+          ephemeral-storage: 4Gi
+        requests:
+          cpu: 1000m
+          memory: 2Gi
+          ephemeral-storage: 4Gi
+
+      containerEnv:
+        - name: MY_CPU_REQUEST
+          valueFrom:
+            resourceFieldRef:
+              resource: requests.cpu
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      # head service suffix: {namespace}.svc , follows Kubernetes standard
+      headServiceSuffix: "default.svc.cluster.local"

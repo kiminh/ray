@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rayop
+spec:
+  selector:
+    matchLabels:
+      app: rayop
+  template:
+    metadata:
+      labels:
+        app: rayop
+    spec:
+      serviceAccountName: ray-operator
+      containers:
+        - image: operator-image
+          name: rayop
+          imagePullPolicy: Always

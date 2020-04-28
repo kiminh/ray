@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    ray.io/ray-operator: "true"
+  name: ray-operator
+spec: {}
