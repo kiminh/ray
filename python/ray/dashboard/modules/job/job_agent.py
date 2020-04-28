@@ -299,8 +299,11 @@ class StartJavaDriver(JobProcessor):
         temp_dir = job_info.temp_dir()
         job_id = job_info.job_id()
         shared_jar_dir = job_consts.JAVA_SHARED_LIBRARY_DIR.format(temp_dir=temp_dir, job_id=job_id)
+        job_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(temp_dir=temp_dir, job_id=job_id)
         # Add ray jars path to java classpath
-        ray_jars = os.path.join(get_ray_jars_dir(), "*") + ":" + os.path.join(shared_jar_dir, "*")
+        ray_jars = os.path.join(get_ray_jars_dir(), "*") + ":" + \
+                   os.path.join(shared_jar_dir, "*") + ":" + \
+                   os.path.join(job_dir, "*")
         if java_worker_options is None:
             options = []
         else:
@@ -320,7 +323,7 @@ class StartJavaDriver(JobProcessor):
         # above options.
         command += options
 
-        command += ["org.ray.runtime.runner.worker.DefaultDriver", job_info.driver_entry()]
+        command += [job_info.driver_entry()]
 
         return command
 
@@ -413,13 +416,13 @@ class JobAgent(job_pb2_grpc.JobServiceServicer):
         if DEBUG:
             job_id = ray.JobID.from_int(
                     int(self.dashboard_agent.redis_client.incr("JobCounter")))
-            test_job = {
+            test_java_job = {
                 'id': job_id.hex(),
                 'name': 'rayag_darknet',
                 'owner': 'abc.xyz',
                 'language': 'java',
-                'url': 'http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/sgy%2Fhelloworldtest.zip',
-                'driverEntry': 'helloworldtestOnRay',
+                'url': 'http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/po/ray-tutorial.zip',
+                'driverEntry': 'org.ray.exercise.Exercise01',
                 'driverArgs': ['arg1', 'arg2'],
                 'customConfig': {'k1': 'v1', 'k2': 'v2'},
                 'jvmOptions': '-Dabc=123 -Daaa=xxx',
@@ -438,7 +441,35 @@ class JobAgent(job_pb2_grpc.JobServiceServicer):
                 }
             }
 
-            await job_updater.submit_job(self.aioredis_client, test_job)
+            await job_updater.submit_job(self.aioredis_client, test_java_job)
+            job_id = ray.JobID.from_int(
+                    int(self.dashboard_agent.redis_client.incr("JobCounter")))
+            test_python_job = {
+                'id': job_id.hex(),
+                'name': 'rayag_darknet',
+                'owner': 'abc.xyz',
+                'language': 'python',
+                'url': 'http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/po/simple_job.zip',
+                'driverEntry': 'simple_job',
+                'driverArgs': ['arg1', 'arg2'],
+                'customConfig': {'k1': 'v1', 'k2': 'v2'},
+                'jvmOptions': '-Dabc=123 -Daaa=xxx',
+                'dependencies': {
+                    'python': ['aiohttp', 'click', 'colorama', 'filelock', 'google', 'grpcio', 'jsonschema',
+                               'msgpack >= 0.6.0, < 1.0.0', 'numpy >= 1.16', 'protobuf >= 3.8.0', 'py-spy >= 0.2.0',
+                               'pyyaml', 'redis >= 3.3.2'],
+                    'java': [
+                        {
+                            "name": "rayag",
+                            "version": "2.1",
+                            "url": "http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/po/commons-io-2.5.jar",
+                            "md5": ""
+                        }
+                    ]
+                }
+            }
+
+            await job_updater.submit_job(self.aioredis_client, test_python_job)
 
         await self._load_all_jobs_from_store()
         while True:
