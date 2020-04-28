@@ -198,7 +198,6 @@ def to_camel_case(snake_str):
 def to_google_json_style(d):
     new_dict = {}
     for k, v in d.items():
-        print("to_google_json_style", k, v)
         if isinstance(v, dict):
             new_dict[to_camel_case(k)] = to_google_json_style(v)
         elif isinstance(v, list):

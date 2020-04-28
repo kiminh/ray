@@ -474,6 +474,10 @@ class Node:
         stdout_file, stderr_file = self.new_log_files("dashboard_agent", True)
         process_info = ray.services.start_dashboard_agent(
             self.redis_address,
+            self._ray_params.node_manager_port,
+            self._raylet_socket_name,
+            self._plasma_store_socket_name,
+            self._temp_dir,
             stdout_file=stdout_file,
             stderr_file=stderr_file,
             redis_password=self._ray_params.redis_password,

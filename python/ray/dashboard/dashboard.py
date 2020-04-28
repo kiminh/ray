@@ -13,10 +13,12 @@ import logging
 import os
 import traceback
 import uuid
+import socket
 
 import ray
 import ray.dashboard.master as dashboard_master
 import ray.dashboard.utils as dashboard_utils
+import ray.dashboard.consts as dashboard_consts
 import ray.ray_constants as ray_constants
 import ray.services
 import ray.utils
@@ -123,6 +125,7 @@ class Dashboard:
         # self.log_dashboard_url()
         coroutines = [self.dashboard_master.run(),
                       aiohttp.web._run_app(self.app, host=self.host, port=self.port)]
+        self.redis_client.set(dashboard_consts.API_SERVER_KEY, socket.gethostname() + ":" + str(self.port))
         await asyncio.gather(*coroutines)
 
 
