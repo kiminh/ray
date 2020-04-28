@@ -93,9 +93,9 @@ export default function NodeDetailPage(props: RouteComponentProps<{ id: string }
           <Grid item xs><span className={classes.label}>CPU (Logic/Physic)</span>: {nodeDetail.cpus[0]}/ {nodeDetail.cpus[1]}</Grid>
         </Grid>
         <Grid container spacing={2}>
-          <Grid item xs><span className={classes.label}>Load (1/5/15min)</span>: {nodeDetail?.load_avg[0] && nodeDetail.load_avg[0].map(e => Number(e).toFixed(2)).join('/')}</Grid>
-          <Grid item xs><span className={classes.label}>Load per CPU (1/5/15min)</span>: {nodeDetail?.load_avg[1] && nodeDetail.load_avg[1].map(e => Number(e).toFixed(2)).join('/')}</Grid>
-          <Grid item xs><span className={classes.label}>Boot Time</span>: {moment(nodeDetail.boot_time * 1000).format('YYYY/MM/DD HH:mm:ss')}</Grid>
+          <Grid item xs><span className={classes.label}>Load (1/5/15min)</span>: {nodeDetail?.loadAvg[0] && nodeDetail.loadAvg[0].map(e => Number(e).toFixed(2)).join('/')}</Grid>
+          <Grid item xs><span className={classes.label}>Load per CPU (1/5/15min)</span>: {nodeDetail?.loadAvg[1] && nodeDetail.loadAvg[1].map(e => Number(e).toFixed(2)).join('/')}</Grid>
+          <Grid item xs><span className={classes.label}>Boot Time</span>: {moment(nodeDetail.bootTime * 1000).format('YYYY/MM/DD HH:mm:ss')}</Grid>
         </Grid>
         <Grid container spacing={2}>
           <Grid item xs><span className={classes.label}>Sent Tps</span>: {numeral(nodeDetail?.net[0]).format('0.00b')}/s</Grid>
@@ -155,55 +155,6 @@ export default function NodeDetailPage(props: RouteComponentProps<{ id: string }
         </Paper>
       </>
     }
-    {/* <Typography variant="h6">Object Store Info</Typography>
-    <TableContainer component={Paper} className={classes.paper}>
-      <Table>
-        <TableHead>
-          <TableRow>
-            {
-              ['Status', 'Pid', 'IPC Sock', 'Port', 'CPU', 'RAM', 'Disk', 'Sent', 'Recevied'].map(col => <TableCell align="center">{col}</TableCell>)
-            }
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          <TableRow>
-            <TableCell>
-              <Chip size="small" variant="outlined" label={objectStroreInfo.status} style={{ color: "green", borderColor: 'green' }} />
-            </TableCell>
-            <TableCell>
-              {objectStroreInfo.pid}
-            </TableCell>
-            <TableCell>
-              {objectStroreInfo.ipc}
-            </TableCell>
-            <TableCell>
-              {objectStroreInfo.port}
-            </TableCell>
-            <TableCell>
-              <PercentageBar num={Number(objectStroreInfo.cpu)} total={100}>
-                {objectStroreInfo.cpu}%
-              </PercentageBar>
-            </TableCell>
-            <TableCell>
-              <PercentageBar num={Number(objectStroreInfo.ram)} total={Number(objectStroreInfo.ramTotal)}>
-                {numeral(objectStroreInfo.ram).format('0.00b')}/{numeral(objectStroreInfo.ramTotal).format('0.00b')}
-              </PercentageBar>
-            </TableCell>
-            <TableCell>
-              <PercentageBar num={Number(objectStroreInfo.disk)} total={Number(objectStroreInfo.diskTotal)}>
-                {numeral(objectStroreInfo.disk).format('0.00b')}/{numeral(objectStroreInfo.diskTotal).format('0.00b')}
-              </PercentageBar>
-            </TableCell>
-            <TableCell>
-              {numeral(objectStroreInfo.sent).format('0.00b')}/s
-              </TableCell>
-            <TableCell>
-              {numeral(objectStroreInfo.recevied).format('0.00b')}/s
-              </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-    </TableContainer> */}
     {
       nodeDetail?.workers &&
       <>

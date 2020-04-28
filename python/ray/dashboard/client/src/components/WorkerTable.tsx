@@ -8,7 +8,7 @@ import { Actor } from '../type/actor';
 import moment from 'moment';
 import { StatusChip } from './StatusChip';
 
-const longTextCut = (text: string) => <Tooltip title={text}>
+export const longTextCut = (text: string) => <Tooltip title={text}>
   <span>{text.length > 20 ? text.slice(0, 20) + '...' : text}</span>
 </Tooltip>
 
@@ -38,7 +38,7 @@ const WorkerDetailTable = ({ actorMap, coreWorkerStats }: { actorMap: { [actorId
   const actors = coreWorkerStats.filter(e => actorMap[e.actorId]).map(e => ({ ...e, ...actorMap[e.actorId] }))
 
   if (!actors?.length) {
-    return <p>Worker Doesn't Has Related Actor Yet.</p>
+    return <p>The Worker Haven't Had Related Actor Yet.</p>
   }
 
   return <Table>
@@ -95,7 +95,7 @@ export default function WorkerTable({ workers, actorMap }: { workers: Worker[], 
     </TableHead>
     <TableBody>
       {
-        workers.map(({ pid, cpu_percent, cpu_times, memory_info, cmdline, create_time, coreWorkerStats }) =>
+        workers.map(({ pid, cpuPercent, cpuTimes, memoryInfo, cmdline, createTime, coreWorkerStats }) =>
           <ExpandableTableRow expandComponent={
             <WorkerDetailTable actorMap={actorMap} coreWorkerStats={coreWorkerStats} />
           }>
@@ -103,21 +103,21 @@ export default function WorkerTable({ workers, actorMap }: { workers: Worker[], 
               {pid}
             </TableCell>
             <TableCell align="center">
-              <PercentageBar num={Number(cpu_percent * 100)} total={100}>
-                {cpu_percent * 100}%
+              <PercentageBar num={Number(cpuPercent * 100)} total={100}>
+                {cpuPercent * 100}%
           </PercentageBar>
             </TableCell>
             <TableCell align="center">
-              {cpu_times.user}/{cpu_times.system}/{cpu_times.iowait}
+              {cpuTimes.user}/{cpuTimes.system}/{cpuTimes.iowait}
             </TableCell>
             <TableCell align="center">
-              {byteFmt(memory_info.rss)}/{byteFmt(memory_info.vms)}/{byteFmt(memory_info.shared)}/{byteFmt(memory_info.text)}/{byteFmt(memory_info.lib)}/{byteFmt(memory_info.data)}/{byteFmt(memory_info.dirty)}
+              {byteFmt(memoryInfo.rss)}/{byteFmt(memoryInfo.vms)}/{byteFmt(memoryInfo.shared)}/{byteFmt(memoryInfo.text)}/{byteFmt(memoryInfo.lib)}/{byteFmt(memoryInfo.data)}/{byteFmt(memoryInfo.dirty)}
             </TableCell>
             <TableCell align="center">
               {cmdline && cmdline.filter(e => e).join('\n')}
             </TableCell>
             <TableCell align="center">
-              {moment(create_time * 1000).format('YYYY/MM/DD HH:mm:ss')}
+              {moment(createTime * 1000).format('YYYY/MM/DD HH:mm:ss')}
             </TableCell>
           </ExpandableTableRow>
         )

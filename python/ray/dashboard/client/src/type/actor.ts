@@ -16,10 +16,10 @@ export interface Actor {
   "numLocalObjects": number,
   "numObjectIdsInScope": number,
   "port": string,
-  "state": ActorEnum, // PENDING, ALIVE, RECONSTRUCTING, DEAD
+  "state": ActorEnum | string, // PENDING, ALIVE, RECONSTRUCTING, DEAD
   "taskQueueLength": number,
   "usedObjectStoreMemory": number,
-  "usedResources": { [key: string]: string },
+  "usedResources": { [key: string]: string| number },
   "timestamp": number,
   "actorTitle": string,
   "averageTaskExecutionSpeed": number,

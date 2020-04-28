@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActorEnum } from '../type/actor';
 import { Chip } from '@material-ui/core';
-import { green, red, blue, lightBlue } from '@material-ui/core/colors';
+import { green, red, blue, lightBlue, grey, cyan } from '@material-ui/core/colors';
 import { CSSProperties } from '@material-ui/core/styles/withStyles';
 
 const colorMap = {
@@ -13,6 +13,14 @@ const colorMap = {
     [ActorEnum.DEAD]: red[500],
     [ActorEnum.PENDING]: blue[500],
     [ActorEnum.RECONSTRUCTING]: lightBlue[500]
+  },
+  job: {
+    init: grey[500],
+    submitted: blue[500],
+    dispatched: lightBlue[500],
+    running: green[500],
+    completed: cyan[500],
+    failed: red[500]
   }
 } as {
   [key: string]: {

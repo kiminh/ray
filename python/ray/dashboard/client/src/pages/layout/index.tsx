@@ -10,6 +10,8 @@ import blueGrey from '@material-ui/core/colors/blueGrey';
 import blue from '@material-ui/core/colors/blue';
 import { RouteComponentProps } from 'react-router-dom';
 
+import Logo from '../../logo.svg'
+
 
 const drawerWidth = 200;
 
@@ -66,7 +68,7 @@ export default function BasicLayout(props: PropsWithChildren<RouteComponentProps
       }}
     >
       <Typography variant="h6" className={classes.title}>
-        <img width={36} src="/logo.svg"/> <br/> Ray DashBoard
+        <img width={36} src={Logo} alt="Ray"/> <br/> Ray DashBoard
       </Typography>
       <List>
         <ListItem button className={classnames(classes.menuItem, location.pathname.includes('node') && classes.selected)} onClick={() => history.push('/node')}>
