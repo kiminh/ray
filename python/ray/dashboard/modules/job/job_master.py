@@ -1,26 +1,21 @@
-import logging
-import datetime
-import time
 import copy
+import datetime
+import logging
+import time
 from base64 import b64decode
-from typing import Dict, List
-
-from google.protobuf.json_format import MessageToDict
-from grpc.experimental import aio as aiogrpc
-
-import ray.dashboard.datacenter as datacenter
-import ray.dashboard.utils as dashboard_utils
-from ray.core.generated import gcs_pb2
-from ray.core.generated import job_pb2
-from ray.core.generated import job_pb2_grpc
-import ray.utils
+from typing import Dict
 
 import aiohttp.web
 import aioredis
-import asyncio
+from grpc.experimental import aio as aiogrpc
 
-from ray.dashboard.modules.job.job_info import JobInfo
+import ray.dashboard.datacenter as datacenter
 import ray.dashboard.modules.job.job_updater as job_updater
+import ray.dashboard.utils as dashboard_utils
+import ray.utils
+from ray.core.generated import gcs_pb2
+from ray.core.generated import job_pb2
+from ray.core.generated import job_pb2_grpc
 
 logger = logging.getLogger(__name__)
 routes = dashboard_utils.ClassMethodRouteTable
@@ -35,9 +30,11 @@ class JobResponse:
 
     def to_dict(self):
         return {
-            "success": self.success,
-            "message": self.message,
-            "jobId": self.job_id,
+            "result": self.success,
+            "msg": self.message,
+            "data": {
+                "jobId": self.job_id,
+            }
         }
 
 
