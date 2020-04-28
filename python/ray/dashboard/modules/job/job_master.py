@@ -129,20 +129,21 @@ class JobMaster:
     async def _get_job_detail(self, job_id):
         job_info = await job_updater.get_job(self._aioredis_client, job_id)
         job_actors = []
-        all_actors = self._get_actor_tree2(copy.deepcopy(datacenter.raylet_stats), flat=True)
+        raylet_stats = copy.deepcopy(datacenter.raylet_stats)
+        all_actors = self._get_actor_tree2(raylet_stats, flat=True)
         for actor_info in all_actors.values():
             if actor_info["jobId"] == job_id:
                 job_actors.append(actor_info)
         job_workers = []
         for hostname, node_stats in copy.deepcopy(datacenter.node_stats).items():
             pid_to_worker_stats = {}
-            raylet_stats = datacenter.raylet_stats.get(node_stats["ip"])
+            stats = copy.deepcopy(raylet_stats.get(node_stats["ip"]))
             job_worker_pid = set()
-            for worker_stats in raylet_stats["workersStats"]:
+            for worker_stats in stats["workersStats"]:
                 d = pid_to_worker_stats.setdefault(worker_stats["pid"], {}).setdefault(
                         worker_stats["workerId"], worker_stats["coreWorkerStats"])
                 d["workerId"] = worker_stats["workerId"]
-                worker_job_id = ray.JobID(b64decode(d["jobId"])).hex()
+                worker_job_id = d["jobId"]
                 if worker_job_id == job_id:
                     job_worker_pid.add(worker_stats["pid"])
             for worker in node_stats["workers"]:
