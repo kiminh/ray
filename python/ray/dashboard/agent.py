@@ -3,6 +3,8 @@ import asyncio
 import logging
 import os
 import traceback
+import functools
+import ipaddress
 
 from grpc.experimental import aio as aiogrpc
 
@@ -18,6 +20,30 @@ logger = logging.getLogger(__name__)
 os.environ["GRPC_ENABLE_FORK_SUPPORT"] = "False"
 aiogrpc.init_grpc_aio()
 
+GRPC_FORCE_IPV4 = os.environ.get("GRPC_FORCE_IPV4")
+
+
+def _get_ip_address():
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    ip = s.getsockname()[0]
+    s.close()
+    return ip
+
+
+def _force_ipv4(bind_ip, host):
+    logger.warning("_force_ipv4: %s replaced with %s", host, bind_ip)
+    return ipaddress.IPv4Address(bind_ip)
+
+
+LISTEN_ADDRESS = "[::]:0"
+if GRPC_FORCE_IPV4:
+    logger.warning("GRPC_FORCE_IPV4: true")
+    ip = _get_ip_address()
+    ipaddress.ip_address = functools.partial(_force_ipv4, ip)
+    LISTEN_ADDRESS = "{}:0".format(ip)
+
 
 class DashboardAgent(object):
     def __init__(self, redis_address, redis_password=None):
@@ -29,7 +55,8 @@ class DashboardAgent(object):
         self.redis_client = ray.services.create_redis_client(
                 redis_address, password=redis_password)
         self.server = aiogrpc.server(options=(("grpc.so_reuseport", 0),))
-        self.port = self.server.add_insecure_port("[::]:0")
+        logger.info("Dashboard agent listen at: %s", LISTEN_ADDRESS)
+        self.port = self.server.add_insecure_port(LISTEN_ADDRESS)
 
     def _load_modules(self):
         """Load dashboard agent modules."""
