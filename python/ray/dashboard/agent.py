@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import logging
 import os
+import sys
 import traceback
 import functools
 import ipaddress
@@ -21,6 +22,8 @@ os.environ["GRPC_ENABLE_FORK_SUPPORT"] = "False"
 aiogrpc.init_grpc_aio()
 
 GRPC_FORCE_IPV4 = os.environ.get("GRPC_FORCE_IPV4")
+if GRPC_FORCE_IPV4 is None:
+    GRPC_FORCE_IPV4 = sys.platform == "linux"
 
 
 def _get_ip_address():
@@ -43,6 +46,8 @@ if GRPC_FORCE_IPV4:
     ip = _get_ip_address()
     ipaddress.ip_address = functools.partial(_force_ipv4, ip)
     LISTEN_ADDRESS = "{}:0".format(ip)
+else:
+    logger.warning("GRPC_FORCE_IPV4: false")
 
 
 class DashboardAgent(object):
