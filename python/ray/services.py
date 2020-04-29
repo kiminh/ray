@@ -1037,6 +1037,10 @@ def start_log_monitor(redis_address,
 
 
 def start_dashboard_agent(redis_address,
+                          node_manager_port,
+                          raylet_name,
+                          plasma_store_name,
+                          temp_dir,
                           stdout_file=None,
                           stderr_file=None,
                           redis_password=None,
@@ -1059,7 +1063,11 @@ def start_dashboard_agent(redis_address,
         "dashboard/agent.py")
     command = [
         sys.executable, "-u", reporter_filepath,
-        "--redis-address={}".format(redis_address)
+        "--redis-address={}".format(redis_address),
+        "--node-manager-port={}".format(node_manager_port),
+        "--object-store-name={}".format(plasma_store_name),
+        "--raylet-name={}".format(raylet_name),
+        "--temp-dir={}".format(temp_dir),
     ]
     if redis_password:
         command += ["--redis-password", redis_password]
@@ -1115,7 +1123,7 @@ def start_dashboard(require_webui,
     command = [
         sys.executable, "-u", dashboard_filepath, "--host={}".format(host),
         "--port={}".format(port), "--redis-address={}".format(redis_address),
-        "--temp-dir={}".format(temp_dir)
+        "--temp-dir={}".format(temp_dir),
     ]
     if redis_password:
         command += ["--redis-password", redis_password]
@@ -1396,6 +1404,7 @@ def build_java_worker_command(
     pairs.append(("ray.home", RAY_HOME))
     pairs.append(("ray.log-dir", os.path.join(session_dir, "logs")))
     pairs.append(("ray.session-dir", session_dir))
+    pairs.append(("ray.job.resource-path", "/tmp/ray/job"))
 
     command = ["java"] + ["-D{}={}".format(*pair) for pair in pairs]
 

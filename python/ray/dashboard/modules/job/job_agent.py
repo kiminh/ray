@@ -25,8 +25,12 @@ DEBUG = True
 
 
 class JobInfo:
-    def __init__(self, job_info):
+    def __init__(self, temp_dir, job_info):
+        self._temp_dir = temp_dir
         self.job_info = job_info
+
+    def temp_dir(self):
+        return self._temp_dir
 
     def language(self):
         return self.job_info["language"]
@@ -43,14 +47,14 @@ class JobInfo:
     def java_dependency_list(self):
         dependencies = self.job_info.get("dependencies", {}).get("java", [])
         if not dependencies:
-            return None
+            return []
         return [dashboard_utils.Bunch(d) for d in dependencies]
 
     def python_requirements_file(self):
         requirements = self.job_info.get("dependencies", {}).get("python", [])
         if not requirements:
             return None
-        filename = job_consts.PYTHON_REQUIREMENTS_FILE.format(job_id=self.job_id())
+        filename = job_consts.PYTHON_REQUIREMENTS_FILE.format(temp_dir=self.temp_dir(), job_id=self.job_id())
         with open(filename, "w") as fp:
             fp.writelines(r.strip() + os.linesep for r in requirements)
         return filename
@@ -95,6 +99,14 @@ class JobProcessor:
             raise Exception("Run cmd {} exit with {}".format(repr(cmd), r))
 
     @staticmethod
+    async def _start_driver(cmd, stdout, stderr):
+        proc = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=stdout,
+                stderr=stderr)
+        logger.info("Start driver cmd {} with pid {}".format(repr(cmd), proc.pid))
+
+    @staticmethod
     def _get_current_python():
         return sys.executable
 
@@ -122,9 +134,10 @@ class DownloadPackage(JobProcessor):
 
     async def run(self):
         url = self.job_info.url()
+        temp_dir = self.job_info.temp_dir()
         job_id = self.job_info.job_id()
-        filename = job_consts.DOWNLOAD_PACKAGE.format(job_id=job_id)
-        unzip_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(job_id=job_id)
+        filename = job_consts.DOWNLOAD_PACKAGE.format(temp_dir=temp_dir, job_id=job_id)
+        unzip_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(temp_dir=temp_dir, job_id=job_id)
         await self._download_package(self.http_session, url, filename)
         await self._unzip_package(filename, unzip_dir)
 
@@ -140,17 +153,19 @@ class PreparePythonEnviron(JobProcessor):
         pypi = ""
         if job_consts.PYTHON_PACKAGE_INDEX:
             pypi = " -i {}".format(job_consts.PYTHON_PACKAGE_INDEX)
+        pip_cache_dir = job_consts.PYTHON_PIP_CACHE.format(temp_dir=self.job_info.temp_dir())
         pip_download_cmd = "{} -m pip download --destination-directory {}{} -r {}".format(
-                python, job_consts.PYTHON_PIP_CACHE, pypi, requirements_file)
+                python, pip_cache_dir, pypi, requirements_file)
         pip_install_cmd = "{} -m pip install --no-index --find-links={}{} -r {}".format(
-                python, job_consts.PYTHON_PIP_CACHE, pypi, requirements_file)
+                python, pip_cache_dir, pypi, requirements_file)
         await self._check_call_cmd(pip_download_cmd)
         await self._check_call_cmd(pip_install_cmd)
 
     async def run(self):
+        temp_dir = self.job_info.temp_dir()
         job_id = self.job_info.job_id()
         requirements_file = self.job_info.python_requirements_file()
-        virtualenv_path = job_consts.PYTHON_VIRTUAL_ENV_DIR.format(job_id=job_id)
+        virtualenv_path = job_consts.PYTHON_VIRTUAL_ENV_DIR.format(temp_dir=temp_dir, job_id=job_id)
         await self._create_virtualenv(virtualenv_path)
         if requirements_file:
             await self._install_python_requirements(virtualenv_path, requirements_file)
@@ -176,9 +191,10 @@ import {driver_entry}
         self.redis_password = redis_password
 
     def _gen_driver_code(self):
+        temp_dir = self.job_info.temp_dir()
         job_id = self.job_info.job_id()
-        package_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(job_id=job_id)
-        driver_entry_file = job_consts.JOB_DRIVER_ENTRY_FILE.format(job_id=job_id)
+        package_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(temp_dir=temp_dir, job_id=job_id)
+        driver_entry_file = job_consts.JOB_DRIVER_ENTRY_FILE.format(temp_dir=temp_dir, job_id=job_id)
         ip, port = self.redis_address
         driver_code = self._template.format(job_id=repr(hex_to_binary(job_id)),
                                             import_path=repr(package_dir),
@@ -189,17 +205,10 @@ import {driver_entry}
             fp.write(driver_code)
         return driver_entry_file
 
-    @staticmethod
-    async def _start_driver(cmd, stdout, stderr):
-        proc = await asyncio.create_subprocess_shell(
-                cmd,
-                stdout=stdout,
-                stderr=stderr)
-        logger.info("Start driver cmd {} with pid {}".format(repr(cmd), proc.pid))
-
     async def run(self):
+        temp_dir = self.job_info.temp_dir()
         job_id = self.job_info.job_id()
-        virtualenv_path = job_consts.PYTHON_VIRTUAL_ENV_DIR.format(job_id=job_id)
+        virtualenv_path = job_consts.PYTHON_VIRTUAL_ENV_DIR.format(temp_dir=temp_dir, job_id=job_id)
         python = self._get_virtualenv_python(virtualenv_path)
         driver_file = self._gen_driver_code()
         driver_cmd = "{} -u {}".format(python, driver_file)
@@ -216,23 +225,40 @@ class PrepareJavaEnviron(JobProcessor):
         dependencies = self.job_info.java_dependency_list()
         for d in dependencies:
             url_path = urlparse(d.url).path
-            filename = os.path.join(job_consts.JAVA_SHARED_LIBRARY_DIR, os.path.basename(url_path))
-            md5_filename = filename + ".md5"
-            check_md5_cmd = "md5sum -c {}".format(md5_filename)
-            r = await self._call_cmd(check_md5_cmd)
-            if r != 0:
-                await self._download_package(self.http_session, d.url, filename)
-                gen_md5_cmd = "md5sum {} > {}".format(filename, md5_filename)
-                await self._check_call_cmd(gen_md5_cmd)
+            temp_dir = self.job_info.temp_dir()
+            java_shared_library_dir = job_consts.JAVA_SHARED_LIBRARY_DIR.format(temp_dir=temp_dir)
+            os.makedirs(java_shared_library_dir, exist_ok=True)
+            filename = os.path.join(java_shared_library_dir, os.path.basename(url_path))
+            if sys.platform == "linux":
+                md5_filename = filename + ".md5"
+                check_md5_cmd = "md5sum -c {}".format(md5_filename)
+                r = await self._call_cmd(check_md5_cmd)
+                if r != 0:
+                    await self._download_package(self.http_session, d.url, filename)
+                    gen_md5_cmd = "md5sum {} > {}".format(filename, md5_filename)
+                    await self._check_call_cmd(gen_md5_cmd)
+                else:
+                    logger.info("Check md5 for {} OK.".format(filename))
             else:
-                logger.info("Check md5 for {} OK.".format(filename))
+                await self._download_package(self.http_session, d.url, filename)
 
 
 class StartJavaDriver(JobProcessor):
+    def __init__(self, job_info, redis_address, redis_password, node_manager_port, object_store_name, raylet_name):
+        super().__init__(job_info)
+        self.redis_address = redis_address
+        self.redis_password = redis_password
+        self.node_manager_port = node_manager_port
+        self.object_store_name = object_store_name
+        self.raylet_name = raylet_name
+
     @staticmethod
     def _build_java_worker_command(
             job_info,
             java_worker_options,
+            node_manager_port,
+            object_store_name,
+            raylet_name,
             redis_address,
             redis_password,
             session_dir):
@@ -254,9 +280,15 @@ class StartJavaDriver(JobProcessor):
         if redis_password is not None:
             pairs.append(("ray.redis.password", redis_password))
 
+        if object_store_name is not None:
+            pairs.append(("ray.object-store.socket-name", object_store_name))
+
+        if raylet_name is not None:
+            pairs.append(("ray.raylet.socket-name", raylet_name))
+
+        pairs.append(("ray.raylet.node-manager-port", node_manager_port))
         pairs.append(("ray.home", RAY_HOME))
         pairs.append(("ray.log-dir", os.path.join(session_dir, "logs")))
-        pairs.append(("ray.session-dir", session_dir))
         pairs.append(("ray.job.id", job_info.job_id()))
         pairs.append(("ray.run-mode", "CLUSTER"))
         pairs.append(("ray.driver.long-running", "true"))
@@ -264,8 +296,14 @@ class StartJavaDriver(JobProcessor):
 
         command = ["java", "-ea"] + ["-D{}={}".format(*pair) for pair in pairs]
 
+        temp_dir = job_info.temp_dir()
+        job_id = job_info.job_id()
+        shared_jar_dir = job_consts.JAVA_SHARED_LIBRARY_DIR.format(temp_dir=temp_dir, job_id=job_id)
+        job_dir = job_consts.DOWNLOAD_PACKAGE_UNZIP_DIR.format(temp_dir=temp_dir, job_id=job_id)
         # Add ray jars path to java classpath
-        ray_jars = os.path.join(get_ray_jars_dir(), "*")
+        ray_jars = os.path.join(get_ray_jars_dir(), "*") + ":" + \
+                   os.path.join(shared_jar_dir, "*") + ":" + \
+                   os.path.join(job_dir, "*")
         if java_worker_options is None:
             options = []
         else:
@@ -285,12 +323,24 @@ class StartJavaDriver(JobProcessor):
         # above options.
         command += options
 
-        command += ["org.ray.runtime.runner.worker.DefaultWorker", job_info.driver_entry()]
+        command += [job_info.driver_entry()]
 
         return command
 
     async def run(self):
-        pass
+        ip, port = self.redis_address
+        driver_cmd = self._build_java_worker_command(self.job_info, None,
+                                                     node_manager_port=self.node_manager_port,
+                                                     object_store_name=self.object_store_name,
+                                                     raylet_name=self.raylet_name,
+                                                     redis_address=ip + ":" + str(port),
+                                                     redis_password=self.redis_password,
+                                                     session_dir="/tmp/ray/session_latest")
+        import subprocess
+        driver_cmd = subprocess.list2cmdline(driver_cmd)
+        logger.info(driver_cmd)
+        stdout_file, stderr_file = ray.worker._global_node.new_log_files("driver_{}".format(self.job_info.job_id()))
+        await self._start_driver(driver_cmd, stdout_file, stderr_file)
 
 
 @dashboard_utils.agent
@@ -312,11 +362,18 @@ class JobAgent(job_pb2_grpc.JobServiceServicer):
         self.connected = False
 
     async def _prepare_job_environ(self, job_info):
-        os.makedirs(job_consts.JOB_DIR.format(job_id=job_info.job_id()), exist_ok=True)
+        os.makedirs(job_consts.JOB_DIR.format(temp_dir=job_info.temp_dir(), job_id=job_info.job_id()), exist_ok=True)
         for i in range(job_consts.JOB_RETRY_TIMES):
             try:
-                concurrent_tasks = [DownloadPackage(job_info, self.http_session).run(),
-                                    PreparePythonEnviron(job_info).run()]
+                language = job_info.language()
+                if language == "python":
+                    concurrent_tasks = [DownloadPackage(job_info, self.http_session).run(),
+                                        PreparePythonEnviron(job_info).run()]
+                elif language == "java":
+                    concurrent_tasks = [DownloadPackage(job_info, self.http_session).run(),
+                                        PrepareJavaEnviron(job_info, self.http_session).run()]
+                else:
+                    raise Exception("Unsupported language type: {}".format(language))
                 await asyncio.gather(*concurrent_tasks)
                 break
             except Exception as ex:
@@ -359,11 +416,39 @@ class JobAgent(job_pb2_grpc.JobServiceServicer):
         if DEBUG:
             job_id = ray.JobID.from_int(
                     int(self.dashboard_agent.redis_client.incr("JobCounter")))
-            test_job = {
+            test_java_job = {
                 'id': job_id.hex(),
                 'name': 'rayag_darknet',
                 'owner': 'abc.xyz',
                 'language': 'java',
+                'url': 'http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/po/ray-tutorial.zip',
+                'driverEntry': 'org.ray.exercise.Exercise01',
+                'driverArgs': ['arg1', 'arg2'],
+                'customConfig': {'k1': 'v1', 'k2': 'v2'},
+                'jvmOptions': '-Dabc=123 -Daaa=xxx',
+                'dependencies': {
+                    'python': ['aiohttp', 'click', 'colorama', 'filelock', 'google', 'grpcio', 'jsonschema',
+                               'msgpack >= 0.6.0, < 1.0.0', 'numpy >= 1.16', 'protobuf >= 3.8.0', 'py-spy >= 0.2.0',
+                               'pyyaml', 'redis >= 3.3.2'],
+                    'java': [
+                        {
+                            "name": "rayag",
+                            "version": "2.1",
+                            "url": "http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/po/commons-io-2.5.jar",
+                            "md5": ""
+                        }
+                    ]
+                }
+            }
+
+            await job_updater.submit_job(self.aioredis_client, test_java_job)
+            job_id = ray.JobID.from_int(
+                    int(self.dashboard_agent.redis_client.incr("JobCounter")))
+            test_python_job = {
+                'id': job_id.hex(),
+                'name': 'rayag_darknet',
+                'owner': 'abc.xyz',
+                'language': 'python',
                 'url': 'http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/po/simple_job.zip',
                 'driverEntry': 'simple_job',
                 'driverArgs': ['arg1', 'arg2'],
@@ -372,21 +457,38 @@ class JobAgent(job_pb2_grpc.JobServiceServicer):
                 'dependencies': {
                     'python': ['aiohttp', 'click', 'colorama', 'filelock', 'google', 'grpcio', 'jsonschema',
                                'msgpack >= 0.6.0, < 1.0.0', 'numpy >= 1.16', 'protobuf >= 3.8.0', 'py-spy >= 0.2.0',
-                               'pyyaml', 'redis >= 3.3.2']
+                               'pyyaml', 'redis >= 3.3.2'],
+                    'java': [
+                        {
+                            "name": "rayag",
+                            "version": "2.1",
+                            "url": "http://arcos.oss-cn-hangzhou-zmf.aliyuncs.com/po/commons-io-2.5.jar",
+                            "md5": ""
+                        }
+                    ]
                 }
             }
 
-            await job_updater.submit_job(self.aioredis_client, test_job)
+            await job_updater.submit_job(self.aioredis_client, test_python_job)
 
         await self._load_all_jobs_from_store()
         while True:
             request = await self.job_queue.get()
             job_id = request.job_id
             job_info = await job_updater.get_job(self.aioredis_client, job_id)
-            job_info = JobInfo(job_info)
+            job_info = JobInfo(self.dashboard_agent.temp_dir, job_info)
             self.job_table[job_id] = job_info
             await self._prepare_job_environ(job_info)
             if request.start_driver:
-                await StartPythonDriver(job_info,
-                                        self.dashboard_agent.redis_address,
-                                        self.dashboard_agent.redis_password).run()
+                language = job_info.language()
+                if language == "python":
+                    await StartPythonDriver(job_info,
+                                            self.dashboard_agent.redis_address,
+                                            self.dashboard_agent.redis_password).run()
+                elif language == "java":
+                    await StartJavaDriver(job_info,
+                                          self.dashboard_agent.redis_address,
+                                          self.dashboard_agent.redis_password,
+                                          self.dashboard_agent.node_manager_port,
+                                          self.dashboard_agent.object_store_name,
+                                          self.dashboard_agent.raylet_name).run()

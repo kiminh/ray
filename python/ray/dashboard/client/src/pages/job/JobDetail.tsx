@@ -81,14 +81,14 @@ export default function JobDetailPage(props: RouteComponentProps<{ id: string }>
         <Grid item xs={4}><span className={classes.label}>Driver Entry</span>: {jobInfo.driverEntry}</Grid>
         <Grid item xs={4}><span className={classes.label}>Driver Args</span>: {jobInfo.driverArgs.join(' ')}</Grid>
         <Grid item xs={4}><span className={classes.label}>JVM Options</span>: {jobInfo.jvmOptions}</Grid>
-        <Grid item xs={4}><span className={classes.label}>Url</span>: {jobInfo.url}</Grid>
+        <Grid item xs={4}><span className={classes.label}>Url</span>: <a href={jobInfo.url} target="_blank" rel="noopener noreferrer">{jobInfo.url}</a></Grid>
         {Object.entries(jobInfo.customConfig).map(([k, v]) => <Grid item xs={4}><span className={classes.label}>{k}</span>: {v}</Grid>)}
       </Grid>
     </Paper>
     {
       jobInfo.dependencies.python &&
       <>
-        <Typography variant="h6">Python Dependencies</Typography>
+        <Typography variant="h6">Dependencies</Typography>
         <Paper className={classes.paper}>
           <Grid container spacing={2}>
             {
@@ -103,25 +103,28 @@ export default function JobDetailPage(props: RouteComponentProps<{ id: string }>
     {
       jobInfo.dependencies.java &&
       <>
-        <Typography variant="h6">Python Dependencies</Typography>
+        <Typography variant="h6">Dependencies</Typography>
         <TableContainer component={Paper} className={classes.paper}>
-          <TableHead>
-            <TableRow>
-              {['Name', 'Version', 'URL'].map(col => <TableCell align="center">{col}</TableCell>)}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {
-              jobInfo.dependencies.java.map(({ name, version, url }) =>
-                <TableRow>
-                  <TableCell align="center">{name}</TableCell>
-                  <TableCell align="center">{version}</TableCell>
-                  <TableCell align="center">{url}</TableCell>
-                </TableRow>
-              )
-            }
-            
-          </TableBody>
+          <Table>
+
+            <TableHead>
+              <TableRow>
+                {['Name', 'Version', 'URL'].map(col => <TableCell align="center">{col}</TableCell>)}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {
+                jobInfo.dependencies.java.map(({ name, version, url }) =>
+                  <TableRow>
+                    <TableCell align="center">{name}</TableCell>
+                    <TableCell align="center">{version}</TableCell>
+                    <TableCell align="center"><a href={url} target="_blank" rel="noopener noreferrer">{url}</a></TableCell>
+                  </TableRow>
+                )
+              }
+
+            </TableBody>
+          </Table>
         </TableContainer>
       </>
     }

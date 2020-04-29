@@ -51,11 +51,16 @@ else:
 
 
 class DashboardAgent(object):
-    def __init__(self, redis_address, redis_password=None):
+    def __init__(self, redis_address, redis_password=None, temp_dir=None, node_manager_port=None,
+                 object_store_name=None, raylet_name=None):
         """Initialize the DashboardAgent object."""
         ip, port = redis_address.split(":")
         self.redis_address = (ip, int(port))
         self.redis_password = redis_password
+        self.temp_dir = temp_dir
+        self.node_manager_port = node_manager_port
+        self.object_store_name = object_store_name
+        self.raylet_name = raylet_name
         self.ip = ray.services.get_node_ip_address()
         self.redis_client = ray.services.create_redis_client(
                 redis_address, password=redis_password)
@@ -93,6 +98,23 @@ if __name__ == "__main__":
             type=str,
             help="The address to use for Redis.")
     parser.add_argument(
+            "--node-manager-port",
+            required=True,
+            type=int,
+            help="the port to use for starting the node manager")
+    parser.add_argument(
+            "--object-store-name",
+            required=True,
+            type=str,
+            default=None,
+            help="manually specify the socket name of the plasma store")
+    parser.add_argument(
+            "--raylet-name",
+            required=True,
+            type=str,
+            default=None,
+            help="manually specify the socket path of the raylet process")
+    parser.add_argument(
             "--redis-password",
             required=False,
             type=str,
@@ -111,12 +133,25 @@ if __name__ == "__main__":
             type=str,
             default=ray_constants.LOGGER_FORMAT,
             help=ray_constants.LOGGER_FORMAT_HELP)
+    parser.add_argument(
+            "--temp-dir",
+            required=False,
+            type=str,
+            default=None,
+            help="Specify the path of the temporary directory use by Ray process.")
     args = parser.parse_args()
     logging.basicConfig(level=args.logging_level, format=args.logging_format)
 
     try:
+        if args.temp_dir:
+            temp_dir = "/" + args.temp_dir.strip("/")
+        else:
+            temp_dir = "/tmp/ray"
         agent = DashboardAgent(
-                args.redis_address, redis_password=args.redis_password)
+                args.redis_address, redis_password=args.redis_password,
+                temp_dir=temp_dir, node_manager_port=args.node_manager_port,
+                object_store_name=args.object_store_name,
+                raylet_name=args.raylet_name)
 
         loop = asyncio.get_event_loop()
         loop.create_task(agent.run())
