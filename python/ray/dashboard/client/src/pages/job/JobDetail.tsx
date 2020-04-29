@@ -105,6 +105,8 @@ export default function JobDetailPage(props: RouteComponentProps<{ id: string }>
       <>
         <Typography variant="h6">Dependencies</Typography>
         <TableContainer component={Paper} className={classes.paper}>
+          <Table>
+
           <TableHead>
             <TableRow>
               {['Name', 'Version', 'URL'].map(col => <TableCell align="center">{col}</TableCell>)}
@@ -116,12 +118,13 @@ export default function JobDetailPage(props: RouteComponentProps<{ id: string }>
                 <TableRow>
                   <TableCell align="center">{name}</TableCell>
                   <TableCell align="center">{version}</TableCell>
-                  <TableCell align="center">{url}</TableCell>
+                  <TableCell align="center"><a href={url} target="_blank" rel="noopener noreferrer">{url}</a></TableCell>
                 </TableRow>
               )
             }
             
           </TableBody>
+          </Table>
         </TableContainer>
       </>
     }
