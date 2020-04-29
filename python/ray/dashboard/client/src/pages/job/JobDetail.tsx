@@ -88,7 +88,7 @@ export default function JobDetailPage(props: RouteComponentProps<{ id: string }>
     {
       jobInfo.dependencies.python &&
       <>
-        <Typography variant="h6">Python Dependencies</Typography>
+        <Typography variant="h6">Dependencies</Typography>
         <Paper className={classes.paper}>
           <Grid container spacing={2}>
             {
@@ -103,7 +103,7 @@ export default function JobDetailPage(props: RouteComponentProps<{ id: string }>
     {
       jobInfo.dependencies.java &&
       <>
-        <Typography variant="h6">Python Dependencies</Typography>
+        <Typography variant="h6">Dependencies</Typography>
         <TableContainer component={Paper} className={classes.paper}>
           <TableHead>
             <TableRow>
