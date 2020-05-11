@@ -184,7 +184,11 @@ Status RedisStoreClient::RedisScanner::ScanRows(
     const MultiItemCallback<std::pair<std::string, std::string>> &callback) {
   auto on_done = [this, callback](const Status &status,
                                   const std::vector<std::string> &result) {
-    ReadRows(result, callback);
+    if (result.empty()) {
+      callback(Status::OK(), std::vector<std::pair<std::string, std::string>>());
+    } else {
+      ReadRows(result, callback);
+    }
   };
   return ScanKeys(on_done);
 }
