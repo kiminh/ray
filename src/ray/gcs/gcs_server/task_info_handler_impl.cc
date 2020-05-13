@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "task_info_handler_impl.h"
+#include "ray/common/task/task_spec.h"
+#include "ray/common/common_protocol.h"
 
 namespace ray {
 namespace rpc {
@@ -20,8 +22,9 @@ namespace rpc {
 void DefaultTaskInfoHandler::HandleAddTask(const AddTaskRequest &request,
                                            AddTaskReply *reply,
                                            SendReplyCallback send_reply_callback) {
-  JobID job_id = JobID::FromBinary(request.task_data().task().task_spec().job_id());
-  TaskID task_id = TaskID::FromBinary(request.task_data().task().task_spec().task_id());
+  TaskSpecification task_spec(request.task_data().task().task_spec());
+  JobID job_id = task_spec.JobId();
+  TaskID task_id = TaskIdFromBytes(const_cast<rpc::AddTaskRequest &>(request).mutable_task_data()->mutable_task()->mutable_task_spec());
   RAY_LOG(DEBUG) << "Adding task, job id = " << job_id << ", task id = " << task_id;
   auto task_table_data = std::make_shared<TaskTableData>();
   task_table_data->CopyFrom(request.task_data());

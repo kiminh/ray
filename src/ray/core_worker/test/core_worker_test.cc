@@ -49,6 +49,11 @@ std::string gcs_server_executable;
 
 namespace ray {
 
+static JobID NextJobId() {
+  static uint32_t job_counter = 1;
+  return JobID::FromInt(job_counter++);
+}
+
 static void flushall_redis(void) {
   redisContext *context = redisConnect("127.0.0.1", 6379);
   freeReplyObject(redisCommand(context, "FLUSHALL"));
@@ -142,11 +147,6 @@ class CoreWorkerTest : public ::testing::Test {
     if (!gcs_server_pid_.empty()) {
       StopGcsServer(gcs_server_pid_);
     }
-  }
-
-  JobID NextJobId() const {
-    static uint32_t job_counter = 1;
-    return JobID::FromInt(job_counter++);
   }
 
   std::string StartStore() {
@@ -627,6 +627,185 @@ TEST_F(ZeroNodeTest, TestTaskArg) {
   ASSERT_EQ(*data, *buffer);
 }
 
+
+/// A helper method to create a dummy actor task specification.
+inline TaskSpecification NewDummyActorTaskSpec() {
+  uint8_t array[] = {1, 2, 3};
+  auto buffer = std::make_shared<LocalMemoryBuffer>(array, sizeof(array));
+  RayFunction function(ray::Language::PYTHON,
+  ray::FunctionDescriptorBuilder::BuildPython("", "", "", ""));
+
+  const auto job_id = NextJobId();
+  ActorHandle actor_handle(ActorID::Of(job_id, TaskID::ForDriverTask(job_id), 1),
+                           TaskID::Nil(), rpc::Address(), job_id, ObjectID::FromRandom(),
+                           function.GetLanguage(), function.GetFunctionDescriptor(), "");
+
+  std::vector <TaskArg> args;
+  args.emplace_back(TaskArg::PassByValue(
+      std::make_shared<RayObject>(buffer, nullptr, std::vector<ObjectID>())));
+  std::unordered_map<std::string, double> resources;
+
+  rpc::Address address;
+  TaskOptions options{1, resources};
+  std::vector <ObjectID> return_ids;
+  auto num_returns = options.num_returns;
+
+  TaskSpecBuilder builder;
+  builder.SetCommonTaskSpec(RandomTaskId(), function.GetLanguage(),
+                            function.GetFunctionDescriptor(), job_id, RandomTaskId(), 0,
+                            RandomTaskId(), address, num_returns, resources, resources);
+
+  for (const auto &arg : args) {
+    if (arg.IsPassedByReference()) {
+      builder.AddByRefArg(arg.GetReference());
+    } else {
+      builder.AddByValueArg(arg.GetValue());
+    }
+  }
+  actor_handle.SetActorTaskSpec(builder, ObjectID::FromRandom());
+  auto task_spec = builder.Build();
+  return task_spec;
+
+}
+TEST_F(ZeroNodeTest, TestSerializePerf) {
+  const auto original_task_spec = NewDummyActorTaskSpec();
+
+  const uint64_t num = 10000000;
+  RAY_LOG(INFO) << "start testing serialize perf with num " << num;
+  const uint64_t start_ms = current_time_ms();
+  for (uint64_t i = 0; i < num; ++i) {
+    const auto serialized = original_task_spec.Serialize();
+    ASSERT_FALSE(serialized.empty());
+  }
+
+  RAY_LOG(INFO) << "Finish testing serialize perf with num " << num
+      << ", which takes " << current_time_ms() - start_ms << " ms.";
+}
+
+TEST_F(ZeroNodeTest, TestDeserializePerf) {
+  const auto original_task_spec = NewDummyActorTaskSpec();
+
+  const auto serialized = original_task_spec.Serialize();
+  const auto original_job_id = original_task_spec.JobId();
+  const auto original_task_id = original_task_spec.TaskId();
+
+  const uint64_t num = 10000000;
+  RAY_LOG(INFO) << "start testing deserialize perf with num " << num;
+  const uint64_t start_ms = current_time_ms();
+  for (uint64_t i = 0; i < num; ++i) {
+    auto spec = TaskSpecification(serialized);
+    ASSERT_TRUE(original_job_id == spec.JobId());
+    ASSERT_TRUE(original_task_id == spec.TaskId());
+  }
+
+  RAY_LOG(INFO) << "Finish testing deserialize perf with num " << num
+      << ", which takes " << current_time_ms() - start_ms << " ms.";
+}
+
+
+TEST_F(ZeroNodeTest, TestReadPBTaskSpecPerf) {
+  uint8_t array[] = {1, 2, 3};
+  auto buffer = std::make_shared<LocalMemoryBuffer>(array, sizeof(array));
+  RayFunction function(ray::Language::PYTHON,
+                       ray::FunctionDescriptorBuilder::BuildPython("", "", "", ""));
+
+  const auto job_id = NextJobId();
+  ActorHandle actor_handle(ActorID::Of(job_id, TaskID::ForDriverTask(job_id), 1),
+                         TaskID::Nil(), rpc::Address(), job_id, ObjectID::FromRandom(),
+                         function.GetLanguage(), function.GetFunctionDescriptor(), "");
+
+  std::vector<TaskArg> args;
+  args.emplace_back(TaskArg::PassByValue(
+      std::make_shared<RayObject>(buffer, nullptr, std::vector<ObjectID>())));
+
+  std::unordered_map<std::string, double> resources;
+
+  int64_t start_ms = current_time_ms();
+  const auto num_tasks = 10000;
+  RAY_LOG(INFO) << "start creating " << num_tasks << " task specs.";
+  rpc::Address address;
+  for (int i = 0; i < num_tasks; i++) {
+    TaskOptions options{1, resources};
+    std::vector<ObjectID> return_ids;
+    auto num_returns = options.num_returns;
+
+    TaskSpecBuilder builder;
+    builder.SetCommonTaskSpec(RandomTaskId(), function.GetLanguage(),
+        function.GetFunctionDescriptor(), job_id, RandomTaskId(), 0,
+        RandomTaskId(), address, num_returns, resources, resources);
+
+    // Set task arguments.
+    for (const auto &arg : args) {
+      if (arg.IsPassedByReference()) {
+        builder.AddByRefArg(arg.GetReference());
+      } else {
+        builder.AddByValueArg(arg.GetValue());
+      }
+    }
+    actor_handle.SetActorTaskSpec(builder, ObjectID::FromRandom());
+    auto task_spec = builder.Build();
+
+    const auto num_times_to_read = 100;
+    for (int i = 0; i < num_times_to_read; ++i) {
+      auto task_id = task_spec.TaskId();
+      auto local_job_id = task_spec.JobId();
+      auto actor_id = task_spec.ActorId();
+      ASSERT_TRUE(task_id != TaskID::Nil());
+      ASSERT_TRUE(local_job_id == job_id);
+      ASSERT_TRUE(actor_id != ActorID::Nil());
+    }
+
+  }
+
+  RAY_LOG(INFO) << "Finish creating " << num_tasks << " task specs."
+      << ", which takes " << current_time_ms() - start_ms << " ms";
+}
+
+
+// Performance benchmark for creating task specifications.
+TEST_F(ZeroNodeTest, TestCreatingTaskSpecPerf) {
+  // Create a dummy actor handle, and then create a number of `TaskSpec`
+  // to benchmark performance.
+  uint8_t array[] = {1, 2, 3};
+  auto buffer = std::make_shared<LocalMemoryBuffer>(array, sizeof(array));
+  RayFunction function(ray::Language::PYTHON,
+                       ray::FunctionDescriptorBuilder::BuildPython("", "", "", ""));
+  std::vector<TaskArg> args;
+  args.emplace_back(TaskArg::PassByValue(
+      std::make_shared<RayObject>(buffer, nullptr, std::vector<ObjectID>())));
+
+//  std::unordered_map<std::string, double> resources = {{"A", 3}, {"B", 4}};
+  std::unordered_map<std::string, double> resources;
+
+  const auto job_id = NextJobId();
+  const auto num_tasks = 10000 * 10;
+  int64_t start_ms = current_time_ms();
+  RAY_LOG(INFO) << "start creating " << num_tasks << " task specs.";
+  rpc::Address address;
+  for (int i = 0; i < num_tasks; i++) {
+    TaskOptions options{1, resources};
+    std::vector<ObjectID> return_ids;
+    auto num_returns = options.num_returns;
+    TaskSpecBuilder builder;
+    builder.SetCommonTaskSpec(RandomTaskId(), function.GetLanguage(),
+        function.GetFunctionDescriptor(), job_id, RandomTaskId(), 0,
+    RandomTaskId(), address, num_returns, resources, resources);
+    // Set task arguments.
+    for (const auto &arg : args) {
+      if (arg.IsPassedByReference()) {
+      builder.AddByRefArg(arg.GetReference());
+      } else {
+      builder.AddByValueArg(arg.GetValue());
+      }
+    }
+    auto task_spec = builder.Build();
+    ASSERT_FALSE(task_spec.IsActorTask());
+  }
+
+  RAY_LOG(INFO) << "Finish creating " << num_tasks << " task specs"
+  << ", which takes " << current_time_ms() - start_ms << " ms";
+}
+
 // Performance batchmark for `PushTaskRequest` creation.
 TEST_F(ZeroNodeTest, TestTaskSpecPerf) {
   // Create a dummy actor handle, and then create a number of `TaskSpec`
@@ -663,7 +842,6 @@ TEST_F(ZeroNodeTest, TestTaskSpecPerf) {
     TaskOptions options{1, resources};
     std::vector<ObjectID> return_ids;
     auto num_returns = options.num_returns;
-
     TaskSpecBuilder builder;
     builder.SetCommonTaskSpec(RandomTaskId(), function.GetLanguage(),
                               function.GetFunctionDescriptor(), job_id, RandomTaskId(), 0,
@@ -676,14 +854,11 @@ TEST_F(ZeroNodeTest, TestTaskSpecPerf) {
         builder.AddByValueArg(arg.GetValue());
       }
     }
-
     actor_handle.SetActorTaskSpec(builder, ObjectID::FromRandom());
-
     auto task_spec = builder.Build();
-
     ASSERT_TRUE(task_spec.IsActorTask());
     auto request = std::unique_ptr<rpc::PushTaskRequest>(new rpc::PushTaskRequest);
-    request->mutable_task_spec()->Swap(&task_spec.GetMutableMessage());
+    request->set_task_spec(reinterpret_cast<const char *>(task_spec.Data()), task_spec.Size());
   }
   RAY_LOG(INFO) << "Finish creating " << num_tasks << " PushTaskRequests"
                 << ", which takes " << current_time_ms() - start_ms << " ms";

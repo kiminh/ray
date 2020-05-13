@@ -289,8 +289,8 @@ void LineageCache::FlushTask(const TaskID &task_id) {
   };
   auto task = lineage_.GetEntry(task_id);
   auto task_data = std::make_shared<TaskTableData>();
-  task_data->mutable_task()->mutable_task_spec()->CopyFrom(
-      task->TaskData().GetTaskSpecification().GetMessage());
+  auto task_spec = task->TaskData().GetTaskSpecification();
+  task_data->mutable_task()->set_task_spec(reinterpret_cast<const char *>(task_spec.Data()), task_spec.Size());
   task_data->mutable_task()->mutable_task_execution_spec()->CopyFrom(
       task->TaskData().GetTaskExecutionSpec().GetMessage());
   RAY_CHECK_OK(gcs_client_->Tasks().AsyncAdd(task_data, task_callback));

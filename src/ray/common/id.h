@@ -76,6 +76,7 @@ class BaseID {
   // Warning: this can duplicate IDs after a fork() call. We assume this never happens.
   static T FromRandom();
   static T FromBinary(const std::string &binary);
+  static T FromBinaryStr(const char *data, size_t size);
   static const T &Nil();
   static size_t Size() { return T::Size(); }
 
@@ -419,6 +420,7 @@ std::ostream &operator<<(std::ostream &os, const ObjectID &id);
     type() : UniqueID() {}                                                     \
     static type FromRandom() { return type(UniqueID::FromRandom()); }          \
     static type FromBinary(const std::string &binary) { return type(binary); } \
+    static type FromBinaryStr(const char *data, size_t size) {return FromBinary(std::string(data, size));} \
     static type Nil() { return type(UniqueID::Nil()); }                        \
     static size_t Size() { return kUniqueIDSize; }                             \
                                                                                \
@@ -457,6 +459,15 @@ T BaseID<T>::FromBinary(const std::string &binary) {
       << "expected size is " << T::Size() << ", but got " << binary.size();
   T t;
   std::memcpy(t.MutableData(), binary.data(), binary.size());
+  return t;
+}
+
+template <typename T>
+T BaseID<T>::FromBinaryStr(const char *data, size_t size) {
+  RAY_CHECK(size == T::Size() || size == 0)
+      << "expected size is " << T::Size() << ", but got " << size;
+  T t;
+  std::memcpy(t.MutableData(), data, size);
   return t;
 }
 

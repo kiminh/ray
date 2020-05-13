@@ -49,7 +49,7 @@ class FunctionDescriptorInterface : public MessageWrapper<rpc::FunctionDescripto
 
   template <typename Subtype>
   Subtype *As() {
-    return reinterpret_cast<Subtype *>(this);
+    return dynamic_cast<Subtype *>(this);
   }
 };
 

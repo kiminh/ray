@@ -32,39 +32,42 @@ struct TaskState {
 
 void InlineDependencies(
     absl::flat_hash_map<ObjectID, std::shared_ptr<RayObject>> dependencies,
-    TaskSpecification &task, std::vector<ObjectID> *inlined_dependency_ids,
+    TaskSpecification &task_spec, std::vector<ObjectID> *inlined_dependency_ids,
     std::vector<ObjectID> *contained_ids) {
-  auto &msg = task.GetMutableMessage();
+//  auto &msg = task.GetMutableMessage();
   size_t found = 0;
-  for (size_t i = 0; i < task.NumArgs(); i++) {
-    auto count = task.ArgIdCount(i);
+  for (size_t i = 0; i < task_spec.NumArgs(); i++) {
+    auto count = task_spec.ArgIdCount(i);
     if (count > 0) {
-      const auto &id = task.ArgId(i, 0);
+      const auto &id = task_spec.ArgId(i, 0);
       const auto &it = dependencies.find(id);
       if (it != dependencies.end()) {
         RAY_CHECK(it->second);
-        auto *mutable_arg = msg.mutable_args(i);
-        mutable_arg->clear_object_ids();
-        if (it->second->IsInPlasmaError()) {
-          // Promote the object id to plasma.
-          mutable_arg->add_object_ids(it->first.Binary());
-        } else {
-          // Inline the object value.
-          if (it->second->HasData()) {
-            const auto &data = it->second->GetData();
-            mutable_arg->set_data(data->Data(), data->Size());
-          }
-          if (it->second->HasMetadata()) {
-            const auto &metadata = it->second->GetMetadata();
-            mutable_arg->set_metadata(metadata->Data(), metadata->Size());
-          }
-          for (const auto &nested_id : it->second->GetNestedIds()) {
-            mutable_arg->add_nested_inlined_ids(nested_id.Binary());
-            contained_ids->push_back(nested_id);
-          }
-          inlined_dependency_ids->push_back(id);
-        }
-        found++;
+//        auto message = flatbuffers::GetRoot<rpc::flatbuf::TaskSpec>(task_spec.Data());
+//        auto *mutable_arg = msg.mutable_args(i);
+//        flatbuffers::Offset<TaskArg> *mutable_arg = message->args()->Get(i);
+//        mutable_arg->clear_object_ids();
+//        mutable_arg->mutable_object_ids()->Clear();
+//        if (it->second->IsInPlasmaError()) {
+//          // Promote the object id to plasma.
+//          mutable_arg->add_object_ids(it->first.Binary());
+//        } else {
+//          // Inline the object value.
+//          if (it->second->HasData()) {
+//            const auto &data = it->second->GetData();
+//            mutable_arg->set_data(data->Data(), data->Size());
+//          }
+//          if (it->second->HasMetadata()) {
+//            const auto &metadata = it->second->GetMetadata();
+//            mutable_arg->set_metadata(metadata->Data(), metadata->Size());
+//          }
+//          for (const auto &nested_id : it->second->GetNestedIds()) {
+//            mutable_arg->add_nested_inlined_ids(nested_id.Binary());
+//            contained_ids->push_back(nested_id);
+//          }
+//          inlined_dependency_ids->push_back(id);
+//        }
+//        found++;
       } else {
         RAY_CHECK(!id.IsDirectCallType());
       }
