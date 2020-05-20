@@ -253,8 +253,11 @@ message TaskLeaseData {
 }
 
 message JobConfigs {
-  uint32 num_java_workers_per_process = 1;
-  string jvm_options = 2;
+  // The initial workers to start per node. The key is of the integer form of Language.
+  // If a language is not in the map, it fallbacks to `num_cpus`.
+  map<uint32, uint32> num_initial_workers = 1;
+  uint32 num_java_workers_per_process = 2;
+  string jvm_options = 3;
 }
 
 message JobTableData {

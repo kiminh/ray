@@ -9,6 +9,7 @@ import io.ray.runtime.context.NativeWorkerContext;
 import io.ray.runtime.gcs.GcsClient;
 import io.ray.runtime.gcs.GcsClientOptions;
 import io.ray.runtime.gcs.RedisClient;
+import io.ray.runtime.generated.Common.Language;
 import io.ray.runtime.generated.Common.WorkerType;
 import org.ray.runtime.generated.Gcs.JobConfigs;
 import io.ray.runtime.object.NativeObjectStore;
@@ -86,10 +87,14 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
 
     byte[] serializedJobConfigs = null;
     if (rayConfig.workerMode == WorkerType.DRIVER) {
-      serializedJobConfigs = JobConfigs.newBuilder()
+      JobConfigs.Builder jobConfigsBuilder = JobConfigs.newBuilder()
           .setNumJavaWorkersPerProcess(rayConfig.numWorkersPerProcess)
-          .setJvmOptions(rayConfig.jvmOptionsForJavaWorker)
-          .build().toByteArray();
+          .setJvmOptions(rayConfig.jvmOptionsForJavaWorker);
+      for (Map.Entry<Language, Integer> entry : rayConfig.numInitialWorkers.entrySet()) {
+        // TODO (kfstorm): Add a test case to verify it.
+        jobConfigsBuilder.putNumInitialWorkers(entry.getKey().getNumber(), entry.getValue());
+      }
+      serializedJobConfigs = jobConfigsBuilder.build().toByteArray();
     }
 
     // TODO(qwang): Get object_store_socket_name and raylet_socket_name from Redis.

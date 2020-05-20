@@ -239,17 +239,6 @@ def recursive_fnmatch(dirpath, pattern):
     return matches
 
 
-def simple_remote_call(count=1):
-    """A simple call to make sure start some new workers."""
-
-    @ray.remote
-    def f():
-        return "simple call"
-
-    for _ in range(0, count):
-        f.remote()
-
-
 def generate_internal_config_map(**kwargs):
     internal_config = json.dumps(kwargs)
     ray_kwargs = {

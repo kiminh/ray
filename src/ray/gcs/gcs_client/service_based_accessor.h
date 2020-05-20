@@ -42,9 +42,8 @@ class ServiceBasedJobInfoAccessor : public JobInfoAccessor {
 
   Status AsyncMarkFinished(const JobID &job_id, const StatusCallback &callback) override;
 
-  Status AsyncSubscribeToFinishedJobs(
-      const SubscribeCallback<JobID, JobTableData> &subscribe,
-      const StatusCallback &done) override;
+  Status AsyncSubscribeAll(const SubscribeCallback<JobID, JobTableData> &subscribe,
+                           const StatusCallback &done) override;
 
   Status AsyncGetAll(const MultiItemCallback<rpc::JobTableData> &callback) override;
 

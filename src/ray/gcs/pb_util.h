@@ -35,18 +35,14 @@ namespace gcs {
 inline std::shared_ptr<ray::rpc::JobTableData> CreateJobTableData(
     const ray::JobID &job_id, bool is_dead, int64_t timestamp,
     const std::string &driver_ip_address, int64_t driver_pid,
-    const std::string serialized_job_configs = "") {
+    const ray::rpc::JobConfigs &job_configs = {}) {
   auto job_info_ptr = std::make_shared<ray::rpc::JobTableData>();
   job_info_ptr->set_job_id(job_id.Binary());
   job_info_ptr->set_is_dead(is_dead);
   job_info_ptr->set_timestamp(timestamp);
   job_info_ptr->set_driver_ip_address(driver_ip_address);
   job_info_ptr->set_driver_pid(driver_pid);
-  ray::rpc::JobConfigs c;
-  c.ParseFromString(serialized_job_configs);
-  job_info_ptr->mutable_configs()->set_num_java_workers_per_process(
-      c.num_java_workers_per_process());
-  job_info_ptr->mutable_configs()->set_jvm_options(c.jvm_options());
+  *job_info_ptr->mutable_configs() = job_configs;
   return job_info_ptr;
 }
 

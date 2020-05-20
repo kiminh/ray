@@ -163,12 +163,6 @@ class ActorInfoAccessor {
   ActorInfoAccessor() = default;
 };
 
-/// The structure to represents all the configs of a job.
-struct JobConfigs {
-  size_t num_java_workers_per_process;
-  std::string jvm_options;
-};
-
 /// \class JobInfoAccessor
 /// `JobInfoAccessor` is a sub-interface of `GcsClient`.
 /// This class includes all the methods that are related to accessing
@@ -194,12 +188,12 @@ class JobInfoAccessor {
   virtual Status AsyncMarkFinished(const JobID &job_id,
                                    const StatusCallback &callback) = 0;
 
-  /// Subscribe to finished jobs.
+  /// Subscribe to job updates.
   ///
-  /// \param subscribe Callback that will be called each time when a job finishes.
+  /// \param subscribe Callback that will be called each time when a job updates.
   /// \param done Callback that will be called when subscription is complete.
   /// \return Status
-  virtual Status AsyncSubscribeToFinishedJobs(
+  virtual Status AsyncSubscribeAll(
       const SubscribeCallback<JobID, rpc::JobTableData> &subscribe,
       const StatusCallback &done) = 0;
 
@@ -223,7 +217,7 @@ class JobInfoAccessor {
   /// Return immediately from local cache if the local cache has the configs of the
   /// given job id, otherwise it will fetch the configs from GCS.
   /// \return The configs structure of the given job.
-  virtual JobConfigs GetConfigs(const JobID &job_id) = 0;
+  virtual rpc::JobConfigs GetConfigs(const JobID &job_id) = 0;
 
  protected:
   JobInfoAccessor() = default;

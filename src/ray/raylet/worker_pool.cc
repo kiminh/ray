@@ -56,12 +56,14 @@ namespace raylet {
 /// A constructor that initializes a worker pool with num_workers workers for
 /// each language.
 WorkerPool::WorkerPool(boost::asio::io_service &io_service, int num_workers,
+                       uint32_t adaptive_num_initial_workers,
                        int maximum_startup_concurrency, int min_worker_port,
                        int max_worker_port, std::shared_ptr<gcs::GcsClient> gcs_client,
                        const WorkerCommandMap &worker_commands,
                        const std::unordered_map<std::string, std::string> &raylet_config,
                        std::function<void()> starting_worker_timeout_callback)
     : io_service_(&io_service),
+      adaptive_num_initial_workers_(adaptive_num_initial_workers),
       maximum_startup_concurrency_(maximum_startup_concurrency),
       gcs_client_(std::move(gcs_client)),
       raylet_config_(raylet_config),
@@ -89,8 +91,7 @@ WorkerPool::WorkerPool(boost::asio::io_service &io_service, int num_workers,
                      << Language_Name(entry.first) << " worker is not set.";
     }
     state.multiple_for_warning =
-        std::max(state.num_workers_per_process,
-                 std::max(num_workers, maximum_startup_concurrency));
+        std::max(state.num_workers_per_process, maximum_startup_concurrency);
     // Set worker command for this language.
     state.worker_command = entry.second;
     RAY_CHECK(!state.worker_command.empty()) << "Worker command must not be empty.";
@@ -105,17 +106,6 @@ WorkerPool::WorkerPool(boost::asio::io_service &io_service, int num_workers,
     free_ports_ = std::unique_ptr<std::queue<int>>(new std::queue<int>());
     for (int port = min_worker_port; port <= max_worker_port; port++) {
       free_ports_->push(port);
-    }
-  }
-}
-
-void WorkerPool::Start(int num_workers) {
-  for (auto &entry : states_by_lang_) {
-    auto &state = entry.second;
-    int num_worker_processes = static_cast<int>(
-        std::ceil(static_cast<double>(num_workers) / state.num_workers_per_process));
-    for (int i = 0; i < num_worker_processes; i++) {
-      StartWorkerProcess(entry.first);
     }
   }
 }
@@ -149,7 +139,7 @@ uint32_t WorkerPool::Size(const Language &language) const {
   }
 }
 
-Process WorkerPool::StartWorkerProcess(const Language &language,
+Process WorkerPool::StartWorkerProcess(const Language &language, const JobID &job_id,
                                        std::vector<std::string> dynamic_options) {
   auto &state = GetStateForLanguage(language);
   // If we are already starting up too many workers, then return without starting
@@ -171,18 +161,18 @@ Process WorkerPool::StartWorkerProcess(const Language &language,
                  << state.idle_actor.size() << " actor workers, and " << state.idle.size()
                  << " non-actor workers";
 
-  const gcs::JobConfigs configs = FetchJobConfigs(job_id);
+  const rpc::JobConfigs configs = FetchJobConfigs(job_id);
   int workers_to_start;
   if (dynamic_options.empty() && language == Language::JAVA) {
-    workers_to_start = configs.num_java_workers_per_process;
+    workers_to_start = configs.num_java_workers_per_process();
   } else {
     workers_to_start = 1;
   }
 
-  if (!configs.jvm_options.empty()) {
+  if (!configs.jvm_options().empty()) {
     // Note that we push the item to the front of the vector to make
     // sure this is the freshest option than others.
-    dynamic_options.insert(dynamic_options.begin(), configs.jvm_options);
+    dynamic_options.insert(dynamic_options.begin(), configs.jvm_options());
   }
 
   // Extract pointers from the worker command to pass into execvp.
@@ -344,6 +334,7 @@ void WorkerPool::MarkPortAsFree(int port) {
 
 Status WorkerPool::RegisterWorker(const std::shared_ptr<Worker> &worker, pid_t pid,
                                   int *port) {
+  RAY_CHECK(worker);
   auto &state = GetStateForLanguage(worker->GetLanguage());
   auto it = state.starting_worker_processes.find(Process::FromPid(pid));
   if (it == state.starting_worker_processes.end()) {
@@ -359,15 +350,14 @@ Status WorkerPool::RegisterWorker(const std::shared_ptr<Worker> &worker, pid_t p
     state.starting_worker_processes.erase(it);
   }
 
-  state.registered_workers.emplace(std::move(worker));
+  RAY_CHECK(worker->GetProcess().GetId() == pid);
+  state.registered_workers.insert(worker);
 
   auto dedicated_workers_it = state.worker_pids_to_assigned_jobs.find(pid);
-  if (dedicated_workers_it != state.worker_pids_to_assigned_jobs.end()) {
-    // Call `AssignWorkerProcessToJob` after the worker is put in `registered_workers`.
-    AssignWorkerProcessToJob(pid, dedicated_workers_it->second);
-    // We don't call state.worker_pids_to_assigned_jobs.erase(dedicated_workers_it) here
-    // because we allow multi-workers per worker process.
-  }
+  RAY_CHECK(dedicated_workers_it != state.worker_pids_to_assigned_jobs.end());
+  worker->AssignJobId(dedicated_workers_it->second);
+  // We don't call state.worker_pids_to_assigned_jobs.erase(dedicated_workers_it) here
+  // because we allow multi-workers per worker process.
 
   return Status::OK();
 }
@@ -379,7 +369,26 @@ Status WorkerPool::RegisterDriver(const std::shared_ptr<Worker> &driver, const J
   auto &state = GetStateForLanguage(driver->GetLanguage());
   state.registered_drivers.insert(std::move(driver));
   driver->AssignJobId(job_id);
+
   return Status::OK();
+}
+
+void WorkerPool::StartInitialWorkersForJob(const JobID &job_id,
+                                           const rpc::JobConfigs &job_configs) {
+  const auto &num_initial_workers_map = job_configs.num_initial_workers();
+  for (auto &entry : states_by_lang_) {
+    auto &state = entry.second;
+    uint32_t num_initial_workers = adaptive_num_initial_workers_;
+    auto it = num_initial_workers_map.find(static_cast<uint32_t>(entry.first));
+    if (it != num_initial_workers_map.end()) {
+      num_initial_workers = it->second;
+    }
+    int num_worker_processes = static_cast<int>(std::ceil(
+        static_cast<double>(num_initial_workers) / state.num_workers_per_process));
+    for (int i = 0; i < num_worker_processes; i++) {
+      StartWorkerProcess(entry.first, job_id, /*is_initial_worker=*/true);
+    }
+  }
 }
 
 std::shared_ptr<Worker> WorkerPool::GetRegisteredWorker(
@@ -448,7 +457,7 @@ std::shared_ptr<Worker> WorkerPool::PopWorker(const TaskSpecification &task_spec
       // We are not pending a registration from a worker for this task,
       // so start a new worker process for this task.
       proc =
-          StartWorkerProcess(task_spec.GetLanguage(), task_spec.DynamicWorkerOptions());
+          StartWorkerProcess(task_spec.GetLanguage(), task_spec.JobId(), task_spec.DynamicWorkerOptions());
       if (proc.IsValid()) {
         state.dedicated_workers_to_tasks[proc] = task_spec.TaskId();
         state.tasks_to_dedicated_workers[task_spec.TaskId()] = proc;
@@ -466,20 +475,9 @@ std::shared_ptr<Worker> WorkerPool::PopWorker(const TaskSpecification &task_spec
       break;
     }
     if (worker == nullptr) {
-      // Find an available worker which is not assigned to any job yet.
-      for (auto it = state.idle.begin(); it != state.idle.end(); it++) {
-        if ((*it)->GetAssignedJobId().IsNil()) {
-          worker = std::move(*it);
-          state.idle.erase(it);
-          AssignWorkerProcessToJob(worker->Pid(), task_spec.JobId());
-          break;
-        }
-      }
-    }
-    if (worker == nullptr) {
       // There are no more non-actor workers available to execute this task.
       // Start a new worker process.
-      proc = StartWorkerProcess(task_spec.GetLanguage());
+      proc = StartWorkerProcess(task_spec.GetLanguage(), task_spec.JobId());
     }
   } else {
     // Code path of actor task.
@@ -569,17 +567,6 @@ const std::vector<std::shared_ptr<Worker>> WorkerPool::GetAllRegisteredDrivers()
   }
 
   return drivers;
-}
-
-void WorkerPool::AssignWorkerProcessToJob(int pid, const JobID &job_id) {
-  for (auto &state_entry : states_by_lang_) {
-    auto &state = state_entry.second;
-    for (auto &worker : state.registered_workers) {
-      if (worker->Pid() == pid) {
-        worker->AssignJobId(job_id);
-      }
-    }
-  }
 }
 
 void WorkerPool::WarnAboutSize() {

@@ -349,47 +349,53 @@ Status RedisJobInfoAccessor::DoAsyncAppend(const std::shared_ptr<JobTableData> &
   return client_impl_->job_table().Append(job_id, job_id, data_ptr, on_done);
 }
 
-Status RedisJobInfoAccessor::AsyncSubscribeToFinishedJobs(
+Status RedisJobInfoAccessor::AsyncSubscribeAll(
     const SubscribeCallback<JobID, JobTableData> &subscribe, const StatusCallback &done) {
   RAY_CHECK(subscribe != nullptr);
   auto on_subscribe = [this, subscribe](const JobID &job_id,
                                         const JobTableData &job_data) {
-    if (job_data.is_dead()) {
-      // Remove the job info from cache since it's dead.
+    {
+      absl::ReleasableMutexLock lock(&mutex_);
       auto it = this->cache_.find(job_id);
-      if (it != this->cache_.end()) {
-        this->cache_.erase(it);
+      if (job_data.is_dead()) {
+        // Remove the job info from cache since it's dead.
+        if (it != this->cache_.end()) {
+          this->cache_.erase(it);
+        } else {
+          // NOTE (kfstorm): TBase only. This is needed to ignore duplicate notifications.
+          return;
+        }
+      } else {
+        if (it != this->cache_.end()) {
+          // NOTE (kfstorm): TBase only. This is needed to ignore duplicate notifications.
+          return;
+        }
+        lock.Release();
+        // A new job.
+        this->ParseAndCacheJobConfigs(job_id, const_cast<JobTableData &>(job_data));
       }
-      // Trigger the callback of the other subscriptions.
-      subscribe(job_id, job_data);
-    } else {
-      // A new job.
-      this->ParseAndCacheJobConfigs(job_id, const_cast<JobTableData &>(job_data));
     }
+    // Trigger the callback of the other subscriptions.
+    subscribe(job_id, job_data);
   };
   return job_sub_executor_.AsyncSubscribeAll(ClientID::Nil(), on_subscribe, done);
 }
 
-JobConfigs RedisJobInfoAccessor::ParseAndCacheJobConfigs(const JobID &job_id,
-                                                         JobTableData &job_data) {
-  auto mutable_configs = job_data.mutable_configs();
-  JobConfigs job_configs;
-  job_configs.num_java_workers_per_process =
-      mutable_configs->num_java_workers_per_process();
-  if (job_configs.num_java_workers_per_process <= 0) {
-    // Set a default value for it.
-    constexpr static size_t default_num_java_workers_per_process = 10;
-    job_configs.num_java_workers_per_process = default_num_java_workers_per_process;
-  }
-  job_configs.jvm_options = mutable_configs->jvm_options();
-  cache_[job_id] = job_configs;
-  return job_configs;
+rpc::JobConfigs RedisJobInfoAccessor::ParseAndCacheJobConfigs(const JobID &job_id,
+                                                              JobTableData &job_data) {
+  absl::MutexLock lock(&mutex_);
+  RAY_CHECK(cache_.count(job_id) == 0);
+  cache_[job_id] = job_data.configs();
+  return job_data.configs();
 }
 
-JobConfigs RedisJobInfoAccessor::GetConfigs(const JobID &job_id) {
-  auto it = cache_.find(job_id);
-  if (it != cache_.end()) {
-    return it->second;
+rpc::JobConfigs RedisJobInfoAccessor::GetConfigs(const JobID &job_id) {
+  {
+    absl::MutexLock lock(&mutex_);
+    auto it = cache_.find(job_id);
+    if (it != cache_.end()) {
+      return it->second;
+    }
   }
 
   // Not found in local cache, let's fetch it from GCS and cache it.

@@ -50,7 +50,8 @@ class WorkerPool {
   /// process should create and register the specified number of workers, and add them to
   /// the pool.
   ///
-  /// \param num_workers The number of workers to start, per language.
+  /// \param adaptive_num_initial_workers Number of initial workers to start per job if
+  /// num_initial_workers of any language is not specified in the job config.
   /// \param maximum_startup_concurrency The maximum number of worker processes
   /// that can be started in parallel (typically this should be set to the number of CPU
   /// resources on the machine).
@@ -63,7 +64,7 @@ class WorkerPool {
   /// \param raylet_config The raylet config list of this node.
   /// \param starting_worker_timeout_callback The callback that will be triggered once
   /// it times out to start a worker.
-  WorkerPool(boost::asio::io_service &io_service, int num_workers,
+  WorkerPool(boost::asio::io_service &io_service, uint32_t adaptive_num_initial_workers,
              int maximum_startup_concurrency, int min_worker_port, int max_worker_port,
              std::shared_ptr<gcs::GcsClient> gcs_client,
              const WorkerCommandMap &worker_commands,
@@ -86,11 +87,17 @@ class WorkerPool {
   /// Register a new driver.
   ///
   /// \param[in] worker The driver to be registered.
-  /// \param[in] The job ID of the driver.
+  /// \param[in] job_id The job ID of the driver.
   /// \param[out] port The port that this driver's gRPC server should listen on.
   /// Returns 0 if the driver should bind on a random port.
   /// \return If the registration is successful.
   Status RegisterDriver(const std::shared_ptr<Worker> &worker, const JobID &job_id, int *port);
+
+  /// Start initial workers for a new job.
+  /// \param job_id The job ID.
+  /// \param job_configs The job configs.
+  /// \return Void.
+  void StartInitialWorkersForJob(const JobID &job_id, const rpc::JobConfigs &job_configs);
 
   /// Get the client connection's registered worker.
   ///
@@ -186,10 +193,11 @@ class WorkerPool {
   /// any workers.
   ///
   /// \param language Which language this worker process should be.
+  /// \param job_id The ID of the job to which the started worker process belongs.
   /// \param dynamic_options The dynamic options that we should add for worker command.
   /// \return The id of the process that we started if it's positive,
   /// otherwise it means we didn't start a process.
-  Process StartWorkerProcess(const Language &language,
+  Process StartWorkerProcess(const Language &language, const JobID &job_id,
                              std::vector<std::string> dynamic_options = {});
 
   /// The implementation of how to start a new worker process with command arguments.
@@ -204,7 +212,7 @@ class WorkerPool {
   virtual void WarnAboutSize();
 
   /// Fetch the configs by the given job id.
-  virtual gcs::JobConfigs FetchJobConfigs(const JobID &job_id);
+  virtual rpc::JobConfigs FetchJobConfigs(const JobID &job_id);
 
   /// An internal data structure that maintains the pool state per language.
   struct State {
@@ -247,12 +255,6 @@ class WorkerPool {
   std::unordered_map<Language, State, std::hash<int>> states_by_lang_;
 
  private:
-  /// Force-start at least num_workers workers for this language. Used for internal and
-  /// test purpose only.
-  ///
-  /// \param num_workers The number of workers to start, per language.
-  void Start(int num_workers);
-
   /// A helper function that returns the reference of the pool state
   /// for a given language.
   State &GetStateForLanguage(const Language &language);
@@ -287,6 +289,9 @@ class WorkerPool {
 
   /// For Process class for managing subprocesses (e.g. reaping zombies).
   boost::asio::io_service *io_service_;
+  /// Number of initial workers to start per job if a negative num_initial_workers value
+  /// is specified in the job config.
+  uint32_t adaptive_num_initial_workers_;
   /// The maximum number of worker processes that can be started concurrently.
   int maximum_startup_concurrency_;
   /// Keeps track of unused ports that newly-created workers can bind on.

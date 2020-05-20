@@ -101,10 +101,10 @@ class ServiceBasedGcsClientTest : public ::testing::Test {
     RAY_LOG(INFO) << "GCS service restarted, port = " << gcs_server_->GetPort();
   }
 
-  bool SubscribeToFinishedJobs(
+  bool SubscribeToAllJobs(
       const gcs::SubscribeCallback<JobID, rpc::JobTableData> &subscribe) {
     std::promise<bool> promise;
-    RAY_CHECK_OK(gcs_client_->Jobs().AsyncSubscribeToFinishedJobs(
+    RAY_CHECK_OK(gcs_client_->Jobs().AsyncSubscribeAll(
         subscribe, [&promise](Status status) { promise.set_value(status.ok()); }));
     return WaitReady(promise.get_future(), timeout_ms_);
   }
@@ -516,16 +516,15 @@ TEST_F(ServiceBasedGcsClientTest, TestJobInfo) {
   auto job_table_data = Mocker::GenJobTableData(add_job_id);
 
   // Subscribe to finished jobs.
-  std::atomic<int> finished_job_count(0);
-  auto on_subscribe = [&finished_job_count](const JobID &job_id,
-                                            const gcs::JobTableData &data) {
-    finished_job_count++;
+  std::atomic<int> job_updates(0);
+  auto on_subscribe = [&job_updates](const JobID &job_id, const gcs::JobTableData &data) {
+    job_updates++;
   };
-  ASSERT_TRUE(SubscribeToFinishedJobs(on_subscribe));
+  ASSERT_TRUE(SubscribeToAllJobs(on_subscribe));
 
   ASSERT_TRUE(AddJob(job_table_data));
   ASSERT_TRUE(MarkJobFinished(add_job_id));
-  WaitPendingDone(finished_job_count, 1);
+  WaitPendingDone(job_updates, 2);
 }
 
 TEST_F(ServiceBasedGcsClientTest, TestActorInfo) {

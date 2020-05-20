@@ -174,9 +174,8 @@ class RedisJobInfoAccessor : public JobInfoAccessor {
 
   Status AsyncMarkFinished(const JobID &job_id, const StatusCallback &callback) override;
 
-  Status AsyncSubscribeToFinishedJobs(
-      const SubscribeCallback<JobID, JobTableData> &subscribe,
-      const StatusCallback &done) override;
+  Status AsyncSubscribeAll(const SubscribeCallback<JobID, JobTableData> &subscribe,
+                           const StatusCallback &done) override;
 
   Status AsyncGetAll(const MultiItemCallback<rpc::JobTableData> &callback) override {
     return Status::NotImplemented("AsyncGetAll not implemented");
@@ -184,11 +183,12 @@ class RedisJobInfoAccessor : public JobInfoAccessor {
 
   void AsyncResubscribe(bool is_pubsub_server_restarted) override {}
 
-  JobConfigs GetConfigs(const JobID &job_id) override;
+  rpc::JobConfigs GetConfigs(const JobID &job_id) override LOCKS_EXCLUDED(mutex_);
 
  private:
   /// A helper method to parse to job configs from job entry.
-  JobConfigs ParseAndCacheJobConfigs(const JobID &job_id, JobTableData &job_data);
+  rpc::JobConfigs ParseAndCacheJobConfigs(const JobID &job_id, JobTableData &job_data)
+      LOCKS_EXCLUDED(mutex_);
 
   /// Append job information to GCS asynchronously.
   ///
@@ -204,8 +204,9 @@ class RedisJobInfoAccessor : public JobInfoAccessor {
   JobSubscriptionExecutor job_sub_executor_;
 
  private:
+  absl::Mutex mutex_;
   /// The cache to store the configs of fetched jobs.
-  std::unordered_map<JobID, JobConfigs> cache_;
+  std::unordered_map<JobID, rpc::JobConfigs> cache_ GUARDED_BY(mutex_);
 };
 
 /// \class RedisTaskInfoAccessor

@@ -45,6 +45,7 @@ class WorkerPoolMock : public WorkerPool {
         last_worker_process_() {
     states_by_lang_[ray::Language::JAVA].num_workers_per_process =
         NUM_WORKERS_PER_PROCESS_JAVA;
+    mock_job_configs.set_num_java_workers_per_process(NUM_WORKERS_PER_PROCESS_JAVA);
   }
 
   ~WorkerPoolMock() {
@@ -54,15 +55,18 @@ class WorkerPoolMock : public WorkerPool {
 
   using WorkerPool::StartWorkerProcess;  // we need this to be public for testing
 
-  gcs::JobConfigs FetchJobConfigs(const JobID &job_id) override {
+  rpc::JobConfigs FetchJobConfigs(const JobID &job_id) override {
     RAY_UNUSED(job_id);
-    gcs::JobConfigs mock_configs;
-    mock_configs.num_java_workers_per_process = num_java_workers_per_process_;
-    return mock_configs;
+    return mock_job_configs;
   }
 
-  void SetNumJavaWorkerPerProcess(int num_java_workers_per_process) {
-    num_java_workers_per_process_ = num_java_workers_per_process;
+  void SetNumInitialWorkers(Language language, int num_initial_workers) {
+    (*mock_job_configs.mutable_num_initial_workers())[static_cast<uint32_t>(language)] =
+        num_initial_workers;
+  }
+
+  void StartInitialWorkersForJob(const JobID &job_id) {
+    WorkerPool::StartInitialWorkersForJob(job_id, FetchJobConfigs(job_id));
   }
 
   Process StartProcess(const std::vector<std::string> &worker_command_args) override {
@@ -103,8 +107,7 @@ class WorkerPoolMock : public WorkerPool {
   Process last_worker_process_;
   // The worker commands by process.
   std::unordered_map<Process, std::vector<std::string>> worker_commands_by_proc_;
-  // The number of java workers per process.
-  int num_java_workers_per_process_ = 10;
+  rpc::JobConfigs mock_job_configs;
 };
 
 class WorkerPoolTest : public ::testing::Test {
@@ -134,6 +137,13 @@ class WorkerPoolTest : public ::testing::Test {
     return worker;
   }
 
+  std::shared_ptr<Worker> CreateDriver(const Process &process, JobID job_id,
+                                       const Language &language = Language::PYTHON) {
+    auto driver = CreateWorker(process, language);
+    driver->AssignTaskId(TaskID::ForDriverTask(job_id));
+    return driver;
+  }
+
   void SetWorkerCommands(const WorkerCommandMap &worker_commands) {
     worker_pool_ =
         std::unique_ptr<WorkerPoolMock>(new WorkerPoolMock(io_service_, worker_commands));
@@ -141,17 +151,16 @@ class WorkerPoolTest : public ::testing::Test {
 
   void TestStartupWorkerProcessCount(Language language, int num_workers_per_process,
                                      std::vector<std::string> expected_worker_command) {
+    const auto job_id = JobID::FromInt(1);
     int desired_initial_worker_process_count = 100;
     int expected_worker_process_count = static_cast<int>(std::ceil(
         static_cast<double>(MAXIMUM_STARTUP_CONCURRENCY) / num_workers_per_process));
-
-    worker_pool_.SetNumJavaWorkerPerProcess(num_workers_per_process);
 
     ASSERT_TRUE(expected_worker_process_count <
                 static_cast<int>(desired_initial_worker_process_count));
     Process last_started_worker_process;
     for (int i = 0; i < desired_initial_worker_process_count; i++) {
-      worker_pool_->StartWorkerProcess(language);
+      worker_pool_->StartWorkerProcess(language, job_id);
       ASSERT_TRUE(worker_pool_->NumWorkerProcessesStarting() <=
                   expected_worker_process_count);
       Process prev = worker_pool_->LastStartedWorkerProcess();
@@ -217,8 +226,8 @@ TEST_F(WorkerPoolTest, CompareWorkerProcessObjects) {
 }
 
 TEST_F(WorkerPoolTest, HandleWorkerRegistration) {
-  worker_pool_.SetNumJavaWorkerPerProcess(NUM_WORKERS_PER_PROCESS_JAVA);
-  Process proc = worker_pool_->StartWorkerProcess(Language::JAVA);
+  const auto job_id = JobID::FromInt(1);
+  Process proc = worker_pool_->StartWorkerProcess(Language::JAVA, job_id);
   std::vector<std::shared_ptr<Worker>> workers;
   for (int i = 0; i < NUM_WORKERS_PER_PROCESS_JAVA; i++) {
     workers.push_back(CreateWorker(Process(), Language::JAVA));
@@ -259,8 +268,12 @@ TEST_F(WorkerPoolTest, StartupJavaWorkerProcessCount) {
 }
 
 TEST_F(WorkerPoolTest, InitialWorkerProcessCount) {
-  worker_pool_.SetNumJavaWorkerPerProcess(NUM_WORKERS_PER_PROCESS_JAVA);
-  worker_pool_->Start(1);
+  auto job_id = JobID::FromInt(1);
+  worker_pool_.SetNumInitialWorkers(ray::Language::JAVA, 1);
+  worker_pool_.SetNumInitialWorkers(ray::Language::PYTHON, 1);
+  RAY_CHECK_OK(worker_pool_.RegisterDriver(
+      CreateDriver(Process::CreateNewDummy(), job_id), job_id));
+  worker_pool_.StartInitialWorkersForJob(job_id);
   // Here we try to start only 1 worker for each worker language. But since each Java
   // worker process contains exactly NUM_WORKERS_PER_PROCESS_JAVA (3) workers here,
   // it's expected to see 3 workers for Java and 1 worker for Python, instead of 1 for
@@ -349,7 +362,7 @@ TEST_F(WorkerPoolTest, StartWorkerWithDynamicOptionsCommand) {
   TaskSpecification task_spec = ExampleTaskSpec(
       ActorID::Nil(), Language::JAVA,
       ActorID::Of(job_id, TaskID::ForDriverTask(job_id), 1), {"test_op_0", "test_op_1"});
-  worker_pool_->StartWorkerProcess(Language::JAVA, task_spec.DynamicWorkerOptions());
+  worker_pool_->StartWorkerProcess(Language::JAVA, job_id, task_spec.DynamicWorkerOptions());
   const auto real_command =
       worker_pool_->GetWorkerCommand(worker_pool_->LastStartedWorkerProcess());
   ASSERT_EQ(real_command, std::vector<std::string>(

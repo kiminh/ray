@@ -3,12 +3,14 @@ package io.ray.runtime.config;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
 import com.typesafe.config.ConfigValue;
 import io.ray.api.id.JobId;
+import io.ray.runtime.generated.Common.Language;
 import io.ray.runtime.generated.Common.WorkerType;
 import io.ray.runtime.util.NetworkUtil;
 import io.ray.runtime.util.ResourceUtil;
@@ -91,6 +93,7 @@ public class RayConfig {
 
 
   public final int numWorkersPerProcess;
+  public final Map<Language, Integer> numInitialWorkers;
 
   public final String jvmOptionsForJavaWorker;
 
@@ -218,6 +221,18 @@ public class RayConfig {
       numWorkersPerProcess = DEFAULT_NUM_JAVA_WORKER_PER_PROCESS;
     } else {
       numWorkersPerProcess = localNumWorkersPerProcess;
+    }
+    numInitialWorkers = new HashMap<>();
+    Config numInitialWorkersConfig = config.getConfig("ray.job.num-initial-workers");
+    if (numInitialWorkersConfig != null) {
+      for (Map.Entry<String, ConfigValue> entry : numInitialWorkersConfig.entrySet()) {
+        EnumValueDescriptor languageValue = Language.getDescriptor().findValueByName(entry.getKey().toUpperCase());
+        Preconditions.checkNotNull(languageValue, "The language " + entry.getKey() + " in ray.job.num-initial-workers is unknown.");
+        Language language = Language.forNumber(languageValue.getNumber());
+        int value = (int) entry.getValue().unwrapped();
+        Preconditions.checkState(value >= 0, "Num initial workers cannot be negative.");
+        numInitialWorkers.put(language, value);
+      }
     }
 
     // Validate config.
