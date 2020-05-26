@@ -128,12 +128,14 @@ public class GcsClient {
   public boolean wasCurrentActorRestarted(ActorId actorId) {
     byte[] key = ArrayUtils.addAll(TablePrefix.ACTOR.toString().getBytes(), actorId.getBytes());
     if (!RayConfig.getInstance().gcsServiceEnabled) {
+      LOGGER.info("gcsServiceEnabled is false...");
       return primary.exists(key);
     }
 
     // TODO(ZhuSenlin): Get the actor table data from CoreWorker later.
     byte[] value = primary.get(key);
     if (value == null) {
+      LOGGER.info("primary.get value == null");
       return false;
     }
     Gcs.ActorTableData actorTableData = null;
@@ -142,6 +144,7 @@ public class GcsClient {
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException("Received invalid protobuf data from GCS.");
     }
+    LOGGER.info("actorTableData.getNumRestarts() = {}.", actorTableData.getNumRestarts());
     return actorTableData.getNumRestarts() != 0; 
   }
 
