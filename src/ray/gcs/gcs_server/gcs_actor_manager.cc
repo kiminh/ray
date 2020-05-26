@@ -99,6 +99,7 @@ GcsActorManager::GcsActorManager(std::shared_ptr<GcsActorSchedulerInterface> sch
 Status GcsActorManager::RegisterActor(
     const ray::rpc::CreateActorRequest &request,
     std::function<void(std::shared_ptr<GcsActor>)> callback) {
+  RAY_LOG(INFO) << "GcsActorManager::RegisterActor.......";
   RAY_CHECK(callback);
   const auto &actor_creation_task_spec = request.task_spec().actor_creation_task_spec();
   auto actor_id = ActorID::FromBinary(actor_creation_task_spec.actor_id());
