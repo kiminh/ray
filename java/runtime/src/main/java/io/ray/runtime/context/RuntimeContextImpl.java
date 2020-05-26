@@ -9,8 +9,12 @@ import io.ray.runtime.RayRuntimeInternal;
 import io.ray.runtime.config.RunMode;
 import io.ray.runtime.generated.Common.TaskType;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RuntimeContextImpl implements RuntimeContext {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(RuntimeContextImpl.class);
 
   private RayRuntimeInternal runtime;
 
@@ -37,9 +41,11 @@ public class RuntimeContextImpl implements RuntimeContext {
     Preconditions.checkState(currentTaskType == TaskType.ACTOR_CREATION_TASK,
         "This method can only be called from an actor creation task.");
     if (isSingleProcess()) {
+      LOGGER.info("This is single process.");
       return false;
     }
 
+    LOGGER.info("Try to check actor, actor id = {}.", getCurrentActorId());
     return runtime.getGcsClient().wasCurrentActorRestarted(getCurrentActorId());
   }
 
