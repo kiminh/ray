@@ -41,8 +41,11 @@ GcsActorScheduler::GcsActorScheduler(
 
 void GcsActorScheduler::Schedule(std::shared_ptr<GcsActor> actor) {
   auto node_id = actor->GetNodeID();
+  RAY_LOG(INFO) << "GcsActorScheduler::Schedule, node id = " << node_id;
   if (!node_id.IsNil()) {
+    RAY_LOG(INFO) << "GcsActorScheduler::Schedule, node id = 111111";
     if (auto node = gcs_node_manager_.GetNode(node_id)) {
+      RAY_LOG(INFO) << "GcsActorScheduler::Schedule, node id = 222222";
       // If the actor is already tied to a node and the node is available, then record
       // the relationship of the node and actor and then lease worker directly from the
       // node.
@@ -252,7 +255,7 @@ void GcsActorScheduler::HandleWorkerLeasedReply(
     auto leased_worker = std::make_shared<GcsLeasedWorker>(
         worker_address, std::move(resources), actor->GetActorID());
     auto node_id = leased_worker->GetNodeID();
-    RAY_LOG(INFO) << "HandleWorkerLeasedReply node id = " << node_id << ", worker id = " << eased_worker->GetWorkerID();
+    RAY_LOG(INFO) << "HandleWorkerLeasedReply node id = " << node_id << ", worker id = " << leased_worker->GetWorkerID();
     RAY_CHECK(node_to_workers_when_creating_[node_id]
                   .emplace(leased_worker->GetWorkerID(), leased_worker)
                   .second);
