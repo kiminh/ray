@@ -130,9 +130,11 @@ ActorID GcsActorScheduler::CancelOnWorker(const ClientID &node_id,
                                           const WorkerID &worker_id) {
   // Remove the worker from creating map and return ID of the actor associated with the
   // removed worker if exist, else return NilID.
+  RAY_LOG(INFO) << "CancelOnWorker node id = " << node_id << ", worker id = " << worker_id;
   ActorID assigned_actor_id;
   auto iter = node_to_workers_when_creating_.find(node_id);
   if (iter != node_to_workers_when_creating_.end()) {
+    RAY_LOG(INFO) << "CancelOnWorker try to find worker id.";
     auto actor_iter = iter->second.find(worker_id);
     if (actor_iter != iter->second.end()) {
       assigned_actor_id = actor_iter->second->GetAssignedActorID();
@@ -250,6 +252,7 @@ void GcsActorScheduler::HandleWorkerLeasedReply(
     auto leased_worker = std::make_shared<GcsLeasedWorker>(
         worker_address, std::move(resources), actor->GetActorID());
     auto node_id = leased_worker->GetNodeID();
+    RAY_LOG(INFO) << "HandleWorkerLeasedReply node id = " << node_id << ", worker id = " << eased_worker->GetWorkerID();
     RAY_CHECK(node_to_workers_when_creating_[node_id]
                   .emplace(leased_worker->GetWorkerID(), leased_worker)
                   .second);
