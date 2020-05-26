@@ -2,10 +2,10 @@
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
 <suite name="RAY suite" verbose="2">
     <test name = "RAY test">
-        <packages>
-            <package name = "io.ray.api.test.*" />
-            <package name = "io.ray.runtime.*" />
-        </packages>
+        <classes>
+            <class name = "io.ray.api.test.ActorRestartTest" />
+            <!-- <package name = "io.ray.runtime.*" /> -->
+        </classes>
     </test>
     <listeners>
         <listener class-name="io.ray.api.TestProgressListener" />
