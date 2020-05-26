@@ -301,12 +301,14 @@ void GcsActorManager::OnWorkerDead(const ray::ClientID &node_id,
   // Find from worker_to_created_actor_.
   auto iter = created_actors_.find(node_id);
   if (iter != created_actors_.end() && iter->second.count(worker_id)) {
+    RAY_LOG(INFO) << "iter != created_actors_.end() && iter->second.count(worker_id) ";
     actor_id = iter->second[worker_id];
     iter->second.erase(worker_id);
     if (iter->second.empty()) {
       created_actors_.erase(iter);
     }
   } else {
+    RAY_LOG(INFO) << "actor_id = gcs_actor_scheduler_->CancelOnWorker(node_id, worker_id);";
     actor_id = gcs_actor_scheduler_->CancelOnWorker(node_id, worker_id);
   }
 
@@ -315,6 +317,8 @@ void GcsActorManager::OnWorkerDead(const ray::ClientID &node_id,
                   << " failed, restarting actor " << actor_id;
     // Reconstruct the actor.
     ReconstructActor(actor_id, /*need_reschedule=*/!intentional_exit);
+  } else {
+    RAY_LOG(INFO) << "actor_id is nil.....";
   }
 }
 
