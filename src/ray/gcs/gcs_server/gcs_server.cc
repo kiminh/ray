@@ -190,6 +190,7 @@ void GcsServer::InitGcsActorManager() {
     auto &worker_address = worker_failure_data.worker_address();
     WorkerID worker_id = WorkerID::FromBinary(id);
     ClientID node_id = ClientID::FromBinary(worker_address.raylet_id());
+    RAY_LOG(INFO) << "Receive worker failure, worker id = " << worker_id << ", node id = " << node_id;
     gcs_actor_manager_->OnWorkerDead(node_id, worker_id,
                                      worker_failure_data.intentional_disconnect());
   };
