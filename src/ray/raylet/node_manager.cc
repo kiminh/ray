@@ -1259,6 +1259,7 @@ void NodeManager::HandleWorkerAvailable(const std::shared_ptr<Worker> &worker) {
 
 void NodeManager::ProcessDisconnectClientMessage(
     const std::shared_ptr<ClientConnection> &client, bool intentional_disconnect) {
+  RAY_LOG(INFO) << "ProcessDisconnectClientMessage.............. ";
   std::shared_ptr<Worker> worker = worker_pool_.GetRegisteredWorker(client);
   bool is_worker = false, is_driver = false;
   if (worker) {
@@ -1302,6 +1303,7 @@ void NodeManager::ProcessDisconnectClientMessage(
     leased_workers_.erase(worker->WorkerId());
 
     // Publish the worker failure.
+    RAY_LOG(INFO) << "ProcessDisconnectClientMessage Publish the worker failure............... ";
     auto worker_failure_data_ptr = gcs::CreateWorkerFailureData(
         self_node_id_, worker->WorkerId(), worker->IpAddress(), worker->Port(),
         time(nullptr), intentional_disconnect);
