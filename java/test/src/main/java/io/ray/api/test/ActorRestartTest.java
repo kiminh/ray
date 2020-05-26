@@ -12,14 +12,17 @@ import io.ray.runtime.util.SystemUtil;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test
 public class ActorRestartTest extends BaseTest {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ActorRestartTest.class);
 
   public static class Counter {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(Counter.class);
     protected int value = 0;
 
     private boolean wasCurrentActorRestarted = false;
@@ -38,7 +41,9 @@ public class ActorRestartTest extends BaseTest {
     }
 
     public int getPid() {
-      return SystemUtil.pid();
+      int pid = SystemUtil.pid();
+      LOGGER.info("Get pid = {}.", pid);
+      return pid;
     }
   }
 
@@ -57,8 +62,9 @@ public class ActorRestartTest extends BaseTest {
     // Kill the actor process.
     int pid = actor.call(Counter::getPid).get();
     Runtime.getRuntime().exec("kill -9 " + pid);
+    LOGGER.info("Kill -9 {}.", pid);
     // Wait for the actor to be killed.
-    TimeUnit.SECONDS.sleep(1);
+    TimeUnit.SECONDS.sleep(10);
 
     int value = actor.call(Counter::increase).get();
     Assert.assertEquals(value, 1);
