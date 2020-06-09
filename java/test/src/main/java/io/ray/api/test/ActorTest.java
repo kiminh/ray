@@ -109,11 +109,11 @@ public class ActorTest extends BaseTest {
   public void testPassActorAsParameter() {
     ActorHandle<Counter> actor = Ray.createActor(Counter::new, 0);
     Assert.assertEquals(Integer.valueOf(1),
-        Ray.call(ActorTest::testActorAsFirstParameter, actor, 1).get());
+        Ray.task(ActorTest::testActorAsFirstParameter, actor, 1).remote().get());
     Assert.assertEquals(Integer.valueOf(11),
-        Ray.call(ActorTest::testActorAsSecondParameter, 10, actor).get());
+        Ray.task(ActorTest::testActorAsSecondParameter, 10, actor).remote().get());
     Assert.assertEquals(Integer.valueOf(111),
-        Ray.call(ActorTest::testActorAsFieldOfParameter, Collections.singletonList(actor), 100)
+        Ray.task(ActorTest::testActorAsFieldOfParameter, Collections.singletonList(actor), 100).remote()
             .get());
   }
 

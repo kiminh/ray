@@ -88,7 +88,7 @@ public class FailureTest extends BaseTest {
   @Test
   public void testNormalTaskFailure() {
     TestUtils.skipTestUnderSingleProcess();
-    assertTaskFailedWithRayTaskException(Ray.call(FailureTest::badFunc));
+    assertTaskFailedWithRayTaskException(Ray.task(FailureTest::badFunc).remote());
   }
 
   @Test
@@ -109,7 +109,7 @@ public class FailureTest extends BaseTest {
   public void testWorkerProcessDying() {
     TestUtils.skipTestUnderSingleProcess();
     try {
-      Ray.call(FailureTest::badFunc2).get();
+      Ray.task(FailureTest::badFunc2).remote().get();
       Assert.fail("This line shouldn't be reached.");
     } catch (RayWorkerException e) {
       // When the worker process dies while executing a task, we should receive an
@@ -144,8 +144,8 @@ public class FailureTest extends BaseTest {
         FailureTest::badFunc2);
     TestUtils.warmUpCluster();
     for (RayFunc0<Integer> badFunc : badFunctions) {
-      ObjectRef<Integer> obj1 = Ray.call(badFunc);
-      ObjectRef<Integer> obj2 = Ray.call(FailureTest::slowFunc);
+      ObjectRef<Integer> obj1 = Ray.task(badFunc).remote();
+      ObjectRef<Integer> obj2 = Ray.task(FailureTest::slowFunc).remote();
       Instant start = Instant.now();
       try {
         Ray.get(Arrays.asList(obj1, obj2));

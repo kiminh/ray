@@ -73,7 +73,7 @@ public class MultiThreadingTest extends BaseTest {
     // Test calling normal functions.
     runTestCaseInMultipleThreads(() -> {
       int arg = random.nextInt();
-      ObjectRef<Integer> obj = Ray.call(MultiThreadingTest::echo, arg);
+      ObjectRef<Integer> obj = Ray.task(MultiThreadingTest::echo, arg).remote();
       Assert.assertEquals(arg, (int) obj.get());
     }, LOOP_COUNTER);
 
@@ -109,7 +109,7 @@ public class MultiThreadingTest extends BaseTest {
 
     TestUtils.warmUpCluster();
     // Test wait for one object in multi threads.
-    ObjectRef<Integer> obj = Ray.call(MultiThreadingTest::echo, 100);
+    ObjectRef<Integer> obj = Ray.task(MultiThreadingTest::echo, 100).remote();
     runTestCaseInMultipleThreads(() -> {
       WaitResult<Integer> result = Ray.wait(ImmutableList.of(obj), 1, 1000);
       Assert.assertEquals(1, result.getReady().size());
@@ -125,7 +125,7 @@ public class MultiThreadingTest extends BaseTest {
   public void testInWorker() {
     // Single-process mode doesn't have real workers.
     TestUtils.skipTestUnderSingleProcess();
-    ObjectRef<String> obj = Ray.call(MultiThreadingTest::testMultiThreading);
+    ObjectRef<String> obj = Ray.task(MultiThreadingTest::testMultiThreading).remote();
     Assert.assertEquals("ok", obj.get());
   }
 
@@ -148,7 +148,7 @@ public class MultiThreadingTest extends BaseTest {
         fooObject::get,
         () -> Ray.wait(ImmutableList.of(fooObject)),
         Ray::getRuntimeContext,
-        () -> Ray.call(MultiThreadingTest::echo, 1),
+        () -> Ray.task(MultiThreadingTest::echo, 1).remote(),
         () -> Ray.createActor(Echo::new),
         () -> fooActor.call(Echo::echo, 1),
     };
@@ -230,7 +230,7 @@ public class MultiThreadingTest extends BaseTest {
 
   @Test
   public void testMissingWrapRunnableInWorker() {
-    Ray.call(MultiThreadingTest::testMissingWrapRunnable).get();
+    Ray.task(MultiThreadingTest::testMissingWrapRunnable).remote().get();
   }
 
   @Test
@@ -303,7 +303,7 @@ public class MultiThreadingTest extends BaseTest {
   }
 
   public void testGetAsyncContextAndSetAsyncContextInWorker() {
-    ObjectRef<Boolean> obj = Ray.call(MultiThreadingTest::testGetAsyncContextAndSetAsyncContext);
+    ObjectRef<Boolean> obj = Ray.task(MultiThreadingTest::testGetAsyncContextAndSetAsyncContext).remote();
     Assert.assertTrue(obj.get());
   }
 

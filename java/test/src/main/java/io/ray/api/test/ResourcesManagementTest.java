@@ -48,7 +48,7 @@ public class ResourcesManagementTest extends BaseTest {
 
     // This is a case that can satisfy required resources.
     // The static resources for test are "CPU:4,RES-A:4".
-    ObjectRef<Integer> result1 = Ray.call(ResourcesManagementTest::echo, 100, callOptions1);
+    ObjectRef<Integer> result1 = Ray.task(ResourcesManagementTest::echo, 100, callOptions1).remote();
     Assert.assertEquals(100, (int) result1.get());
 
     CallOptions callOptions2 =
@@ -56,7 +56,7 @@ public class ResourcesManagementTest extends BaseTest {
 
     // This is a case that can't satisfy required resources.
     // The static resources for test are "CPU:4,RES-A:4".
-    final ObjectRef<Integer> result2 = Ray.call(ResourcesManagementTest::echo, 200, callOptions2);
+    final ObjectRef<Integer> result2 = Ray.task(ResourcesManagementTest::echo, 200, callOptions2).remote();
     WaitResult<Integer> waitResult = Ray.wait(ImmutableList.of(result2), 1, 1000);
 
     Assert.assertEquals(1, waitResult.getReady().size());
