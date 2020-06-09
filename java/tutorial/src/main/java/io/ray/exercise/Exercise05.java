@@ -13,7 +13,7 @@ public class Exercise05 {
     try {
       Ray.init();
       // `Ray.createActor` creates an actor instance.
-      ActorHandle<Adder> adder = Ray.createActor(Adder::new, 0);
+      ActorHandle<Adder> adder = Ray.actor(Adder::new, 0).remote();
       // Use `Ray.task(actor, parameters).remote()` to call an actor method.
       ObjectRef<Integer> result1 = adder.call(Adder::add, 1);
       System.out.println(result1.get());

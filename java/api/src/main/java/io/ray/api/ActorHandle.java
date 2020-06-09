@@ -12,7 +12,7 @@ package io.ray.api;
  *   }
  * }
  * // Create an actor, and get a handle.
- * ActorHandle<MyActor> myActor = Ray.createActor(MyActor::new);
+ * ActorHandle<MyActor> myActor = Ray.actor(MyActor::new).remote();
  * // Call the `echo` method remotely.
  * ObjectRef<Integer> result = myActor.call(MyActor::echo, 1);
  * // Get the result of the remote `echo` method.

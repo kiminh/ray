@@ -34,7 +34,7 @@ public class SingleProcessModeTest extends BaseTest {
     List<ActorHandle<MyActor>> actors = new ArrayList<>();
     Map<ActorId, Long> actorThreadIds = new HashMap<>();
     for (int i = 0; i < NUM_ACTOR_INSTANCE; ++i) {
-      ActorHandle<MyActor> actor = Ray.createActor(MyActor::new);
+      ActorHandle<MyActor> actor = Ray.actor(MyActor::new).remote();
       actors.add(actor);
       actorThreadIds.put(actor.getId(), actor.call(MyActor::getThreadId).get());
     }

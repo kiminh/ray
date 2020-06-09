@@ -77,10 +77,10 @@ public class StressTest extends BaseTest {
   @Test
   public void testSubmittingManyTasksToOneActor() throws Exception {
     TestUtils.skipTestUnderSingleProcess();
-    ActorHandle<Actor> actor = Ray.createActor(Actor::new);
+    ActorHandle<Actor> actor = Ray.actor(Actor::new).remote();
     List<ObjectId> objectIds = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
-      ActorHandle<Worker> worker = Ray.createActor(Worker::new, actor);
+      ActorHandle<Worker> worker = Ray.actor(Worker::new, actor).remote();
       objectIds.add(worker.call(Worker::ping, 100).getId());
     }
 

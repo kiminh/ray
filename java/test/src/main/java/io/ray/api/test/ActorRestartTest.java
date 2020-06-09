@@ -46,7 +46,7 @@ public class ActorRestartTest extends BaseTest {
     TestUtils.skipTestUnderSingleProcess();
     ActorCreationOptions options =
         new ActorCreationOptions.Builder().setMaxRestarts(1).createActorCreationOptions();
-    ActorHandle<Counter> actor = Ray.createActor(Counter::new, options);
+    ActorHandle<Counter> actor = Ray.actor(Counter::new, options).remote();
     // Call increase 3 times.
     for (int i = 0; i < 3; i++) {
       actor.call(Counter::increase).get();
@@ -125,7 +125,7 @@ public class ActorRestartTest extends BaseTest {
     TestUtils.skipTestUnderSingleProcess();
     ActorCreationOptions options =
         new ActorCreationOptions.Builder().setMaxRestarts(1).createActorCreationOptions();
-    ActorHandle<CheckpointableCounter> actor = Ray.createActor(CheckpointableCounter::new, options);
+    ActorHandle<CheckpointableCounter> actor = Ray.actor(CheckpointableCounter::new, options).remote();
     // Call increase 3 times.
     for (int i = 0; i < 3; i++) {
       actor.call(CheckpointableCounter::increase).get();

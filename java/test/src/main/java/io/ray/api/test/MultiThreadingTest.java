@@ -78,7 +78,7 @@ public class MultiThreadingTest extends BaseTest {
     }, LOOP_COUNTER);
 
     // Test calling actors.
-    ActorHandle<Echo> echoActor = Ray.createActor(Echo::new);
+    ActorHandle<Echo> echoActor = Ray.actor(Echo::new).remote();
     runTestCaseInMultipleThreads(() -> {
       int arg = random.nextInt();
       ObjectRef<Integer> obj = echoActor.call(Echo::echo, arg);
@@ -88,7 +88,7 @@ public class MultiThreadingTest extends BaseTest {
     // Test creating multi actors
     runTestCaseInMultipleThreads(() -> {
       int arg = random.nextInt();
-      ActorHandle<Echo> echoActor1 = Ray.createActor(Echo::new);
+      ActorHandle<Echo> echoActor1 = Ray.actor(Echo::new).remote();
       try {
         // Sleep a while to test the case that another actor is created before submitting
         // tasks to this actor.
@@ -131,7 +131,7 @@ public class MultiThreadingTest extends BaseTest {
 
   public void testGetCurrentActorId() {
     TestUtils.skipTestUnderSingleProcess();
-    ActorHandle<ActorIdTester> actorIdTester = Ray.createActor(ActorIdTester::new);
+    ActorHandle<ActorIdTester> actorIdTester = Ray.actor(ActorIdTester::new).remote();
     ActorId actorId = actorIdTester.call(ActorIdTester::getCurrentActorId).get();
     Assert.assertEquals(actorId, actorIdTester.getId());
   }
@@ -141,7 +141,7 @@ public class MultiThreadingTest extends BaseTest {
    */
   static Runnable[] generateRunnables() {
     final ObjectRef<Integer> fooObject = Ray.put(1);
-    final ActorHandle<Echo> fooActor = Ray.createActor(Echo::new);
+    final ActorHandle<Echo> fooActor = Ray.actor(Echo::new).remote();
     return new Runnable[]{
         () -> Ray.put(1),
         () -> Ray.get(fooObject.getId(), fooObject.getType()),
@@ -149,7 +149,7 @@ public class MultiThreadingTest extends BaseTest {
         () -> Ray.wait(ImmutableList.of(fooObject)),
         Ray::getRuntimeContext,
         () -> Ray.task(MultiThreadingTest::echo, 1).remote(),
-        () -> Ray.createActor(Echo::new),
+        () -> Ray.actor(Echo::new).remote(),
         () -> fooActor.call(Echo::echo, 1),
     };
   }

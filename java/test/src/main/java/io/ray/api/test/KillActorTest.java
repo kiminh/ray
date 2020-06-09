@@ -51,7 +51,7 @@ public class KillActorTest extends BaseTest {
   }
 
   private static void remoteKill(ActorHandle<?> actor, boolean noRestart) {
-    ActorHandle<KillerActor> killer = Ray.createActor(KillerActor::new);
+    ActorHandle<KillerActor> killer = Ray.actor(KillerActor::new).remote();
     killer.call(KillerActor::kill, actor, noRestart);
   }
 
@@ -60,7 +60,7 @@ public class KillActorTest extends BaseTest {
 
     ActorCreationOptions options =
         new ActorCreationOptions.Builder().setMaxRestarts(1).createActorCreationOptions();
-    ActorHandle<HangActor> actor = Ray.createActor(HangActor::new, options);
+    ActorHandle<HangActor> actor = Ray.actor(HangActor::new, options).remote();
     ObjectRef<Boolean> result = actor.call(HangActor::hang);
     // The actor will hang in this task.
     Assert.assertEquals(0, Ray.wait(ImmutableList.of(result), 1, 500).getReady().size());

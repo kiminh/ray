@@ -32,7 +32,7 @@ public class RayletConfigTest extends BaseTest {
 
   @Test
   public void testRayletConfigPassThrough() {
-    ActorHandle<TestActor> actor = Ray.createActor(TestActor::new);
+    ActorHandle<TestActor> actor = Ray.actor(TestActor::new).remote();
     String configValue = actor.call(TestActor::getConfigValue).get();
     Assert.assertEquals(configValue, RAY_CONFIG_VALUE);
   }

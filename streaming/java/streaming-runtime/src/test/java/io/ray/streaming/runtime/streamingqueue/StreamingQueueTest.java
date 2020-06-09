@@ -94,10 +94,10 @@ public class StreamingQueueTest extends BaseUnitTest implements Serializable {
 
     ActorCreationOptions.Builder builder = new Builder();
 
-    ActorHandle<WriterWorker> writerActor = Ray.createActor(WriterWorker::new, "writer",
-        builder.createActorCreationOptions());
-    ActorHandle<ReaderWorker> readerActor = Ray.createActor(ReaderWorker::new, "reader",
-        builder.createActorCreationOptions());
+    ActorHandle<WriterWorker> writerActor = Ray.actor(WriterWorker::new, "writer",
+        builder.createActorCreationOptions()).remote();
+    ActorHandle<ReaderWorker> readerActor = Ray.actor(ReaderWorker::new, "reader",
+        builder.createActorCreationOptions()).remote();
 
     LOGGER.info("call getName on writerActor: {}",
         writerActor.call(WriterWorker::getName).get());

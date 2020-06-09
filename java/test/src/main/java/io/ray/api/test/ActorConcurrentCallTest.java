@@ -35,7 +35,7 @@ public class ActorConcurrentCallTest extends BaseTest {
     ActorCreationOptions op = new ActorCreationOptions.Builder()
         .setMaxConcurrency(3)
         .createActorCreationOptions();
-    ActorHandle<ConcurrentActor> actor = Ray.createActor(ConcurrentActor::new, op);
+    ActorHandle<ConcurrentActor> actor = Ray.actor(ConcurrentActor::new, op).remote();
     ObjectRef<String> obj1 = actor.call(ConcurrentActor::countDown);
     ObjectRef<String> obj2 = actor.call(ConcurrentActor::countDown);
     ObjectRef<String> obj3 = actor.call(ConcurrentActor::countDown);

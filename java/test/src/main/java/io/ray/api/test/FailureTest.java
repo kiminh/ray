@@ -94,14 +94,14 @@ public class FailureTest extends BaseTest {
   @Test
   public void testActorCreationFailure() {
     TestUtils.skipTestUnderSingleProcess();
-    ActorHandle<BadActor> actor = Ray.createActor(BadActor::new, true);
+    ActorHandle<BadActor> actor = Ray.actor(BadActor::new, true).remote();
     assertTaskFailedWithRayTaskException(actor.call(BadActor::badMethod));
   }
 
   @Test
   public void testActorTaskFailure() {
     TestUtils.skipTestUnderSingleProcess();
-    ActorHandle<BadActor> actor = Ray.createActor(BadActor::new, false);
+    ActorHandle<BadActor> actor = Ray.actor(BadActor::new, false).remote();
     assertTaskFailedWithRayTaskException(actor.call(BadActor::badMethod));
   }
 
@@ -120,7 +120,7 @@ public class FailureTest extends BaseTest {
   @Test
   public void testActorProcessDying() {
     TestUtils.skipTestUnderSingleProcess();
-    ActorHandle<BadActor> actor = Ray.createActor(BadActor::new, false);
+    ActorHandle<BadActor> actor = Ray.actor(BadActor::new, false).remote();
     try {
       actor.call(BadActor::badMethod2).get();
       Assert.fail("This line shouldn't be reached.");

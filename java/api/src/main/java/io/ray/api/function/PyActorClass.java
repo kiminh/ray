@@ -18,8 +18,8 @@ package io.ray.api.function;
  * we can create this Python actor from Java:
  *
  * {@code
- * PyActorHandle actor = Ray.createActor(new PyActorClass("example_package.example_module", "A"),
- *                                    "the value for x");
+ * PyActorHandle actor = Ray.actor(new PyActorClass("example_package.example_module", "A"),
+ *                                    "the value for x").remote();
  * }
  * </pre>
  */

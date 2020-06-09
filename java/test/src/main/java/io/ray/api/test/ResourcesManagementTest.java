@@ -80,7 +80,7 @@ public class ResourcesManagementTest extends BaseTest {
         .setResources(ImmutableMap.of("CPU", 2.0)).createActorCreationOptions();
     // This is a case that can satisfy required resources.
     // The static resources for test are "CPU:4,RES-A:4".
-    ActorHandle<Echo> echo1 = Ray.createActor(Echo::new, actorCreationOptions1);
+    ActorHandle<Echo> echo1 = Ray.actor(Echo::new, actorCreationOptions1).remote();
     final ObjectRef<Integer> result1 = echo1.call(Echo::echo, 100);
     Assert.assertEquals(100, (int) result1.get());
 
@@ -90,7 +90,7 @@ public class ResourcesManagementTest extends BaseTest {
         .setResources(ImmutableMap.of("CPU", 8.0)).createActorCreationOptions();
 
     ActorHandle<Echo> echo2 =
-        Ray.createActor(Echo::new, actorCreationOptions2);
+        Ray.actor(Echo::new, actorCreationOptions2).remote();
     final ObjectRef<Integer> result2 = echo2.call(Echo::echo, 100);
     WaitResult<Integer> waitResult = Ray.wait(ImmutableList.of(result2), 1, 1000);
 
