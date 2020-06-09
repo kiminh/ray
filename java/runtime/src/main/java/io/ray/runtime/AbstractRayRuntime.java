@@ -15,7 +15,7 @@ import io.ray.api.function.PyRemoteFunction;
 import io.ray.api.function.RayFunc;
 import io.ray.api.id.ObjectId;
 import io.ray.api.options.ActorCreationOptions;
-import io.ray.api.options.CallOptions;
+import io.ray.api.options.task;
 import io.ray.api.runtimecontext.RuntimeContext;
 import io.ray.runtime.config.RayConfig;
 import io.ray.runtime.context.RuntimeContextImpl;
@@ -35,7 +35,7 @@ import io.ray.runtime.task.TaskExecutor;
 import io.ray.runtime.task.TaskSubmitter;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Callable;
+import java.util.concurrent.task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -196,7 +196,7 @@ public abstract class AbstractRayRuntime implements RayRuntimeInternal {
       }
       setAsyncContext(asyncContext);
       try {
-        return callable.call();
+        return callable.task().remote();
       } finally {
         if (oldIsContextSet) {
           setAsyncContext(oldAsyncContext);

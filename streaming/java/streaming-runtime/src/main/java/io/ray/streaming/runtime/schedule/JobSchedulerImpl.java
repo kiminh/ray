@@ -59,7 +59,7 @@ public class JobSchedulerImpl implements JobScheduler {
         switch (executionNode.getLanguage()) {
           case JAVA:
             ActorHandle<JobWorker> jobWorker = (ActorHandle<JobWorker>) worker;
-            waits.add(jobWorker.call(JobWorker::init,
+            waits.add(jobWorker.task(JobWorker::init,
                 new WorkerContext(taskId, executionGraph, jobConfig)));
             break;
           case PYTHON:

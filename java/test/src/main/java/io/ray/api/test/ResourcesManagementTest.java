@@ -81,7 +81,7 @@ public class ResourcesManagementTest extends BaseTest {
     // This is a case that can satisfy required resources.
     // The static resources for test are "CPU:4,RES-A:4".
     ActorHandle<Echo> echo1 = Ray.actor(Echo::new, actorCreationOptions1).remote();
-    final ObjectRef<Integer> result1 = echo1.call(Echo::echo, 100);
+    final ObjectRef<Integer> result1 = echo1.task(Echo::echo, 100).remote();
     Assert.assertEquals(100, (int) result1.get());
 
     // This is a case that can't satisfy required resources.
@@ -91,7 +91,7 @@ public class ResourcesManagementTest extends BaseTest {
 
     ActorHandle<Echo> echo2 =
         Ray.actor(Echo::new, actorCreationOptions2).remote();
-    final ObjectRef<Integer> result2 = echo2.call(Echo::echo, 100);
+    final ObjectRef<Integer> result2 = echo2.task(Echo::echo, 100).remote();
     WaitResult<Integer> waitResult = Ray.wait(ImmutableList.of(result2), 1, 1000);
 
     Assert.assertEquals(0, waitResult.getReady().size());

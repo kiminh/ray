@@ -81,7 +81,7 @@ public class MultiThreadingTest extends BaseTest {
     ActorHandle<Echo> echoActor = Ray.actor(Echo::new).remote();
     runTestCaseInMultipleThreads(() -> {
       int arg = random.nextInt();
-      ObjectRef<Integer> obj = echoActor.call(Echo::echo, arg);
+      ObjectRef<Integer> obj = echoActor.task(Echo::echo, arg).remote();
       Assert.assertEquals(arg, (int) obj.get());
     }, LOOP_COUNTER);
 
@@ -96,7 +96,7 @@ public class MultiThreadingTest extends BaseTest {
       } catch (InterruptedException e) {
         LOGGER.warn("Got exception while sleeping.", e);
       }
-      ObjectRef<Integer> obj = echoActor1.call(Echo::echo, arg);
+      ObjectRef<Integer> obj = echoActor1.task(Echo::echo, arg).remote();
       Assert.assertEquals(arg, (int) obj.get());
     }, 1);
 
@@ -132,7 +132,7 @@ public class MultiThreadingTest extends BaseTest {
   public void testGetCurrentActorId() {
     TestUtils.skipTestUnderSingleProcess();
     ActorHandle<ActorIdTester> actorIdTester = Ray.actor(ActorIdTester::new).remote();
-    ActorId actorId = actorIdTester.call(ActorIdTester::getCurrentActorId).get();
+    ActorId actorId = actorIdTester.task(ActorIdTester::getCurrentActorId).remote().get();
     Assert.assertEquals(actorId, actorIdTester.getId());
   }
 
@@ -150,7 +150,7 @@ public class MultiThreadingTest extends BaseTest {
         Ray::getRuntimeContext,
         () -> Ray.task(MultiThreadingTest::echo, 1).remote(),
         () -> Ray.actor(Echo::new).remote(),
-        () -> fooActor.call(Echo::echo, 1),
+        () -> fooActor.task(Echo::echo, 1).remote(),
     };
   }
 

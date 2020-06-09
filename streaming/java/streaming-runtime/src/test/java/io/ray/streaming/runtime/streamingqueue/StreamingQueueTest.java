@@ -100,11 +100,11 @@ public class StreamingQueueTest extends BaseUnitTest implements Serializable {
         builder.createActorCreationOptions()).remote();
 
     LOGGER.info("call getName on writerActor: {}",
-        writerActor.call(WriterWorker::getName).get());
+        writerActor.task(WriterWorker::getName).remote().get());
     LOGGER.info("call getName on readerActor: {}",
-        readerActor.call(ReaderWorker::getName).get());
+        readerActor.task(ReaderWorker::getName).remote().get());
 
-    // LOGGER.info(writerActor.call(WriterWorker::testCallReader, readerActor).get());
+    // LOGGER.info(writerActor.task(WriterWorker::testCallReader, readerActor).remote().get());
     List<String> outputQueueList = new ArrayList<>();
     List<String> inputQueueList = new ArrayList<>();
     int queueNum = 2;
@@ -117,17 +117,17 @@ public class StreamingQueueTest extends BaseUnitTest implements Serializable {
     }
 
     final int msgCount = 100;
-    readerActor.call(ReaderWorker::init, inputQueueList, writerActor, msgCount);
+    readerActor.task(ReaderWorker::init, inputQueueList, writerActor, msgCount).remote();
     try {
       Thread.sleep(1000);
     } catch (InterruptedException e) {
       e.printStackTrace();
     }
-    writerActor.call(WriterWorker::init, outputQueueList, readerActor, msgCount);
+    writerActor.task(WriterWorker::init, outputQueueList, readerActor, msgCount).remote();
 
     long time = 0;
     while (time < 20000 &&
-        readerActor.call(ReaderWorker::getTotalMsg).get() < msgCount * queueNum) {
+        readerActor.task(ReaderWorker::getTotalMsg).remote().get() < msgCount * queueNum) {
       try {
         Thread.sleep(1000);
         time += 1000;
@@ -137,7 +137,7 @@ public class StreamingQueueTest extends BaseUnitTest implements Serializable {
     }
 
     Assert.assertEquals(
-        readerActor.call(ReaderWorker::getTotalMsg).get().intValue(),
+        readerActor.task(ReaderWorker::getTotalMsg).remote().get().intValue(),
         msgCount * queueNum);
   }
 

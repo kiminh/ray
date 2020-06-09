@@ -139,7 +139,7 @@ public class CrossLanguageInvocationTest extends BaseMultiLanguageTest {
   public void testCallingPythonActor() {
     PyActorHandle actor = Ray.actor(
         new PyActorClass(PYTHON_MODULE, "Counter"), "1".getBytes()).remote();
-    ObjectRef<byte[]> res = actor.call(
+    ObjectRef<byte[]> res = actor.task(
         new PyActorMethod<>("increase", byte[].class),
         "1".getBytes());
     Assert.assertEquals(res.get(), "2".getBytes());
@@ -220,7 +220,7 @@ public class CrossLanguageInvocationTest extends BaseMultiLanguageTest {
   public static byte[] callPythonActorHandle(byte[] value) {
     // This function will be called from test_cross_language_invocation.py
     NativePyActorHandle actor = (NativePyActorHandle) NativeActorHandle.fromBytes(value);
-    ObjectRef<byte[]> res = actor.call(
+    ObjectRef<byte[]> res = actor.task(
         new PyActorMethod<>("increase", byte[].class),
         "1".getBytes());
     Assert.assertEquals(res.get(), "3".getBytes());

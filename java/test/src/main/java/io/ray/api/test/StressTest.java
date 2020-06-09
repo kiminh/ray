@@ -64,7 +64,7 @@ public class StressTest extends BaseTest {
     public int ping(int n) {
       List<ObjectId> objectIds = new ArrayList<>();
       for (int i = 0; i < n; i++) {
-        objectIds.add(actor.call(Actor::ping).getId());
+        objectIds.add(actor.task(Actor::ping).remote().getId());
       }
       int sum = 0;
       for (Integer result : Ray.<Integer>get(objectIds, Integer.class)) {
@@ -81,7 +81,7 @@ public class StressTest extends BaseTest {
     List<ObjectId> objectIds = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       ActorHandle<Worker> worker = Ray.actor(Worker::new, actor).remote();
-      objectIds.add(worker.call(Worker::ping, 100).getId());
+      objectIds.add(worker.task(Worker::ping, 100).remote().getId());
     }
 
     for (Integer result : Ray.<Integer>get(objectIds, Integer.class)) {

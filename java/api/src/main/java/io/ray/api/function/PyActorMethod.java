@@ -1,7 +1,7 @@
 package io.ray.api.function;
 
 /**
- * A class that represents a method of a Python actor. 
+ * A class that represents a method of a Python actor.
  *
  * Note, information about the actor will be inferred from the actor handle,
  * so it's not specified in this class.
@@ -24,7 +24,7 @@ package io.ray.api.function;
  *
  * {@code
  * // A.foo returns a string, so we have to set the returnType to String.class
- * ObjectRef<String> res = actor.call(new PyActorMethod<>("foo", String.class));
+ * ObjectRef<String> res = actor.task(new PyActorMethod<>("foo", String.class).remote());
  * String x = res.get();
  * }
  * </pre>

@@ -52,9 +52,9 @@ public class ActorTest extends BaseTest {
     // A java actor is not a python actor
     Assert.assertFalse(actor instanceof PyActorHandle);
     // Test calling an actor
-    Assert.assertEquals(Integer.valueOf(1), actor.call(Counter::getValue).get());
-    actor.call(Counter::increase, 1);
-    Assert.assertEquals(Integer.valueOf(3), actor.call(Counter::increaseAndGet, 1).get());
+    Assert.assertEquals(Integer.valueOf(1), actor.task(Counter::getValue).remote().get());
+    actor.task(Counter::increase, 1).remote();
+    Assert.assertEquals(Integer.valueOf(3), actor.task(Counter::increaseAndGet, 1).remote().get());
   }
 
   /**
@@ -65,7 +65,7 @@ public class ActorTest extends BaseTest {
    */
   public void testGetObjectTwice() {
     ActorHandle<Counter> actor = Ray.actor(Counter::new, 1).remote();
-    ObjectRef<Integer> result = actor.call(Counter::getValue);
+    ObjectRef<Integer> result = actor.task(Counter::getValue).remote();
     Assert.assertEquals(result.get(), Integer.valueOf(1));
     Assert.assertEquals(result.get(), Integer.valueOf(1));
     // TODO(hchen): The following code will still fail, and can be fixed by using ref counting.
@@ -76,7 +76,7 @@ public class ActorTest extends BaseTest {
     ActorHandle<Counter> actor = Ray.actor(Counter::new, 1).remote();
     TestUtils.LargeObject largeObject = new TestUtils.LargeObject();
     Assert.assertEquals(Integer.valueOf(largeObject.data.length + 1),
-        actor.call(Counter::accessLargeObject, largeObject).get());
+        actor.task(Counter::accessLargeObject, largeObject).remote().get());
   }
 
   static Counter factory(int initValue) {
@@ -88,16 +88,16 @@ public class ActorTest extends BaseTest {
     ActorHandle<Counter> actor = Ray.actor(ActorTest::factory, 1).remote();
     Assert.assertNotEquals(actor.getId(), UniqueId.NIL);
     // Test calling an actor
-    Assert.assertEquals(Integer.valueOf(1), actor.call(Counter::getValue).get());
+    Assert.assertEquals(Integer.valueOf(1), actor.task(Counter::getValue).remote().get());
   }
 
   static int testActorAsFirstParameter(ActorHandle<Counter> actor, int delta) {
-    ObjectRef<Integer> res = actor.call(Counter::increaseAndGet, delta);
+    ObjectRef<Integer> res = actor.task(Counter::increaseAndGet, delta).remote();
     return res.get();
   }
 
   static int testActorAsSecondParameter(int delta, ActorHandle<Counter> actor) {
-    ObjectRef<Integer> res = actor.call(Counter::increaseAndGet, delta);
+    ObjectRef<Integer> res = actor.task(Counter::increaseAndGet, delta).remote();
     return res.get();
   }
 
@@ -125,7 +125,7 @@ public class ActorTest extends BaseTest {
     // The UnreconstructableException is created by raylet.
     ActorHandle<Counter> counter = Ray.actor(Counter::new, 100).remote();
     // Call an actor method.
-    ObjectRef value = counter.call(Counter::getValue);
+    ObjectRef value = counter.task(Counter::getValue).remote();
     Assert.assertEquals(100, value.get());
     // Delete the object from the object store.
     Ray.internal().free(ImmutableList.of(value.getId()), false, false);
