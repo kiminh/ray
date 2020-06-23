@@ -64,13 +64,14 @@ class WorkerPool {
   /// \param raylet_config The raylet config list of this node.
   /// \param starting_worker_timeout_callback The callback that will be triggered once
   /// it times out to start a worker.
+  /// \param job_configs_reader The callback to get the job configs.
   WorkerPool(boost::asio::io_service &io_service, uint32_t adaptive_num_initial_workers,
              int maximum_startup_concurrency, int min_worker_port, int max_worker_port,
              std::shared_ptr<gcs::GcsClient> gcs_client,
              const WorkerCommandMap &worker_commands,
              const std::unordered_map<std::string, std::string> &raylet_config,
              std::function<void()> starting_worker_timeout_callback,
-             absl::flat_hash_map<JobID, rpc::JobTableData> &job_info_cache);
+             std::function<const rpc::JobConfigs *(const JobID &)> job_configs_getter);
 
   /// Destructor responsible for freeing a set of workers owned by this class.
   virtual ~WorkerPool();
@@ -92,13 +93,13 @@ class WorkerPool {
   /// \param[out] port The port that this driver's gRPC server should listen on.
   /// Returns 0 if the driver should bind on a random port.
   /// \return If the registration is successful.
-  Status RegisterDriver(const std::shared_ptr<Worker> &worker, const JobID &job_id, int *port);
+  Status RegisterDriver(const std::shared_ptr<Worker> &worker, const JobID &job_id,
+                        int *port);
 
   /// Start initial workers for a new job.
   /// \param job_id The job ID.
-  /// \param job_configs The job configs.
   /// \return Void.
-  void StartInitialWorkersForJob(const JobID &job_id, const rpc::JobConfigs &job_configs);
+  void StartInitialWorkersForJob(const JobID &job_id);
 
   /// Get the client connection's registered worker.
   ///
@@ -212,9 +213,6 @@ class WorkerPool {
   /// Push an warning message to user if worker pool is getting to big.
   virtual void WarnAboutSize();
 
-  /// Fetch the configs by the given job id.
-  virtual rpc::JobConfigs FetchJobConfigs(const JobID &job_id);
-
   /// An internal data structure that maintains the pool state per language.
   struct State {
     /// The commands and arguments used to start the worker process
@@ -306,7 +304,7 @@ class WorkerPool {
   std::function<void()> starting_worker_timeout_callback_;
   FRIEND_TEST(WorkerPoolTest, InitialWorkerProcessCount);
 
-  absl::flat_hash_map<JobID, rpc::JobTableData> &job_info_cache_;
+  std::function<const rpc::JobConfigs *(const JobID &)> job_configs_getter_;
 };
 
 }  // namespace raylet

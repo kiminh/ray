@@ -55,21 +55,20 @@ namespace raylet {
 
 /// A constructor that initializes a worker pool with num_workers workers for
 /// each language.
-WorkerPool::WorkerPool(boost::asio::io_service &io_service, int num_workers,
-                       uint32_t adaptive_num_initial_workers,
-                       int maximum_startup_concurrency, int min_worker_port,
-                       int max_worker_port, std::shared_ptr<gcs::GcsClient> gcs_client,
-                       const WorkerCommandMap &worker_commands,
-                       const std::unordered_map<std::string, std::string> &raylet_config,
-                       std::function<void()> starting_worker_timeout_callback,
-                       absl::flat_hash_map<JobID, rpc::JobTableData> &job_info_cache)
+WorkerPool::WorkerPool(
+    boost::asio::io_service &io_service, uint32_t adaptive_num_initial_workers,
+    int maximum_startup_concurrency, int min_worker_port, int max_worker_port,
+    std::shared_ptr<gcs::GcsClient> gcs_client, const WorkerCommandMap &worker_commands,
+    const std::unordered_map<std::string, std::string> &raylet_config,
+    std::function<void()> starting_worker_timeout_callback,
+    std::function<const rpc::JobConfigs *(const JobID &)> job_configs_getter)
     : io_service_(&io_service),
       adaptive_num_initial_workers_(adaptive_num_initial_workers),
       maximum_startup_concurrency_(maximum_startup_concurrency),
       gcs_client_(std::move(gcs_client)),
       raylet_config_(raylet_config),
       starting_worker_timeout_callback_(starting_worker_timeout_callback),
-      job_info_cache_(job_info_cache) {
+      job_configs_getter_(job_configs_getter) {
   RAY_CHECK(maximum_startup_concurrency > 0);
 #ifndef _WIN32
   // Ignore SIGCHLD signals. If we don't do this, then worker processes will
@@ -143,6 +142,12 @@ uint32_t WorkerPool::Size(const Language &language) const {
 
 Process WorkerPool::StartWorkerProcess(const Language &language, const JobID &job_id,
                                        std::vector<std::string> dynamic_options) {
+  auto job_configs = job_configs_getter_(job_id);
+  if (!job_configs) {
+    RAY_LOG(INFO) << "Job configs of job " << job_id << " are not local yet.";
+    return Process();
+  }
+
   auto &state = GetStateForLanguage(language);
   // If we are already starting up too many workers, then return without starting
   // more.
@@ -163,19 +168,18 @@ Process WorkerPool::StartWorkerProcess(const Language &language, const JobID &jo
                  << state.idle_actor.size() << " actor workers, and " << state.idle.size()
                  << " non-actor workers";
 
-  const rpc::JobConfigs configs = FetchJobConfigs(job_id);
   int workers_to_start;
   if (dynamic_options.empty() && language == Language::JAVA) {
-    workers_to_start = configs.num_java_workers_per_process();
+    workers_to_start = job_configs->num_java_workers_per_process();
   } else {
     workers_to_start = 1;
   }
 
-  if (!configs.jvm_options().empty()) {
+  if (!job_configs->jvm_options().empty()) {
     // Note that we push the item to the front of the vector to make
     // sure this is the freshest option than others.
-    dynamic_options.insert(dynamic_options.begin(), configs.jvm_options().begin(),
-                           configs.jvm_options().end());
+    dynamic_options.insert(dynamic_options.begin(), job_configs->jvm_options().begin(),
+                           job_configs->jvm_options().end());
   }
 
   // Extract pointers from the worker command to pass into execvp.
@@ -278,8 +282,6 @@ void WorkerPool::MonitorStartingWorkerProcess(const Process &proc,
           starting_worker_timeout_callback_();
         }
       });
-}
-
 Process WorkerPool::StartProcess(const std::vector<std::string> &worker_command_args) {
   if (RAY_LOG_ENABLED(DEBUG)) {
     std::stringstream stream;
@@ -377,8 +379,9 @@ Status WorkerPool::RegisterDriver(const std::shared_ptr<Worker> &driver, const J
   return Status::OK();
 }
 
-void WorkerPool::StartInitialWorkersForJob(const JobID &job_id,
-                                           const rpc::JobConfigs &job_configs) {
+void WorkerPool::StartInitialWorkersForJob(const JobID &job_id) {
+  auto job_configs = job_configs_getter_(job_id);
+  RAY_CHECK(job_configs);
   for (auto &entry : states_by_lang_) {
     auto &state = entry.second;
     uint32_t num_initial_workers = adaptive_num_initial_workers_;
@@ -451,13 +454,6 @@ void WorkerPool::PushWorker(const std::shared_ptr<Worker> &worker) {
 }
 
 std::shared_ptr<Worker> WorkerPool::PopWorker(const TaskSpecification &task_spec) {
-  auto iter = job_info_cache_.find(task_spec.JobId());
-  if (iter == job_info_cache_.end() || iter->second.is_dead()) {
-    return nullptr;
-  }
-
-  // TODO: get job config
-
   auto &state = GetStateForLanguage(task_spec.GetLanguage());
 
   std::shared_ptr<Worker> worker = nullptr;

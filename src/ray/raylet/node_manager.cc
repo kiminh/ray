@@ -145,7 +145,14 @@ NodeManager::NodeManager(boost::asio::io_service &io_service,
           config.min_worker_port, config.max_worker_port, gcs_client_,
           config.worker_commands, config.raylet_config,
           /*starting_worker_timeout_callback=*/
-          [this]() { this->DispatchTasks(this->local_queues_.GetReadyTasksByClass()); }, job_info_cache_),
+          [this]() { this->DispatchTasks(this->local_queues_.GetReadyTasksByClass()); },
+          [this](const JobID &job_id) -> const rpc::JobConfigs * {
+            auto it = job_info_cache_.find(job_id);
+            if (it == job_info_cache_.end()) {
+              return nullptr;
+            }
+            return &it->second.configs();
+          }),
       scheduling_policy_(local_queues_),
       reconstruction_policy_(
           io_service_,
@@ -310,7 +317,7 @@ void NodeManager::HandleJobStarted(const JobID &job_id, const JobTableData &job_
   RAY_LOG(DEBUG) << "HandleJobStarted " << job_id;
   RAY_CHECK(!job_data.is_dead());
 
-  worker_pool_.StartInitialWorkersForJob(job_id, job_data.configs());
+  worker_pool_.StartInitialWorkersForJob(job_id);
 }
 
 void NodeManager::HandleJobFinished(const JobID &job_id, const JobTableData &job_data) {
