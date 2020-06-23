@@ -699,6 +699,9 @@ class NodeManager : public rpc::NodeManagerServiceHandler {
   /// The resources (and specific resource IDs) that are currently available.
   ResourceIdSet local_available_resources_;
   std::unordered_map<ClientID, SchedulingResources> cluster_resource_map_;
+
+  absl::flat_hash_map<JobID, rpc::JobTableData> job_info_cache_;
+
   /// A pool of workers.
   WorkerPool worker_pool_;
   /// A set of queues to maintain tasks.

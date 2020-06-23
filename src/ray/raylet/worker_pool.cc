@@ -61,13 +61,15 @@ WorkerPool::WorkerPool(boost::asio::io_service &io_service, int num_workers,
                        int max_worker_port, std::shared_ptr<gcs::GcsClient> gcs_client,
                        const WorkerCommandMap &worker_commands,
                        const std::unordered_map<std::string, std::string> &raylet_config,
-                       std::function<void()> starting_worker_timeout_callback)
+                       std::function<void()> starting_worker_timeout_callback,
+                       absl::flat_hash_map<JobID, rpc::JobTableData> &job_info_cache)
     : io_service_(&io_service),
       adaptive_num_initial_workers_(adaptive_num_initial_workers),
       maximum_startup_concurrency_(maximum_startup_concurrency),
       gcs_client_(std::move(gcs_client)),
       raylet_config_(raylet_config),
-      starting_worker_timeout_callback_(starting_worker_timeout_callback) {
+      starting_worker_timeout_callback_(starting_worker_timeout_callback),
+      job_info_cache_(job_info_cache) {
   RAY_CHECK(maximum_startup_concurrency > 0);
 #ifndef _WIN32
   // Ignore SIGCHLD signals. If we don't do this, then worker processes will
@@ -449,6 +451,13 @@ void WorkerPool::PushWorker(const std::shared_ptr<Worker> &worker) {
 }
 
 std::shared_ptr<Worker> WorkerPool::PopWorker(const TaskSpecification &task_spec) {
+  auto iter = job_info_cache_.find(task_spec.JobId());
+  if (iter == job_info_cache_.end() || iter->second.is_dead()) {
+    return nullptr;
+  }
+
+  // TODO: get job config
+
   auto &state = GetStateForLanguage(task_spec.GetLanguage());
 
   std::shared_ptr<Worker> worker = nullptr;

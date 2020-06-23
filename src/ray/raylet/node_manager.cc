@@ -145,7 +145,7 @@ NodeManager::NodeManager(boost::asio::io_service &io_service,
           config.min_worker_port, config.max_worker_port, gcs_client_,
           config.worker_commands, config.raylet_config,
           /*starting_worker_timeout_callback=*/
-          [this]() { this->DispatchTasks(this->local_queues_.GetReadyTasksByClass()); }),
+          [this]() { this->DispatchTasks(this->local_queues_.GetReadyTasksByClass()); }, job_info_cache_),
       scheduling_policy_(local_queues_),
       reconstruction_policy_(
           io_service_,
@@ -263,6 +263,7 @@ ray::Status NodeManager::RegisterGcs() {
   // Subscribe to job updates.
   const auto job_subscribe_handler = [this](const JobID &job_id,
                                             const JobTableData &job_data) {
+    job_info_cache_[job_id] = job_data;
     if (!job_data.is_dead()) {
       HandleJobStarted(job_id, job_data);
     } else {

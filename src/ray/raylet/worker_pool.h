@@ -69,7 +69,8 @@ class WorkerPool {
              std::shared_ptr<gcs::GcsClient> gcs_client,
              const WorkerCommandMap &worker_commands,
              const std::unordered_map<std::string, std::string> &raylet_config,
-             std::function<void()> starting_worker_timeout_callback);
+             std::function<void()> starting_worker_timeout_callback,
+             absl::flat_hash_map<JobID, rpc::JobTableData> &job_info_cache);
 
   /// Destructor responsible for freeing a set of workers owned by this class.
   virtual ~WorkerPool();
@@ -304,6 +305,8 @@ class WorkerPool {
   /// The callback that will be triggered once it times out to start a worker.
   std::function<void()> starting_worker_timeout_callback_;
   FRIEND_TEST(WorkerPoolTest, InitialWorkerProcessCount);
+
+  absl::flat_hash_map<JobID, rpc::JobTableData> &job_info_cache_;
 };
 
 }  // namespace raylet
