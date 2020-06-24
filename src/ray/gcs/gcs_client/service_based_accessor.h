@@ -50,6 +50,10 @@ class ServiceBasedJobInfoAccessor : public JobInfoAccessor {
   void AsyncResubscribe(bool is_pubsub_server_restarted) override;
 
  private:
+  /// Save the fetch data operation in this function, so we can call it again when GCS
+  /// server restarts from a failure.
+  FetchDataOperation fetch_all_data_operation_;
+
   /// Save the subscribe operation in this function, so we can call it again when PubSub
   /// server restarts from a failure.
   SubscribeOperation subscribe_operation_;
