@@ -15,13 +15,13 @@ public class JobConfigsTest extends BaseTest {
   @BeforeClass
   public void setupJobConfigs() {
     System.setProperty("ray.job.num-java-workers-per-process", "3");
-    System.setProperty("ray.job.jvm-options", "-DX=999");
+    System.setProperty("ray.job.jvm-options.0", "-DX=999");
   }
 
   @AfterClass
   public void tearDownJobConfigs() {
     System.clearProperty("ray.job.num-java-workers-per-process");
-    System.clearProperty("ray.job.jvm-options");
+    System.clearProperty("ray.job.jvm-options.0");
   }
 
   @RayRemote

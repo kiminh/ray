@@ -51,7 +51,7 @@ class WorkerPool {
   /// the pool.
   ///
   /// \param adaptive_num_initial_workers Number of initial workers to start per job if
-  /// num_initial_workers of any language is not specified in the job config.
+  /// num_initial_***_workers of any language is not specified in the job config.
   /// \param maximum_startup_concurrency The maximum number of worker processes
   /// that can be started in parallel (typically this should be set to the number of CPU
   /// resources on the machine).

@@ -87,13 +87,14 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
 
     byte[] serializedJobConfigs = null;
     if (rayConfig.workerMode == WorkerType.DRIVER) {
-      JobConfigs.Builder jobConfigsBuilder = JobConfigs.newBuilder()
-          .setNumJavaWorkersPerProcess(rayConfig.numWorkersPerProcess)
-          .setJvmOptions(rayConfig.jvmOptionsForJavaWorker);
-      for (Map.Entry<Language, Integer> entry : rayConfig.numInitialWorkers.entrySet()) {
-        // TODO (kfstorm): Add a test case to verify it.
-        jobConfigsBuilder.putNumInitialWorkers(entry.getKey().getNumber(), entry.getValue());
-      }
+      JobConfigs.Builder jobConfigsBuilder =
+          JobConfigs.newBuilder()
+              .setNumJavaWorkersPerProcess(rayConfig.numWorkersPerProcess)
+              // TODO (kfstorm): Add a test case to verify it.
+              .setNumInitialPythonWorkers(rayConfig.numInitialPythonWorkers)
+              .setNumInitialJavaWorkers(rayConfig.numInitialJavaWorkers)
+              .addAllJvmOptions(rayConfig.jvmOptionsForJavaWorker)
+              .putAllWorkerEnvVariables(rayConfig.workerEnvVariables);
       serializedJobConfigs = jobConfigsBuilder.build().toByteArray();
     }
 

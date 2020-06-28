@@ -172,7 +172,8 @@ Process WorkerPool::StartWorkerProcess(const Language &language, const JobID &jo
   if (!configs.jvm_options().empty()) {
     // Note that we push the item to the front of the vector to make
     // sure this is the freshest option than others.
-    dynamic_options.insert(dynamic_options.begin(), configs.jvm_options());
+    dynamic_options.insert(dynamic_options.begin(), configs.jvm_options().begin(),
+                           configs.jvm_options().end());
   }
 
   // Extract pointers from the worker command to pass into execvp.
@@ -236,6 +237,7 @@ Process WorkerPool::StartWorkerProcess(const Language &language, const JobID &jo
         << " placeholder is not found in worker command.";
   }
 
+  // TODO(kfstorm): Set up environment variables.
   Process proc = StartProcess(worker_command_args);
   if (!job_id.IsNil()) {
     // If the pid is reused between processes, the old process must have exited.
@@ -375,13 +377,23 @@ Status WorkerPool::RegisterDriver(const std::shared_ptr<Worker> &driver, const J
 
 void WorkerPool::StartInitialWorkersForJob(const JobID &job_id,
                                            const rpc::JobConfigs &job_configs) {
-  const auto &num_initial_workers_map = job_configs.num_initial_workers();
   for (auto &entry : states_by_lang_) {
     auto &state = entry.second;
     uint32_t num_initial_workers = adaptive_num_initial_workers_;
-    auto it = num_initial_workers_map.find(static_cast<uint32_t>(entry.first));
-    if (it != num_initial_workers_map.end()) {
-      num_initial_workers = it->second;
+    int32_t config_value;
+    switch (entry.first) {
+    case Language::PYTHON:
+      config_value = job_configs.num_initial_python_workers();
+      break;
+    case Language::JAVA:
+      config_value = job_configs.num_initial_java_workers();
+      break;
+    default:
+      config_value = 0;
+      break;
+    }
+    if (config_value >= 0) {
+      num_initial_workers = static_cast<uint32_t>(config_value);
     }
     int num_worker_processes = static_cast<int>(std::ceil(
         static_cast<double>(num_initial_workers) / state.num_workers_per_process));

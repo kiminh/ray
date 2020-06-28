@@ -253,11 +253,18 @@ message TaskLeaseData {
 }
 
 message JobConfigs {
-  // The initial workers to start per node. The key is of the integer form of Language.
-  // If a language is not in the map, it fallbacks to `num_cpus`.
-  map<uint32, uint32> num_initial_workers = 1;
-  uint32 num_java_workers_per_process = 2;
-  string jvm_options = 3;
+  // The initial Python workers to start per node. If a negative value is specified, it
+  // fallbacks to `num_cpus`.
+  int32 num_initial_python_workers = 1;
+  // The initial Java workers to start per node. If a negative value is specified, it
+  // fallbacks to `num_cpus`.
+  int32 num_initial_java_workers = 2;
+  // Environment variables to be set on worker processes.
+  map<string, string> worker_env_variables = 3;
+  // The number of java workers per worker process.
+  uint32 num_java_workers_per_process = 4;
+  // The jvm options for java workers of the job.
+  repeated string jvm_options = 5;
 }
 
 message JobTableData {

@@ -3,6 +3,7 @@ package io.ray.runtime.config;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
@@ -93,9 +94,11 @@ public class RayConfig {
 
 
   public final int numWorkersPerProcess;
-  public final Map<Language, Integer> numInitialWorkers;
+  public final int numInitialPythonWorkers;
+  public final int numInitialJavaWorkers;
 
-  public final String jvmOptionsForJavaWorker;
+  public final List<String> jvmOptionsForJavaWorker;
+  public final Map<String, String> workerEnvVariables;
 
   private void validate() {
     if (workerMode == WorkerType.WORKER) {
@@ -149,8 +152,18 @@ public class RayConfig {
     }
 
     // jvm options for java workers of this job.
-    jvmOptionsForJavaWorker = config.getString("ray.job.jvm-options");
+    jvmOptionsForJavaWorker = config.getStringList("ray.job.jvm-options");
 
+    ImmutableMap.Builder<String, String> workerEnvVariablesBuilder =
+        ImmutableMap.builder();
+    Config workerEnvVariablesConfig = config.getConfig("ray.job.worker-env-variables");
+    if (workerEnvVariablesConfig != null) {
+      for (Map.Entry<String, ConfigValue> entry : workerEnvVariablesConfig.entrySet()) {
+        workerEnvVariablesBuilder.put(
+            entry.getKey(), workerEnvVariablesConfig.getString(entry.getKey()));
+      }
+    }
+    workerEnvVariables = workerEnvVariablesBuilder.build();
     updateSessionDir();
     // Object store configurations.
     objectStoreSize = config.getBytes("ray.object-store.size");
@@ -222,18 +235,8 @@ public class RayConfig {
     } else {
       numWorkersPerProcess = localNumWorkersPerProcess;
     }
-    numInitialWorkers = new HashMap<>();
-    Config numInitialWorkersConfig = config.getConfig("ray.job.num-initial-workers");
-    if (numInitialWorkersConfig != null) {
-      for (Map.Entry<String, ConfigValue> entry : numInitialWorkersConfig.entrySet()) {
-        EnumValueDescriptor languageValue = Language.getDescriptor().findValueByName(entry.getKey().toUpperCase());
-        Preconditions.checkNotNull(languageValue, "The language " + entry.getKey() + " in ray.job.num-initial-workers is unknown.");
-        Language language = Language.forNumber(languageValue.getNumber());
-        int value = (int) entry.getValue().unwrapped();
-        Preconditions.checkState(value >= 0, "Num initial workers cannot be negative.");
-        numInitialWorkers.put(language, value);
-      }
-    }
+    numInitialPythonWorkers = config.getInt("ray.job.num-initial-python-workers");
+    numInitialJavaWorkers = config.getInt("ray.job.num-initial-java-workers");
 
     // Validate config.
     validate();

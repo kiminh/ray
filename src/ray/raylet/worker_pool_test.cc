@@ -61,8 +61,16 @@ class WorkerPoolMock : public WorkerPool {
   }
 
   void SetNumInitialWorkers(Language language, int num_initial_workers) {
-    (*mock_job_configs.mutable_num_initial_workers())[static_cast<uint32_t>(language)] =
-        num_initial_workers;
+    switch (language) {
+    case Language::PYTHON:
+      mock_job_configs.set_num_initial_python_workers(num_initial_workers);
+      break;
+    case Language::JAVA:
+      mock_job_configs.set_num_initial_java_workers(num_initial_workers);
+      break;
+    default:
+      RAY_LOG(FATAL) << "Unknown language: " << language;
+    }
   }
 
   void StartInitialWorkersForJob(const JobID &job_id) {
