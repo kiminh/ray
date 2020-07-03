@@ -235,8 +235,9 @@ Process WorkerPool::StartWorkerProcess(const Language &language, const JobID &jo
         << " placeholder is not found in worker command.";
   }
 
-  // TODO(kfstorm): Set up environment variables.
-  Process proc = StartProcess(worker_command_args);
+  std::map<std::string, std::string> env(job_configs->worker_env_variables().begin(),
+                                         job_configs->worker_env_variables().end());
+  Process proc = StartProcess(worker_command_args, env);
   // If the pid is reused between processes, the old process must have exited.
   // So it's safe to bind the pid with another job ID.
   RAY_LOG(INFO) << "Worker process " << proc.GetId() << " is bound to job " << job_id;
@@ -270,7 +271,8 @@ void WorkerPool::MonitorStartingWorkerProcess(const Process &proc,
       });
 }
 
-Process WorkerPool::StartProcess(const std::vector<std::string> &worker_command_args) {
+Process WorkerPool::StartProcess(const std::vector<std::string> &worker_command_args,
+                                 const std::map<std::string, std::string> &env) {
   if (RAY_LOG_ENABLED(DEBUG)) {
     std::stringstream stream;
     stream << "Starting worker process with command:";
@@ -287,7 +289,7 @@ Process WorkerPool::StartProcess(const std::vector<std::string> &worker_command_
     argv.push_back(arg.c_str());
   }
   argv.push_back(NULL);
-  Process child(argv.data(), io_service_, ec);
+  Process child(argv.data(), io_service_, ec, /*decouple=*/false, env);
   if (!child.IsValid() || ec) {
     // The worker failed to start. This is a fatal error.
     RAY_LOG(FATAL) << "Failed to start worker with return value " << ec << ": "
