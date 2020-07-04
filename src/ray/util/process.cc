@@ -34,6 +34,21 @@
 #include "ray/util/logging.h"
 #include "ray/util/util.h"
 
+#ifdef __APPLE__
+extern char **environ;
+
+// macOS dosn't come with execvpe.
+// https://stackoverflow.com/questions/7789750/execve-with-path-search
+int execvpe(const char *program, char **argv, char **envp) {
+  char **saved = environ;
+  int rc;
+  environ = envp;
+  rc = execvp(program, argv);
+  environ = saved;
+  return rc;
+}
+#endif
+
 namespace ray {
 
 class ProcessFD {
@@ -150,8 +165,7 @@ class ProcessFD {
       // This is the spawned process. Any intermediate parent is now dead.
       pid_t my_pid = getpid();
       if (write(pipefds[1], &my_pid, sizeof(my_pid)) == sizeof(my_pid)) {
-        execvpe(argv[0], const_cast<char *const *>(argv),
-                const_cast<char *const *>(envp));
+        execvpe(argv[0], const_cast<char **>(argv), const_cast<char **>(envp));
       }
       _exit(errno);  // fork() succeeded and exec() failed, so abort the child
     }
