@@ -260,7 +260,7 @@ message JobConfigs {
   // fallbacks to `num_cpus`.
   int32 num_initial_java_workers = 2;
   // Environment variables to be set on worker processes.
-  map<string, string> worker_env_variables = 3;
+  map<string, string> worker_env = 3;
   // The number of java workers per worker process.
   uint32 num_java_workers_per_process = 4;
   // The jvm options for java workers of the job.

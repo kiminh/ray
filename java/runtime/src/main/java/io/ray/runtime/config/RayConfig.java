@@ -96,7 +96,7 @@ public class RayConfig {
   public final int numInitialJavaWorkers;
 
   public final List<String> jvmOptionsForJavaWorker;
-  public final Map<String, String> workerEnvVariables;
+  public final Map<String, String> workerEnv;
 
   private void validate() {
     if (workerMode == WorkerType.WORKER) {
@@ -152,16 +152,14 @@ public class RayConfig {
     // jvm options for java workers of this job.
     jvmOptionsForJavaWorker = config.getStringList("ray.job.jvm-options");
 
-    ImmutableMap.Builder<String, String> workerEnvVariablesBuilder =
-        ImmutableMap.builder();
-    Config workerEnvVariablesConfig = config.getConfig("ray.job.worker-env-variables");
-    if (workerEnvVariablesConfig != null) {
-      for (Map.Entry<String, ConfigValue> entry : workerEnvVariablesConfig.entrySet()) {
-        workerEnvVariablesBuilder.put(
-            entry.getKey(), workerEnvVariablesConfig.getString(entry.getKey()));
+    ImmutableMap.Builder<String, String> workerEnvBuilder = ImmutableMap.builder();
+    Config workerEnvConfig = config.getConfig("ray.job.worker-env");
+    if (workerEnvConfig != null) {
+      for (Map.Entry<String, ConfigValue> entry : workerEnvConfig.entrySet()) {
+        workerEnvBuilder.put(entry.getKey(), workerEnvConfig.getString(entry.getKey()));
       }
     }
-    workerEnvVariables = workerEnvVariablesBuilder.build();
+    workerEnv = workerEnvBuilder.build();
     updateSessionDir();
     // Object store configurations.
     objectStoreSize = config.getBytes("ray.object-store.size");
