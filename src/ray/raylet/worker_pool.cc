@@ -235,8 +235,8 @@ Process WorkerPool::StartWorkerProcess(const Language &language, const JobID &jo
         << " placeholder is not found in worker command.";
   }
 
-  std::map<std::string, std::string> env(job_configs->worker_env_variables().begin(),
-                                         job_configs->worker_env_variables().end());
+  std::map<std::string, std::string> env(job_configs->worker_env().begin(),
+                                         job_configs->worker_env().end());
   Process proc = StartProcess(worker_command_args, env);
   // If the pid is reused between processes, the old process must have exited.
   // So it's safe to bind the pid with another job ID.

@@ -11,8 +11,7 @@ class JobConfigs:
         num_initial_java_workers (int): The initial Java workers to start per
             node. If a negative value is specified, it fallbacks to
             `num_cpus`.
-        worker_env_variables (dict): Environment variables to be set on worker
-            processes.
+        worker_env (dict): Environment variables to be set on worker processes.
         num_java_workers_per_process (int): The number of java workers per
             worker process.
         jvm_options (str[]): The jvm options for java workers of the job.

@@ -281,9 +281,9 @@ def test_specific_job_id():
     ray.shutdown()
 
 
-def test_worker_env_variables():
+def test_worker_env():
     ray.init(
-        job_configs=ray.job_configs.JobConfigs(worker_env_variables={
+        job_configs=ray.job_configs.JobConfigs(worker_env={
             "foo1": "bar1",
             "foo2": "bar2"
         }))
