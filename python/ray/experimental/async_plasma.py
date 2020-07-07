@@ -58,8 +58,8 @@ class PlasmaEventHandler:
         Returns:
             PlasmaObjectFuture: A future object that waits the object_id.
         """
-        if not isinstance(object_id, ray.ObjectID):
-            raise TypeError("Input should be a Ray ObjectID.")
+        if not isinstance(object_id, ray.ObjectRef):
+            raise TypeError("Input should be a Ray ObjectRef.")
 
         future = PlasmaObjectFuture(loop=self._loop)
         self._waiting_dict[object_id].append(future)

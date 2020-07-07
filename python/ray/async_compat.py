@@ -37,7 +37,7 @@ def sync_to_async(func):
 
 # Class encapsulate the get result from direct actor.
 # Case 1: plasma_fallback_id=None, result=<Object>
-# Case 2: plasma_fallback_id=ObjectID, result=None
+# Case 2: plasma_fallback_id=ObjectRef, result=None
 AsyncGetResponse = namedtuple("AsyncGetResponse",
                               ["plasma_fallback_id", "result"])
 
@@ -49,7 +49,7 @@ def get_async(object_id):
     from ray.experimental.async_api import init as async_api_init, as_future
     from ray.experimental.async_plasma import PlasmaObjectFuture
 
-    assert isinstance(object_id, ray.ObjectID), "Batched get is not supported."
+    assert isinstance(object_id, ray.ObjectRef), "Batched get is not supported."
 
     # Setup
     async_api_init()
