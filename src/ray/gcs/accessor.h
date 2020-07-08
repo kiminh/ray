@@ -212,13 +212,6 @@ class JobInfoAccessor {
   /// \param is_pubsub_server_restarted Whether pubsub server is restarted.
   virtual void AsyncResubscribe(bool is_pubsub_server_restarted) = 0;
 
-  /// Get the configs of the given job.
-  ///
-  /// Return immediately from local cache if the local cache has the configs of the
-  /// given job id, otherwise it will fetch the configs from GCS.
-  /// \return The configs structure of the given job.
-  virtual rpc::JobConfigs GetConfigs(const JobID &job_id) = 0;
-
  protected:
   JobInfoAccessor() = default;
 };

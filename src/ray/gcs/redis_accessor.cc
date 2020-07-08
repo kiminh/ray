@@ -370,39 +370,14 @@ Status RedisJobInfoAccessor::AsyncSubscribeAll(
           // NOTE (kfstorm): TBase only. This is needed to ignore duplicate notifications.
           return;
         }
-        lock.Release();
         // A new job.
-        this->ParseAndCacheJobConfigs(job_id, const_cast<JobTableData &>(job_data));
+        cache_[job_id] = job_data.configs();
       }
     }
     // Trigger the callback of the other subscriptions.
     subscribe(job_id, job_data);
   };
   return job_sub_executor_.AsyncSubscribeAll(ClientID::Nil(), on_subscribe, done);
-}
-
-rpc::JobConfigs RedisJobInfoAccessor::ParseAndCacheJobConfigs(const JobID &job_id,
-                                                              JobTableData &job_data) {
-  absl::MutexLock lock(&mutex_);
-  RAY_CHECK(cache_.count(job_id) == 0);
-  cache_[job_id] = job_data.configs();
-  return job_data.configs();
-}
-
-rpc::JobConfigs RedisJobInfoAccessor::GetConfigs(const JobID &job_id) {
-  {
-    absl::MutexLock lock(&mutex_);
-    auto it = cache_.find(job_id);
-    if (it != cache_.end()) {
-      return it->second;
-    }
-  }
-
-  // Not found in local cache, let's fetch it from GCS and cache it.
-  JobTableData job_entry;
-  auto status = client_impl_->job_table().GetJobData(job_id, &job_entry);
-  RAY_CHECK(status.ok()) << "Failed to get job data by job_id " << job_id;
-  return ParseAndCacheJobConfigs(job_id, job_entry);
 }
 
 RedisTaskInfoAccessor::RedisTaskInfoAccessor(RedisGcsClient *client_impl)
