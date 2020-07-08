@@ -53,8 +53,6 @@ namespace ray {
 
 namespace raylet {
 
-/// A constructor that initializes a worker pool with num_workers workers for
-/// each language.
 WorkerPool::WorkerPool(
     boost::asio::io_service &io_service, uint32_t adaptive_num_initial_workers,
     int maximum_startup_concurrency, int min_worker_port, int max_worker_port,
@@ -245,6 +243,10 @@ Process WorkerPool::StartWorkerProcess(const Language &language, const JobID &jo
 
   // TODO(kfstorm): Set up environment variables.
   Process proc = StartProcess(worker_command_args);
+  // If the pid is reused between processes, the old process must have exited.
+  // So it's safe to bind the pid with another job ID.
+  RAY_LOG(INFO) << "Worker process " << proc.GetId() << " is bound to job " << job_id;
+  state.worker_pids_to_assigned_jobs[proc.GetId()] = job_id;
   RAY_LOG(DEBUG) << "Started worker process of " << workers_to_start
                  << " worker(s) with pid " << proc.GetId();
   MonitorStartingWorkerProcess(proc, language);
@@ -351,10 +353,17 @@ Status WorkerPool::RegisterWorker(const std::shared_ptr<Worker> &worker, pid_t p
   RAY_CHECK(worker->GetProcess().GetId() == pid);
   state.registered_workers.insert(worker);
 
+  auto dedicated_workers_it = state.worker_pids_to_assigned_jobs.find(pid);
+  RAY_CHECK(dedicated_workers_it != state.worker_pids_to_assigned_jobs.end());
+  worker->AssignJobId(dedicated_workers_it->second);
+  // We don't call state.worker_pids_to_assigned_jobs.erase(dedicated_workers_it) here
+  // because we allow multi-workers per worker process.
+
   return Status::OK();
 }
 
-Status WorkerPool::RegisterDriver(const std::shared_ptr<Worker> &driver, const JobID &job_id, int *port) {
+Status WorkerPool::RegisterDriver(const std::shared_ptr<Worker> &driver,
+                                  const JobID &job_id, int *port) {
   RAY_CHECK(!driver->GetAssignedTaskId().IsNil());
   RAY_RETURN_NOT_OK(GetNextFreePort(port));
   driver->SetAssignedPort(*port);
@@ -459,8 +468,8 @@ std::shared_ptr<Worker> WorkerPool::PopWorker(const TaskSpecification &task_spec
     } else if (!HasPendingWorkerForTask(task_spec.GetLanguage(), task_spec.TaskId())) {
       // We are not pending a registration from a worker for this task,
       // so start a new worker process for this task.
-      proc =
-          StartWorkerProcess(task_spec.GetLanguage(), task_spec.JobId(), task_spec.DynamicWorkerOptions());
+      proc = StartWorkerProcess(task_spec.GetLanguage(), task_spec.JobId(),
+                                task_spec.DynamicWorkerOptions());
       if (proc.IsValid()) {
         state.dedicated_workers_to_tasks[proc] = task_spec.TaskId();
         state.tasks_to_dedicated_workers[task_spec.TaskId()] = proc;

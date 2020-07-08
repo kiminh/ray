@@ -240,6 +240,8 @@ class WorkerPool {
     std::unordered_map<Process, TaskID> dedicated_workers_to_tasks;
     /// A map for speeding up looking up the pending worker for the given task.
     std::unordered_map<TaskID, Process> tasks_to_dedicated_workers;
+    /// A map for looking up the owner JobId by the pid of worker.
+    std::unordered_map<pid_t, JobID> worker_pids_to_assigned_jobs;
     /// We'll push a warning to the user every time a multiple of this many
     /// worker processes has been started.
     int multiple_for_warning;

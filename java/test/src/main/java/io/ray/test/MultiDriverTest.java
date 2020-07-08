@@ -1,5 +1,10 @@
 package io.ray.test;
 
+import io.ray.api.ActorHandle;
+import io.ray.api.ObjectRef;
+import io.ray.api.Ray;
+import io.ray.runtime.config.RayConfig;
+import io.ray.runtime.util.SystemUtil;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -9,12 +14,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import io.ray.api.ActorHandle;
-import io.ray.api.ObjectRef;
-import io.ray.api.Ray;
-import io.ray.runtime.config.RayConfig;
-import io.ray.runtime.runner.worker.DefaultDriver;
-import io.ray.runtime.util.SystemUtil;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -37,6 +36,8 @@ public class MultiDriverTest extends BaseTest {
   }
 
   public static void main(String[] args) throws IOException {
+    Ray.init();
+
     List<ObjectRef<Integer>> pidObjectList = new ArrayList<>();
     // Submit some normal tasks and get the PIDs of workers which execute the tasks.
     for (int i = 0; i < NORMAL_TASK_COUNT_PER_DRIVER; ++i) {
@@ -45,7 +46,7 @@ public class MultiDriverTest extends BaseTest {
     // Create some actors and get the PIDs of actors.
     for (int i = 0; i < ACTOR_COUNT_PER_DRIVER; ++i) {
       ActorHandle<Actor> actor = Ray.actor(Actor::new).remote();
-      pidObjectList.add(Ray.task(Actor::getPid, actor).remote());
+      pidObjectList.add(actor.task(Actor::getPid).remote());
     }
     Set<Integer> pids = new HashSet<>();
     for (ObjectRef<Integer> object : pidObjectList) {
@@ -111,7 +112,7 @@ public class MultiDriverTest extends BaseTest {
         "-Dray.redis.address=" + rayConfig.getRedisAddress(),
         "-Dray.object-store.socket-name=" + rayConfig.objectStoreSocketName,
         "-Dray.raylet.socket-name=" + rayConfig.rayletSocketName,
-        DefaultDriver.class.getName(),
+        "-Dray.raylet.node-manager-port=" + String.valueOf(rayConfig.getNodeManagerPort()),
         MultiDriverTest.class.getName());
     builder.redirectError(Redirect.INHERIT);
     return builder.start();
