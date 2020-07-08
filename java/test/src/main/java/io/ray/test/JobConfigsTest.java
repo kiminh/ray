@@ -1,10 +1,8 @@
-package org.ray.api.test;
+package io.ray.api.test;
 
-import org.ray.api.Ray;
-import org.ray.api.RayActor;
-import org.ray.api.RayObject;
-import org.ray.api.TestUtils;
-import org.ray.api.annotation.RayRemote;
+import io.ray.api.Ray;
+import io.ray.api.ObjectRef;
+import io.ray.api.ActorHandle;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -58,7 +56,7 @@ public class JobConfigsTest extends BaseTest {
   @Test
   public void testNumJavaWorkerPerProcess() {
     TestUtils.skipTestUnderSingleProcess();
-    RayObject<Integer> obj = Ray.call(JobConfigsTest::getWorkersNum);
+    ObjectRef<Integer> obj = Ray.task(JobConfigsTest::getWorkersNum).remote();
     Assert.assertEquals(3, (int) obj.get());
   }
 
@@ -66,14 +64,14 @@ public class JobConfigsTest extends BaseTest {
   @Test
   public void testInActor() {
     TestUtils.skipTestUnderSingleProcess();
-    RayActor<MyActor> actor = Ray.createActor(MyActor::new);
+    ActorHandle<MyActor> actor = Ray.actor(MyActor::new).remote();
 
     // test jvm options.
     RayObject<String> obj1 = Ray.call(MyActor::getJvmOptions, actor);
     Assert.assertEquals("999", obj1.get());
 
     //  test workers number.
-    RayObject<Integer> obj2 = Ray.call(MyActor::getWorkersNum, actor);
+    ObjectRef<Integer> obj2 = Ray.task(MyActor::getWorkersNum, actor).remote();
     Assert.assertEquals(3, (int) obj2.get());
   }
 }

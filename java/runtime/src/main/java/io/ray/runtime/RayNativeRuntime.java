@@ -11,7 +11,7 @@ import io.ray.runtime.gcs.GcsClientOptions;
 import io.ray.runtime.gcs.RedisClient;
 import io.ray.runtime.generated.Common.Language;
 import io.ray.runtime.generated.Common.WorkerType;
-import org.ray.runtime.generated.Gcs.JobConfigs;
+import io.ray.runtime.generated.Gcs.JobConfigs;
 import io.ray.runtime.object.NativeObjectStore;
 import io.ray.runtime.runner.RunManager;
 import io.ray.runtime.task.NativeTaskExecutor;
