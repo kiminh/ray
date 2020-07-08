@@ -272,6 +272,8 @@ void WorkerPool::MonitorStartingWorkerProcess(const Process &proc,
           starting_worker_timeout_callback_();
         }
       });
+}
+
 Process WorkerPool::StartProcess(const std::vector<std::string> &worker_command_args) {
   if (RAY_LOG_ENABLED(DEBUG)) {
     std::stringstream stream;
@@ -372,10 +374,10 @@ void WorkerPool::StartInitialWorkersForJob(const JobID &job_id) {
     int32_t config_value;
     switch (entry.first) {
     case Language::PYTHON:
-      config_value = job_configs.num_initial_python_workers();
+      config_value = job_configs->num_initial_python_workers();
       break;
     case Language::JAVA:
-      config_value = job_configs.num_initial_java_workers();
+      config_value = job_configs->num_initial_java_workers();
       break;
     default:
       config_value = 0;
@@ -387,7 +389,7 @@ void WorkerPool::StartInitialWorkersForJob(const JobID &job_id) {
     int num_worker_processes = static_cast<int>(std::ceil(
         static_cast<double>(num_initial_workers) / state.num_workers_per_process));
     for (int i = 0; i < num_worker_processes; i++) {
-      StartWorkerProcess(entry.first, job_id, /*is_initial_worker=*/true);
+      StartWorkerProcess(entry.first, job_id);
     }
   }
 }

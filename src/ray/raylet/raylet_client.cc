@@ -180,7 +180,7 @@ raylet::RayletClient::RayletClient(
   flatbuffers::FlatBufferBuilder fbb;
   auto message = protocol::CreateRegisterClientRequest(
       fbb, is_worker, to_flatbuf(fbb, worker_id), getpid(), to_flatbuf(fbb, job_id),
-      language, fbb.CreateString(ip_address), fbb.CreateString(job_configs_));
+      language, fbb.CreateString(ip_address), /*port=*/0, fbb.CreateString(job_configs_));
   fbb.Finish(message);
   // Register the process ID with the raylet.
   // NOTE(swang): If raylet exits and we are registered as a worker, we will get killed.
