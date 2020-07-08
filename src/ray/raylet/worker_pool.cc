@@ -245,21 +245,11 @@ Process WorkerPool::StartWorkerProcess(const Language &language, const JobID &jo
 
   // TODO(kfstorm): Set up environment variables.
   Process proc = StartProcess(worker_command_args);
-  if (!job_id.IsNil()) {
-    // If the pid is reused between processes, the old process must have exited.
-    // So it's safe to bind the pid with another job ID.
-    RAY_LOG(INFO) << "Worker process " << pid << " is bound to job " << job_id;
-    state.worker_pids_to_assigned_jobs[pid] = job_id;
-  }
   RAY_LOG(DEBUG) << "Started worker process of " << workers_to_start
                  << " worker(s) with pid " << proc.GetId();
   MonitorStartingWorkerProcess(proc, language);
   state.starting_worker_processes.emplace(proc, workers_to_start);
   return proc;
-}
-
-gcs::JobConfigs WorkerPool::FetchJobConfigs(const JobID &job_id) {
-  return gcs_client_->Jobs().GetConfigs(job_id);
 }
 
 void WorkerPool::MonitorStartingWorkerProcess(const Process &proc,
@@ -358,12 +348,6 @@ Status WorkerPool::RegisterWorker(const std::shared_ptr<Worker> &worker, pid_t p
 
   RAY_CHECK(worker->GetProcess().GetId() == pid);
   state.registered_workers.insert(worker);
-
-  auto dedicated_workers_it = state.worker_pids_to_assigned_jobs.find(pid);
-  RAY_CHECK(dedicated_workers_it != state.worker_pids_to_assigned_jobs.end());
-  worker->AssignJobId(dedicated_workers_it->second);
-  // We don't call state.worker_pids_to_assigned_jobs.erase(dedicated_workers_it) here
-  // because we allow multi-workers per worker process.
 
   return Status::OK();
 }

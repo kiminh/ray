@@ -183,8 +183,6 @@ class RedisJobInfoAccessor : public JobInfoAccessor {
 
   void AsyncResubscribe(bool is_pubsub_server_restarted) override {}
 
-  rpc::JobConfigs GetConfigs(const JobID &job_id) override LOCKS_EXCLUDED(mutex_);
-
  private:
   /// A helper method to parse to job configs from job entry.
   rpc::JobConfigs ParseAndCacheJobConfigs(const JobID &job_id, JobTableData &job_data)
