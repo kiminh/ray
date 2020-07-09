@@ -861,18 +861,18 @@ TEST_F(ServiceBasedGcsClientTest, TestJobTableResubscribe) {
   JobID job_id = JobID::FromInt(1);
   auto job_table_data = Mocker::GenJobTableData(job_id);
 
-  // Subscribe to finished jobs.
+  // Subscribe to all jobs.
   std::atomic<int> job_update_count(0);
   auto subscribe = [&job_update_count](const JobID &id, const rpc::JobTableData &result) {
     ++job_update_count;
   };
-  ASSERT_TRUE(SubscribeToFinishedJobs(subscribe));
+  ASSERT_TRUE(SubscribeToAllJobs(subscribe));
 
   RestartGcsServer();
 
   ASSERT_TRUE(AddJob(job_table_data));
   ASSERT_TRUE(MarkJobFinished(job_id));
-  WaitPendingDone(job_update_count, 1);
+  WaitPendingDone(job_update_count, 2);
 }
 
 TEST_F(ServiceBasedGcsClientTest, TestActorTableResubscribe) {

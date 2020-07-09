@@ -184,10 +184,6 @@ class RedisJobInfoAccessor : public JobInfoAccessor {
   void AsyncResubscribe(bool is_pubsub_server_restarted) override {}
 
  private:
-  /// A helper method to parse to job configs from job entry.
-  rpc::JobConfigs ParseAndCacheJobConfigs(const JobID &job_id, JobTableData &job_data)
-      LOCKS_EXCLUDED(mutex_);
-
   /// Append job information to GCS asynchronously.
   ///
   /// \param data_ptr The job information that will be appended to GCS.

@@ -274,7 +274,7 @@ TEST_F(WorkerPoolTest, InitialWorkerProcessCount) {
   worker_pool_->SetNumInitialWorkers(ray::Language::JAVA, 1);
   worker_pool_->SetNumInitialWorkers(ray::Language::PYTHON, 1);
   RAY_UNUSED(CreateDriver(job_id));
-  worker_pool_.StartInitialWorkersForJob(job_id);
+  worker_pool_->StartInitialWorkersForJob(job_id);
   // Here we try to start only 1 worker for each worker language. But since each Java
   // worker process contains exactly NUM_WORKERS_PER_PROCESS_JAVA (3) workers here,
   // it's expected to see 3 workers for Java and 1 worker for Python, instead of 1 for
