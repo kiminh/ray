@@ -200,11 +200,6 @@ class RedisJobInfoAccessor : public JobInfoAccessor {
 
   typedef SubscriptionExecutor<JobID, JobTableData, JobTable> JobSubscriptionExecutor;
   JobSubscriptionExecutor job_sub_executor_;
-
- private:
-  absl::Mutex mutex_;
-  /// The cache to store the configs of fetched jobs.
-  std::unordered_map<JobID, rpc::JobConfigs> cache_ GUARDED_BY(mutex_);
 };
 
 /// \class RedisTaskInfoAccessor

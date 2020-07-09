@@ -352,32 +352,7 @@ Status RedisJobInfoAccessor::DoAsyncAppend(const std::shared_ptr<JobTableData> &
 Status RedisJobInfoAccessor::AsyncSubscribeAll(
     const SubscribeCallback<JobID, JobTableData> &subscribe, const StatusCallback &done) {
   RAY_CHECK(subscribe != nullptr);
-  auto on_subscribe = [this, subscribe](const JobID &job_id,
-                                        const JobTableData &job_data) {
-    {
-      absl::ReleasableMutexLock lock(&mutex_);
-      auto it = this->cache_.find(job_id);
-      if (job_data.is_dead()) {
-        // Remove the job info from cache since it's dead.
-        if (it != this->cache_.end()) {
-          this->cache_.erase(it);
-        } else {
-          // NOTE (kfstorm): TBase only. This is needed to ignore duplicate notifications.
-          return;
-        }
-      } else {
-        if (it != this->cache_.end()) {
-          // NOTE (kfstorm): TBase only. This is needed to ignore duplicate notifications.
-          return;
-        }
-        // A new job.
-        cache_[job_id] = job_data.configs();
-      }
-    }
-    // Trigger the callback of the other subscriptions.
-    subscribe(job_id, job_data);
-  };
-  return job_sub_executor_.AsyncSubscribeAll(ClientID::Nil(), on_subscribe, done);
+  return job_sub_executor_.AsyncSubscribeAll(ClientID::Nil(), subscribe, done);
 }
 
 RedisTaskInfoAccessor::RedisTaskInfoAccessor(RedisGcsClient *client_impl)
