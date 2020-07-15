@@ -60,7 +60,7 @@ class GcsObjectManager : public rpc::ObjectInfoHandler {
   void LoadInitialData(const EmptyCallback &done);
 
  protected:
-  typedef absl::flat_hash_set<ClientID> LocationSet;
+  typedef absl::flat_hash_set<std::pair<ClientID, int64_t>> LocationSet;
 
   /// Add a location of objects.
   /// If the GCS server restarts, this function is used to reload data from storage.
@@ -75,8 +75,9 @@ class GcsObjectManager : public rpc::ObjectInfoHandler {
   ///
   /// \param object_id The id of object.
   /// \param node_id The node id of the new location.
-  void AddObjectLocationInCache(const ObjectID &object_id, const ClientID &node_id)
-      LOCKS_EXCLUDED(mutex_);
+  /// \param timestamp The timestamp that the object location is added.
+  void AddObjectLocationInCache(const ObjectID &object_id, const ClientID &node_id,
+                                int64_t timestamp) LOCKS_EXCLUDED(mutex_);
 
   /// Get all locations of the given object.
   ///
@@ -121,6 +122,9 @@ class GcsObjectManager : public rpc::ObjectInfoHandler {
   GcsObjectManager::ObjectSet *GetObjectSetByNode(const ClientID &node_id,
                                                   bool create_if_not_exist = false)
       EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+
+  void EraseObjectLocationOfSpecifiedNode(GcsObjectManager::LocationSet *object_locations,
+                                          const ClientID &node_id) const;
 
   mutable absl::Mutex mutex_;
 
