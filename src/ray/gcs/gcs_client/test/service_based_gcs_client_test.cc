@@ -515,7 +515,7 @@ TEST_F(ServiceBasedGcsClientTest, TestJobInfo) {
   JobID add_job_id = JobID::FromInt(1);
   auto job_table_data = Mocker::GenJobTableData(add_job_id);
 
-  // Subscribe to finished jobs.
+  // Subscribe to all jobs.
   std::atomic<int> job_updates(0);
   auto on_subscribe = [&job_updates](const JobID &job_id, const gcs::JobTableData &data) {
     job_updates++;
