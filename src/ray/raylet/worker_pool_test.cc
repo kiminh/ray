@@ -40,9 +40,9 @@ class WorkerPoolMock : public WorkerPool {
 
   explicit WorkerPoolMock(boost::asio::io_service &io_service,
                           const WorkerCommandMap &worker_commands)
-      : WorkerPool(io_service, 0, MAXIMUM_STARTUP_CONCURRENCY, 0, 0, nullptr,
-                   worker_commands, {}, []() {},
-                   [this](const JobID &job_id) { return &mock_job_configs; }),
+      : WorkerPool(
+            io_service, 0, MAXIMUM_STARTUP_CONCURRENCY, 0, 0, nullptr, worker_commands,
+            {}, []() {}, [this](const JobID &job_id) { return &mock_job_configs; }),
         last_worker_process_() {
     states_by_lang_[ray::Language::JAVA].num_workers_per_process =
         NUM_WORKERS_PER_PROCESS_JAVA;
@@ -366,7 +366,8 @@ TEST_F(WorkerPoolTest, StartWorkerWithDynamicOptionsCommand) {
   TaskSpecification task_spec = ExampleTaskSpec(
       ActorID::Nil(), Language::JAVA,
       ActorID::Of(job_id, TaskID::ForDriverTask(job_id), 1), {"test_op_0", "test_op_1"});
-  worker_pool_->StartWorkerProcess(Language::JAVA, job_id, task_spec.DynamicWorkerOptions());
+  worker_pool_->StartWorkerProcess(Language::JAVA, job_id,
+                                   task_spec.DynamicWorkerOptions());
   const auto real_command =
       worker_pool_->GetWorkerCommand(worker_pool_->LastStartedWorkerProcess());
   ASSERT_EQ(real_command, std::vector<std::string>(

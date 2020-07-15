@@ -160,9 +160,10 @@ NodeManager::NodeManager(boost::asio::io_service &io_service,
       initial_config_(config),
       local_available_resources_(config.resource_config),
       worker_pool_(
-          io_service, config.adaptive_num_initial_workers, config.maximum_startup_concurrency,
-          config.min_worker_port, config.max_worker_port, gcs_client_,
-          config.worker_commands, config.raylet_config,
+          io_service, config.adaptive_num_initial_workers,
+          config.maximum_startup_concurrency, config.min_worker_port,
+          config.max_worker_port, gcs_client_, config.worker_commands,
+          config.raylet_config,
           /*starting_worker_timeout_callback=*/
           [this]() { this->DispatchTasks(this->local_queues_.GetReadyTasksByClass()); },
           [this](const JobID &job_id) -> const rpc::JobConfigs * {
@@ -1221,9 +1222,9 @@ void NodeManager::ProcessRegisterClientRequestMessage(
       local_queues_.AddDriverTaskId(driver_task_id);
       rpc::JobConfigs job_configs;
       job_configs.ParseFromString(message->serialized_job_configs()->str());
-      auto job_data_ptr = gcs::CreateJobTableData(
-          job_id, /*is_dead*/ false, std::time(nullptr), worker_ip_address, pid,
-          job_configs);
+      auto job_data_ptr =
+          gcs::CreateJobTableData(job_id, /*is_dead*/ false, std::time(nullptr),
+                                  worker_ip_address, pid, job_configs);
       RAY_CHECK_OK(gcs_client_->Jobs().AsyncAdd(job_data_ptr, nullptr));
     } else {
       // Return -1 to signal to the worker that registration failed.

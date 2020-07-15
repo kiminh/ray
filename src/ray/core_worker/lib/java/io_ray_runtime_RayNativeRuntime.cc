@@ -124,7 +124,8 @@ JNIEXPORT void JNICALL Java_io_ray_runtime_RayNativeRuntime_nativeInitialize(
         return ray::Status::OK();
       };
 
-  std::string serialized_job_configs = (jobConfigs == nullptr ? "" : JavaByteArrayToNativeString(env, jobConfigs));
+  std::string serialized_job_configs =
+      (jobConfigs == nullptr ? "" : JavaByteArrayToNativeString(env, jobConfigs));
   ray::CoreWorkerOptions options = {
       static_cast<ray::WorkerType>(workerMode),     // worker_type
       ray::Language::JAVA,                          // langauge
