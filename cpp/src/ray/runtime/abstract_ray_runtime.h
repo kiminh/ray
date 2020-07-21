@@ -52,7 +52,7 @@ class AbstractRayRuntime : public RayRuntime {
   std::unique_ptr<ObjectStore> object_store_;
 
  private:
-  static AbstractRayRuntime *DoInit(std::shared_ptr<RayConfig> config);
+  static std::shared_ptr<AbstractRayRuntime> DoInit(std::shared_ptr<RayConfig> config);
 
   void Execute(const TaskSpecification &task_spec);
 

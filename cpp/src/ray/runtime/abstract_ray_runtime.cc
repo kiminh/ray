@@ -13,14 +13,14 @@
 
 namespace ray {
 namespace api {
-AbstractRayRuntime *AbstractRayRuntime::DoInit(std::shared_ptr<RayConfig> config) {
-  AbstractRayRuntime *runtime;
+std::shared_ptr<AbstractRayRuntime> AbstractRayRuntime::DoInit(std::shared_ptr<RayConfig> config) {
+  std::shared_ptr<AbstractRayRuntime> runtime;
   if (config->run_mode == RunMode::SINGLE_PROCESS) {
     GenerateBaseAddressOfCurrentLibrary();
-    runtime = new LocalModeRayRuntime(config);
+    runtime = std::make_shared<LocalModeRayRuntime>(config);
   } else {
     ProcessHelper::RayStart();
-    runtime = new NativeRayRuntime(config);
+    runtime = std::make_shared<NativeRayRuntime>(config);
   }
   RAY_CHECK(runtime);
   return runtime;
