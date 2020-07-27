@@ -6,15 +6,12 @@ import com.google.protobuf.ByteString;
 import io.ray.api.ActorHandle;
 import io.ray.api.BaseActorHandle;
 import io.ray.api.Ray;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.ObjectId;
-import io.ray.api.id.TaskId;
-import io.ray.api.id.UniqueId;
 import io.ray.api.options.ActorCreationOptions;
 import io.ray.api.options.CallOptions;
 import io.ray.api.placementgroup.PlacementGroup;
 import io.ray.api.placementgroup.PlacementStrategy;
 import io.ray.runtime.RayRuntimeInternal;
+import io.ray.runtime.actor.BaseActorHandleImpl;
 import io.ray.runtime.actor.LocalModeActorHandle;
 import io.ray.runtime.context.LocalModeWorkerContext;
 import io.ray.runtime.functionmanager.FunctionDescriptor;
@@ -27,6 +24,10 @@ import io.ray.runtime.generated.Common.ObjectReference;
 import io.ray.runtime.generated.Common.TaskArg;
 import io.ray.runtime.generated.Common.TaskSpec;
 import io.ray.runtime.generated.Common.TaskType;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.ObjectId;
+import io.ray.runtime.id.TaskId;
+import io.ray.runtime.id.UniqueId;
 import io.ray.runtime.object.LocalModeObjectStore;
 import io.ray.runtime.object.NativeRayObject;
 import io.ray.runtime.placementgroup.PlacementGroupImpl;
@@ -197,7 +198,8 @@ public class LocalModeTaskSubmitter implements TaskSubmitter {
     TaskSpec taskSpec = builder
         .setNumReturns(numReturns + 1)
         .setActorTaskSpec(
-            ActorTaskSpec.newBuilder().setActorId(ByteString.copyFrom(actor.getId().getBytes()))
+            ActorTaskSpec.newBuilder()
+                .setActorId(ByteString.copyFrom(((BaseActorHandleImpl) actor).getId().getBytes()))
                 .setPreviousActorTaskDummyObjectId(ByteString.copyFrom(
                     ((LocalModeActorHandle) actor)
                         .exchangePreviousActorTaskDummyObjectId(returnIds.get(returnIds.size() - 1))

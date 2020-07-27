@@ -3,6 +3,7 @@ package io.ray.runtime.actor;
 import com.google.common.base.Preconditions;
 import io.ray.api.PyActorHandle;
 import io.ray.runtime.generated.Common.Language;
+import io.ray.runtime.id.ActorId;
 import java.io.IOException;
 import java.io.ObjectInput;
 
@@ -11,7 +12,7 @@ import java.io.ObjectInput;
  */
 public class NativePyActorHandle extends NativeActorHandle implements PyActorHandle {
 
-  NativePyActorHandle(byte[] actorId) {
+  NativePyActorHandle(ActorId actorId) {
     super(actorId, Language.PYTHON);
   }
 
@@ -24,12 +25,12 @@ public class NativePyActorHandle extends NativeActorHandle implements PyActorHan
 
   @Override
   public String getModuleName() {
-    return nativeGetActorCreationTaskFunctionDescriptor(actorId).get(0);
+    return nativeGetActorCreationTaskFunctionDescriptor(actorId.getBytes()).get(0);
   }
 
   @Override
   public String getClassName() {
-    return nativeGetActorCreationTaskFunctionDescriptor(actorId).get(1);
+    return nativeGetActorCreationTaskFunctionDescriptor(actorId.getBytes()).get(1);
   }
 
   @Override

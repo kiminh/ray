@@ -2,7 +2,7 @@ package io.ray.runtime.functionmanager;
 
 import com.google.common.base.Strings;
 import io.ray.api.function.RayFunc;
-import io.ray.api.id.JobId;
+import io.ray.runtime.id.JobId;
 import io.ray.runtime.util.LambdaUtils;
 import java.io.File;
 import java.lang.invoke.SerializedLambda;

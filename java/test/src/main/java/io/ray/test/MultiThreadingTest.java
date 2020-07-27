@@ -6,7 +6,7 @@ import io.ray.api.ObjectRef;
 import io.ray.api.Ray;
 import io.ray.api.WaitResult;
 import io.ray.api.exception.RayException;
-import io.ray.api.id.ActorId;
+import io.ray.runtime.id.ActorId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;

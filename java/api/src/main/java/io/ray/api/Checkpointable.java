@@ -1,7 +1,7 @@
 package io.ray.api;
 
-import io.ray.api.id.ActorId;
-import io.ray.api.id.UniqueId;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.UniqueId;
 import java.util.List;
 
 public interface Checkpointable {

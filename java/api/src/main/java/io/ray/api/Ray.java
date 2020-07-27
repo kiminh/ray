@@ -1,7 +1,7 @@
 package io.ray.api;
 
-import io.ray.api.id.ObjectId;
-import io.ray.api.id.UniqueId;
+import io.ray.runtime.id.ObjectId;
+import io.ray.runtime.id.UniqueId;
 import io.ray.api.placementgroup.PlacementGroup;
 import io.ray.api.placementgroup.PlacementStrategy;
 import io.ray.api.runtime.RayRuntime;
@@ -64,28 +64,6 @@ public final class Ray extends RayCall {
    */
   public static <T> ObjectRef<T> put(T obj) {
     return runtime.put(obj);
-  }
-
-  /**
-   * Get an object by id from the object store.
-   *
-   * @param objectId The ID of the object to get.
-   * @param objectType The type of the object to get.
-   * @return The Java object.
-   */
-  public static <T> T get(ObjectId objectId, Class<T> objectType) {
-    return runtime.get(objectId, objectType);
-  }
-
-  /**
-   * Get a list of objects by ids from the object store.
-   *
-   * @param objectIds The list of object IDs.
-   * @param objectType The type of object.
-   * @return A list of Java objects.
-   */
-  public static <T> List<T> get(List<ObjectId> objectIds, Class<T> objectType) {
-    return runtime.get(objectIds, objectType);
   }
 
   /**

@@ -1,7 +1,7 @@
 package io.ray.test;
 
 import io.ray.api.Ray;
-import io.ray.api.id.ObjectId;
+import io.ray.runtime.id.ObjectId;
 import io.ray.runtime.object.ObjectStore;
 import org.testng.Assert;
 import org.testng.annotations.Test;

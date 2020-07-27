@@ -2,8 +2,8 @@ package io.ray.runtime.functionmanager;
 
 import io.ray.api.function.RayFunc0;
 import io.ray.api.function.RayFunc1;
-import io.ray.api.id.JobId;
 import io.ray.runtime.functionmanager.FunctionManager.JobFunctionTable;
+import io.ray.runtime.id.JobId;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;

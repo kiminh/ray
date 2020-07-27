@@ -1,8 +1,8 @@
 package io.ray.runtime.task;
 
-import io.ray.api.id.ActorId;
-import io.ray.api.id.UniqueId;
 import io.ray.runtime.RayRuntimeInternal;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.UniqueId;
 
 /**
  * Task executor for local mode.

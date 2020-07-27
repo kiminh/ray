@@ -1,7 +1,7 @@
 package io.ray.api.runtimecontext;
 
-import io.ray.api.id.ActorId;
-import io.ray.api.id.JobId;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.JobId;
 import java.util.List;
 
 /**

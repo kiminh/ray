@@ -1,12 +1,12 @@
 package io.ray.runtime.context;
 
 import com.google.common.base.Preconditions;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.JobId;
-import io.ray.api.id.TaskId;
-import io.ray.api.id.UniqueId;
 import io.ray.runtime.generated.Common.TaskSpec;
 import io.ray.runtime.generated.Common.TaskType;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.JobId;
+import io.ray.runtime.id.TaskId;
+import io.ray.runtime.id.UniqueId;
 import io.ray.runtime.task.LocalModeTaskSubmitter;
 
 /**

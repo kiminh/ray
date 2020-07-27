@@ -2,8 +2,8 @@ package io.ray.test;
 
 import io.ray.api.ActorHandle;
 import io.ray.api.Ray;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.JobId;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.JobId;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import org.testng.Assert;

@@ -1,6 +1,6 @@
 package io.ray.runtime.util;
 
-import io.ray.api.id.BaseId;
+import io.ray.runtime.id.BaseId;
 
 /**
  * Helper method for different Ids. Note: any changes to these methods must be synced with C++

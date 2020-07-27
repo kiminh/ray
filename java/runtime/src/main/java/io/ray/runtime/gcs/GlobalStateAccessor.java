@@ -1,8 +1,8 @@
 package io.ray.runtime.gcs;
 
 import com.google.common.base.Preconditions;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.UniqueId;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.UniqueId;
 import java.util.List;
 
 /**

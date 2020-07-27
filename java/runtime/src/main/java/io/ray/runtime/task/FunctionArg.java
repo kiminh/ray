@@ -1,7 +1,7 @@
 package io.ray.runtime.task;
 
 import com.google.common.base.Preconditions;
-import io.ray.api.id.ObjectId;
+import io.ray.runtime.id.ObjectId;
 import io.ray.runtime.object.NativeRayObject;
 
 /**

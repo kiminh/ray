@@ -2,7 +2,7 @@ package io.ray.runtime.object;
 
 import io.ray.api.ObjectRef;
 import io.ray.api.Ray;
-import io.ray.api.id.ObjectId;
+import io.ray.runtime.id.ObjectId;
 import java.io.Serializable;
 
 /**
@@ -43,12 +43,10 @@ public final class ObjectRefImpl<T> implements ObjectRef<T>, Serializable {
     return object;
   }
 
-  @Override
   public ObjectId getId() {
     return id;
   }
 
-  @Override
   public Class<T> getType() {
     return type;
   }

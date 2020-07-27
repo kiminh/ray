@@ -9,9 +9,9 @@ import io.ray.api.function.PyActorClass;
 import io.ray.api.function.PyActorMethod;
 import io.ray.api.function.PyFunction;
 import io.ray.api.function.RayFunc;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.ObjectId;
-import io.ray.api.id.UniqueId;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.ObjectId;
+import io.ray.runtime.id.UniqueId;
 import io.ray.api.options.ActorCreationOptions;
 import io.ray.api.options.CallOptions;
 import io.ray.api.placementgroup.PlacementGroup;
@@ -41,22 +41,12 @@ public interface RayRuntime {
   <T> ObjectRef<T> put(T obj);
 
   /**
-   * Get an object from the object store.
-   *
-   * @param objectId The ID of the object to get.
-   * @param objectType The type of the object to get.
-   * @return The Java object.
-   */
-  <T> T get(ObjectId objectId, Class<T> objectType);
-
-  /**
    * Get a list of objects from the object store.
    *
    * @param objectIds The list of object IDs.
-   * @param objectType The type of object.
    * @return A list of Java objects.
    */
-  <T> List<T> get(List<ObjectId> objectIds, Class<T> objectType);
+  <T> List<T> get(List<ObjectRef<T>> objectIds);
 
   /**
    * Wait for a list of RayObjects to be locally available, until specified number of objects are
@@ -72,11 +62,11 @@ public interface RayRuntime {
   /**
    * Free a list of objects from Plasma Store.
    *
-   * @param objectIds The object ids to free.
+   * @param objects The objects to free.
    * @param localOnly Whether only free objects for local object store or not.
    * @param deleteCreatingTasks Whether also delete objects' creating tasks from GCS.
    */
-  void free(List<ObjectId> objectIds, boolean localOnly, boolean deleteCreatingTasks);
+  void free(List<ObjectRef<?>> objects, boolean localOnly, boolean deleteCreatingTasks);
 
   /**
    * Set the resource for the specific node.
@@ -86,8 +76,6 @@ public interface RayRuntime {
    * @param nodeId The node that we want to set its resource.
    */
   void setResource(String resourceName, double capacity, UniqueId nodeId);
-
-  <T extends BaseActorHandle> T getActorHandle(ActorId actorId);
 
   /**
    * Get a handle to a named actor.

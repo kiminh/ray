@@ -4,9 +4,9 @@ import com.google.common.base.Preconditions;
 import io.ray.api.Checkpointable;
 import io.ray.api.Checkpointable.Checkpoint;
 import io.ray.api.Checkpointable.CheckpointContext;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.UniqueId;
 import io.ray.runtime.RayRuntimeInternal;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.UniqueId;
 import java.util.ArrayList;
 import java.util.List;
 

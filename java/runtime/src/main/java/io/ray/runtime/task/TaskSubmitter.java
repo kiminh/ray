@@ -1,13 +1,13 @@
 package io.ray.runtime.task;
 
 import io.ray.api.BaseActorHandle;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.ObjectId;
 import io.ray.api.options.ActorCreationOptions;
 import io.ray.api.options.CallOptions;
 import io.ray.api.placementgroup.PlacementGroup;
 import io.ray.api.placementgroup.PlacementStrategy;
 import io.ray.runtime.functionmanager.FunctionDescriptor;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.ObjectId;
 import java.util.List;
 import java.util.Map;
 

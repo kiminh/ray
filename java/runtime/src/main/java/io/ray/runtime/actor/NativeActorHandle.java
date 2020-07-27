@@ -2,8 +2,8 @@ package io.ray.runtime.actor;
 
 import com.google.common.base.Preconditions;
 import io.ray.api.BaseActorHandle;
-import io.ray.api.id.ActorId;
 import io.ray.runtime.generated.Common.Language;
+import io.ray.runtime.id.ActorId;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -14,18 +14,14 @@ import java.util.List;
  * Abstract and language-independent implementation of actor handle for cluster mode. This is a
  * wrapper class for C++ ActorHandle.
  */
-public abstract class NativeActorHandle implements BaseActorHandle, Externalizable {
-
-  /**
-   * ID of the actor.
-   */
-  byte[] actorId;
+public abstract class NativeActorHandle extends BaseActorHandleImpl implements BaseActorHandle,
+  Externalizable {
 
   private Language language;
 
-  NativeActorHandle(byte[] actorId, Language language) {
-    Preconditions.checkState(!ActorId.fromBytes(actorId).isNil());
-    this.actorId = actorId;
+  NativeActorHandle(ActorId actorId, Language language) {
+    super(actorId);
+    Preconditions.checkState(!actorId.isNil());
     this.language = language;
   }
 
@@ -33,15 +29,16 @@ public abstract class NativeActorHandle implements BaseActorHandle, Externalizab
    * Required by FST
    */
   NativeActorHandle() {
+    super(ActorId.NIL);
   }
 
-  public static NativeActorHandle create(byte[] actorId) {
-    Language language = Language.forNumber(nativeGetLanguage(actorId));
+  public static NativeActorHandle create(ActorId actorId) {
+    Language language = Language.forNumber(nativeGetLanguage(actorId.getBytes()));
     Preconditions.checkState(language != null, "Language shouldn't be null");
     return create(actorId, language);
   }
 
-  public static NativeActorHandle create(byte[] actorId, Language language) {
+  public static NativeActorHandle create(ActorId actorId, Language language) {
     switch (language) {
       case JAVA:
         return new NativeJavaActorHandle(actorId);
@@ -52,24 +49,19 @@ public abstract class NativeActorHandle implements BaseActorHandle, Externalizab
     }
   }
 
-  @Override
-  public ActorId getId() {
-    return ActorId.fromBytes(actorId);
-  }
-
   public Language getLanguage() {
     return language;
   }
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    out.writeObject(nativeSerialize(actorId));
+    out.writeObject(nativeSerialize(actorId.getBytes()));
     out.writeObject(language);
   }
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    actorId = nativeDeserialize((byte[]) in.readObject());
+    actorId = ActorId.fromBytes(nativeDeserialize((byte[]) in.readObject()));
     language = (Language) in.readObject();
   }
 
@@ -79,7 +71,7 @@ public abstract class NativeActorHandle implements BaseActorHandle, Externalizab
    * @return  the bytes of the actor handle
    */
   public byte[] toBytes() {
-    return nativeSerialize(actorId);
+    return nativeSerialize(actorId.getBytes());
   }
 
   /**
@@ -91,7 +83,7 @@ public abstract class NativeActorHandle implements BaseActorHandle, Externalizab
     byte[] actorId = nativeDeserialize(bytes);
     Language language = Language.forNumber(nativeGetLanguage(actorId));
     Preconditions.checkNotNull(language);
-    return create(actorId, language);
+    return create(ActorId.fromBytes(actorId), language);
   }
 
   // TODO(chaokunyang) do we need to free the ActorHandle in core worker by using phantom reference?

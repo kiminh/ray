@@ -3,6 +3,7 @@ package io.ray.runtime.actor;
 import com.google.common.base.Preconditions;
 import io.ray.api.ActorHandle;
 import io.ray.runtime.generated.Common.Language;
+import io.ray.runtime.id.ActorId;
 import java.io.IOException;
 import java.io.ObjectInput;
 
@@ -11,7 +12,7 @@ import java.io.ObjectInput;
  */
 public class NativeJavaActorHandle extends NativeActorHandle implements ActorHandle {
 
-  NativeJavaActorHandle(byte[] actorId) {
+  NativeJavaActorHandle(ActorId actorId) {
     super(actorId, Language.JAVA);
   }
 

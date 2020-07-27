@@ -1,8 +1,8 @@
 package io.ray.runtime.actor;
 
 import io.ray.api.ActorHandle;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.ObjectId;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.ObjectId;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -12,14 +12,13 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Implementation of actor handle for local mode.
  */
-public class LocalModeActorHandle implements ActorHandle, Externalizable {
-
-  private ActorId actorId;
+public class LocalModeActorHandle extends BaseActorHandleImpl implements ActorHandle,
+  Externalizable {
 
   private AtomicReference<ObjectId> previousActorTaskDummyObjectId = new AtomicReference<>();
 
   public LocalModeActorHandle(ActorId actorId, ObjectId previousActorTaskDummyObjectId) {
-    this.actorId = actorId;
+    super(actorId);
     this.previousActorTaskDummyObjectId.set(previousActorTaskDummyObjectId);
   }
 
@@ -27,11 +26,7 @@ public class LocalModeActorHandle implements ActorHandle, Externalizable {
    * Required by FST
    */
   public LocalModeActorHandle() {
-  }
-
-  @Override
-  public ActorId getId() {
-    return actorId;
+    super(ActorId.NIL);
   }
 
   public ObjectId exchangePreviousActorTaskDummyObjectId(ObjectId previousActorTaskDummyObjectId) {

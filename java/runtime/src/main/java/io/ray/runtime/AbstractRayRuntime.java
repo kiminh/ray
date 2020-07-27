@@ -13,8 +13,6 @@ import io.ray.api.function.PyActorClass;
 import io.ray.api.function.PyActorMethod;
 import io.ray.api.function.PyFunction;
 import io.ray.api.function.RayFunc;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.ObjectId;
 import io.ray.api.options.ActorCreationOptions;
 import io.ray.api.options.CallOptions;
 import io.ray.api.placementgroup.PlacementGroup;
@@ -30,6 +28,8 @@ import io.ray.runtime.functionmanager.RayFunction;
 import io.ray.runtime.gcs.GcsClient;
 import io.ray.runtime.generated.Common;
 import io.ray.runtime.generated.Common.Language;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.ObjectId;
 import io.ray.runtime.object.ObjectRefImpl;
 import io.ray.runtime.object.ObjectStore;
 import io.ray.runtime.task.ArgumentsBuilder;
@@ -165,7 +165,6 @@ public abstract class AbstractRayRuntime implements RayRuntimeInternal {
   }
 
   @SuppressWarnings("unchecked")
-  @Override
   public <T extends BaseActorHandle> T getActorHandle(ActorId actorId) {
     return (T) taskSubmitter.getActor(actorId);
   }

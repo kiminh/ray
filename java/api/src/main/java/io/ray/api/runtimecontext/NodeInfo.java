@@ -1,6 +1,6 @@
 package io.ray.api.runtimecontext;
 
-import io.ray.api.id.UniqueId;
+import io.ray.runtime.id.UniqueId;
 import java.util.Map;
 
 /**

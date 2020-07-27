@@ -2,15 +2,16 @@ package io.ray.runtime;
 
 import com.google.common.base.Preconditions;
 import io.ray.api.BaseActorHandle;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.JobId;
-import io.ray.api.id.UniqueId;
+import io.ray.runtime.actor.BaseActorHandleImpl;
 import io.ray.runtime.config.RayConfig;
 import io.ray.runtime.context.NativeWorkerContext;
 import io.ray.runtime.gcs.GcsClient;
 import io.ray.runtime.gcs.GcsClientOptions;
 import io.ray.runtime.gcs.RedisClient;
 import io.ray.runtime.generated.Common.WorkerType;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.JobId;
+import io.ray.runtime.id.UniqueId;
 import io.ray.runtime.object.NativeObjectStore;
 import io.ray.runtime.runner.RunManager;
 import io.ray.runtime.task.NativeTaskExecutor;
@@ -156,7 +157,7 @@ public final class RayNativeRuntime extends AbstractRayRuntime {
 
   @Override
   public void killActor(BaseActorHandle actor, boolean noRestart) {
-    nativeKillActor(actor.getId().getBytes(), noRestart);
+    nativeKillActor(((BaseActorHandleImpl) actor).getId().getBytes(), noRestart);
   }
 
   @Override

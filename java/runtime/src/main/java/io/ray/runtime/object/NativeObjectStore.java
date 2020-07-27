@@ -1,8 +1,8 @@
 package io.ray.runtime.object;
 
-import io.ray.api.id.BaseId;
-import io.ray.api.id.ObjectId;
 import io.ray.runtime.context.WorkerContext;
+import io.ray.runtime.id.BaseId;
+import io.ray.runtime.id.ObjectId;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;

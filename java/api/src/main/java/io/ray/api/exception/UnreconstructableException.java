@@ -1,6 +1,6 @@
 package io.ray.api.exception;
 
-import io.ray.api.id.ObjectId;
+import io.ray.runtime.id.ObjectId;
 
 /**
  * Indicates that an object is lost (either evicted or explicitly deleted) and cannot be

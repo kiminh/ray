@@ -1,6 +1,6 @@
 package io.ray.runtime.placementgroup;
 
-import io.ray.api.id.BaseId;
+import io.ray.runtime.id.BaseId;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;

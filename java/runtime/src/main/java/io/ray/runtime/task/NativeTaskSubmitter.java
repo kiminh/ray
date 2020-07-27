@@ -4,14 +4,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import io.ray.api.BaseActorHandle;
 import io.ray.api.Ray;
-import io.ray.api.id.ActorId;
-import io.ray.api.id.ObjectId;
 import io.ray.api.options.ActorCreationOptions;
 import io.ray.api.options.CallOptions;
 import io.ray.api.placementgroup.PlacementGroup;
 import io.ray.api.placementgroup.PlacementStrategy;
+import io.ray.runtime.actor.BaseActorHandleImpl;
 import io.ray.runtime.actor.NativeActorHandle;
 import io.ray.runtime.functionmanager.FunctionDescriptor;
+import io.ray.runtime.id.ActorId;
+import io.ray.runtime.id.ObjectId;
 import io.ray.runtime.placementgroup.PlacementGroupId;
 import io.ray.runtime.placementgroup.PlacementGroupImpl;
 import java.util.List;
@@ -56,12 +57,12 @@ public class NativeTaskSubmitter implements TaskSubmitter {
     }
     byte[] actorId = nativeCreateActor(functionDescriptor, functionDescriptor.hashCode(), args,
         options);
-    return NativeActorHandle.create(actorId, functionDescriptor.getLanguage());
+    return NativeActorHandle.create(ActorId.fromBytes(actorId), functionDescriptor.getLanguage());
   }
 
   @Override
   public BaseActorHandle getActor(ActorId actorId) {
-    return NativeActorHandle.create(actorId.getBytes());
+    return NativeActorHandle.create(actorId);
   }
 
   @Override
@@ -69,7 +70,7 @@ public class NativeTaskSubmitter implements TaskSubmitter {
       BaseActorHandle actor, FunctionDescriptor functionDescriptor,
       List<FunctionArg> args, int numReturns, CallOptions options) {
     Preconditions.checkState(actor instanceof NativeActorHandle);
-    List<byte[]> returnIds = nativeSubmitActorTask(actor.getId().getBytes(),
+    List<byte[]> returnIds = nativeSubmitActorTask(((BaseActorHandleImpl) actor).getId().getBytes(),
         functionDescriptor, functionDescriptor.hashCode(), args, numReturns, options);
     if (returnIds == null) {
       return ImmutableList.of();

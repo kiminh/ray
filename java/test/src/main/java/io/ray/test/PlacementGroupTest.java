@@ -2,9 +2,9 @@ package io.ray.test;
 
 import io.ray.api.ActorHandle;
 import io.ray.api.Ray;
-import io.ray.api.id.ActorId;
 import io.ray.api.placementgroup.PlacementGroup;
 import io.ray.api.placementgroup.PlacementStrategy;
+import io.ray.runtime.id.ActorId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

@@ -1,10 +1,10 @@
 package io.ray.test;
 
 import com.google.common.base.Preconditions;
-import io.ray.api.id.JobId;
 import io.ray.api.runtimecontext.NodeInfo;
 import io.ray.runtime.config.RayConfig;
 import io.ray.runtime.gcs.GcsClient;
+import io.ray.runtime.id.JobId;
 import java.util.List;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
