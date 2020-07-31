@@ -963,12 +963,11 @@ void NodeManager::HandleActorStateTransition(const ActorID &actor_id,
       }
     }
   }
-  RAY_LOG(DEBUG) << "Actor notification received: actor_id = " << actor_id
-                 << ", node_manager_id = " << actor_registration.GetNodeManagerId()
-                 << ", state = "
-                 << ActorTableData::ActorState_Name(actor_registration.GetState())
-                 << ", remaining_restarts = "
-                 << actor_registration.GetRemainingRestarts();
+  RAY_LOG(INFO) << "Actor notification received: actor_id = " << actor_id
+                << ", node_manager_id = " << actor_registration.GetNodeManagerId()
+                << ", state = "
+                << ActorTableData::ActorState_Name(actor_registration.GetState())
+                << ", remaining_restarts = " << actor_registration.GetRemainingRestarts();
 
   if (actor_registration.GetState() == ActorTableData::ALIVE) {
     // The actor is now alive (created for the first time or restarted). We can
@@ -1305,9 +1304,9 @@ void NodeManager::HandleDisconnectedActor(const ActorID &actor_id, bool was_loca
   RAY_CHECK(actor_entry != actor_registry_.end());
   auto &actor_registration = actor_entry->second;
   auto remainingRestarts = actor_registration.GetRemainingRestarts();
-  RAY_LOG(DEBUG) << "The actor with ID " << actor_id << " died "
-                 << (intentional_disconnect ? "intentionally" : "unintentionally")
-                 << ", remaining restarts = " << remainingRestarts;
+  RAY_LOG(WARNING) << "The actor with ID " << actor_id << " died "
+                   << (intentional_disconnect ? "intentionally" : "unintentionally")
+                   << ", remaining restarts = " << remainingRestarts;
 
   // Check if this actor needs to be restarted.
   ActorState new_state =
@@ -1511,9 +1510,9 @@ void NodeManager::ProcessDisconnectClientMessage(
     local_queues_.RemoveDriverTaskId(TaskID::ComputeDriverTaskId(driver_id));
     worker_pool_.DisconnectDriver(worker);
 
-    RAY_LOG(DEBUG) << "Driver (pid=" << worker->GetProcess().GetId()
-                   << ") is disconnected. "
-                   << "job_id: " << worker->GetAssignedJobId();
+    RAY_LOG(INFO) << "Driver (pid=" << worker->GetProcess().GetId()
+                  << ") is disconnected. "
+                  << "job_id: " << worker->GetAssignedJobId();
   }
 
   client->Close();
