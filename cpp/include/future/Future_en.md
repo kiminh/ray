@@ -3,15 +3,15 @@
 # outline
 
 * [motiviation](#motiviation)
-* [basic concepts](#basic concepts)
-* [overview of Future](#overview of Future)
-* [quick example](#quick example)
-* [create a future](#create a future)
-* [get the value of a future](#get the value of a future)
-* [thread policy](#thread policy)
-* [threadpool adaptor](#threadpool adaptor)
-* [exception handling](#exception handling)
-* [WhenAll variadic version](#WhenAll variadic version)
+* [basic_concepts](#basic concepts)
+* [overview_of_Future](#overview of Future)
+* [quick_example](#quick example)
+* [create_a_future](#create a future)
+* [get_the_value_of_a_future](#get the value of a future)
+* [thread_policy](#thread policy)
+* [threadpool_adaptor](#threadpool adaptor)
+* [exception_handling](#exception handling)
+* [WhenAll_variadic_version](#WhenAll variadic version)
 * [roadMap](#roadmap)
 
 # motiviation
