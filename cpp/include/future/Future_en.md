@@ -2,17 +2,7 @@
 
 # outline
 
-* [motiviation](#motiviation)
-* [basic_concepts](#basic concepts)
-* [overview_of_Future](#overview of Future)
-* [quick_example](#quick example)
-* [create_a_future](#create a future)
-* [get_the_value_of_a_future](#get the value of a future)
-* [thread_policy](#thread policy)
-* [threadpool_adaptor](#threadpool adaptor)
-* [exception_handling](#exception handling)
-* [WhenAll_variadic_version](#WhenAll variadic version)
-* [roadMap](#roadmap)
+[TOC]
 
 # motiviation
 
