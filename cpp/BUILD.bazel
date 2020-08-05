@@ -79,7 +79,9 @@ cc_binary(
 cc_test(
     name = "api_test",
     srcs = glob([
-        "src/ray/test/*.cc",
+        "src/ray/test/api_test.cc",
+        "src/ray/test/serialization_test.cc",
+        "src/ray/test/slow_function_test.cc",
     ]),
     copts = COPTS,
     deps = [
@@ -93,6 +95,24 @@ cc_test(
     name = "future_test",
     srcs = glob([
         "src/ray/test/future_test.cc",
+    ]),
+    copts = COPTS,
+    defines = ["BOOST_THREAD_PROVIDES_FUTURE_CONTINUATION",
+               "BOOST_THREAD_PROVIDES_EXECUTORS",
+               "BOOST_THREAD_USES_MOVE"],
+    deps = [
+        "libray_api_header",
+        "ray_api",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@boost//:filesystem",
+    ],
+)
+
+cc_test(
+    name = "task_test",
+    srcs = glob([
+        "src/ray/test/task_test.cc",
     ]),
     copts = COPTS,
     defines = ["BOOST_THREAD_PROVIDES_FUTURE_CONTINUATION",

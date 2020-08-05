@@ -12,7 +12,7 @@
 
 namespace ray {
 
-enum class Lauch { Async, Sync };
+enum class Lauch { Async, Sync, Callback };
 
 struct EmptyExecutor {
   template <typename F> void submit(F &&fn) {}
@@ -25,9 +25,7 @@ template <typename E> struct ExecutorAdaptor {
   template <typename... Args>
   ExecutorAdaptor(Args &&... args) : ex(std::forward<Args>(args)...) {}
 
-  void submit(std::function<void()> f) {
-    ex.submit(std::move(f));
-  }
+  void submit(std::function<void()> f) { ex.submit(std::move(f)); }
 
   E ex;
 };
@@ -53,13 +51,16 @@ public:
   }
 
   template <typename F>
-  Future<absl::result_of_t<typename std::decay<F>::type(typename TryWrapper<T>::type)>> Then(Lauch policy, F &&fn) {
+  Future<absl::result_of_t<
+      typename std::decay<F>::type(typename TryWrapper<T>::type)>>
+  Then(Lauch policy, F &&fn) {
     return ThenImpl(policy, (EmptyExecutor *)nullptr, std::forward<F>(fn));
   }
 
   template <typename F, typename Ex>
-  Future<absl::result_of_t<typename std::decay<F>::type(typename TryWrapper<T>::type)>> Then(Ex* executor,
-                                                        F &&fn) {
+  Future<absl::result_of_t<
+      typename std::decay<F>::type(typename TryWrapper<T>::type)>>
+  Then(Ex *executor, F &&fn) {
     return ThenImpl(Lauch::Async, executor, std::forward<F>(fn));
   }
 
@@ -97,7 +98,17 @@ public:
 
   void Wait() { shared_state_->Wait(); }
 
+  template <typename F>
+  void Finally(F&& fn){
+    Then(Lauch::Callback, std::forward<F>(fn));
+  }
+
 private:
+  template <typename FirstArg, typename F, typename Executor, typename U>
+  void ExecuteTask(Lauch policy, Executor *executor, MoveWrapper<F> func,
+                          MoveWrapper<Promise<U>> next_prom,
+                          std::shared_ptr<SharedState<T>> const &state);
+
   template <typename F, typename Ex>
   Future<typename function_traits<F>::return_type>
   ThenImpl(Lauch policy, Ex *executor, F &&fn) {
@@ -110,55 +121,22 @@ private:
 
     auto func = MakeMoveWrapper(std::move(fn));
     auto next_prom = MakeMoveWrapper(std::move(next_promise));
+    auto state = shared_state_;
 
     std::unique_lock<std::mutex> lock(shared_state_->then_mtx_);
     if (shared_state_->state_ == FutureStatus::None) {
-      shared_state_->then_ = [policy, executor, func, next_prom,
-                              this](typename TryWrapper<T>::type &&t) mutable {
-        ExecuteTask<FirstArg>(policy, executor, func, next_prom, std::move(t));
-      };
+      shared_state_->continuations_.emplace_back(
+          [policy, executor, func, next_prom, state, this]() mutable {
+            ExecuteTask<FirstArg>(policy, executor, func, next_prom, state);
+          });
     } else if (shared_state_->state_ == FutureStatus::Done) {
-      typename TryWrapper<T>::type t;
-      t = std::move(shared_state_->value_);
-//      try {
-//        t = std::move(shared_state_->value_);
-//      } catch (const std::exception &e) {
-//        t = (typename TryWrapper<T>::type)(std::current_exception());
-//      }
       lock.unlock();
-
-      ExecuteTask<FirstArg>(policy, executor, func, next_prom, std::move(t));
+      ExecuteTask<FirstArg>(policy, executor, func, next_prom, shared_state_);
     } else if (shared_state_->state_ == FutureStatus::Timeout) {
       throw std::runtime_error("timeout");
     }
 
     return next_future;
-  }
-
-  template <typename FirstArg, typename F, typename Executor, typename U>
-  void ExecuteTask(Lauch policy, Executor *executor, MoveWrapper<F> func,
-                   MoveWrapper<Promise<U>> next_prom,
-                   typename TryWrapper<T>::type &&t) {
-    auto arg = MakeMoveWrapper(std::move(t));
-    auto task = [func, arg, next_prom, this]() mutable {
-      try {
-        auto result = Invoke<FirstArg>(func.move(), arg.move());
-        next_prom->SetValue(std::move(result));
-      } catch (...) {
-        next_prom->SetException(std::current_exception());
-      }
-    };
-
-    if(executor){
-      executor->submit(std::move(task));
-      return;
-    }
-
-    if (policy == Lauch::Async) {
-      Async(std::move(task));
-    } else {
-      task();
-    }
   }
 
   template <typename R> absl::enable_if_t<std::is_void<R>::value> GetImpl() {}
@@ -169,7 +147,7 @@ private:
   }
 
   template <typename R, typename U, typename F, typename Arg>
-  auto Invoke(F fn, Arg arg) ->
+  static auto Invoke(F fn, Arg arg) ->
       typename std::enable_if<!IsTry<U>::value && std::is_same<void, U>::value,
                               try_type_t<decltype(fn())>>::type {
     using type = decltype(fn());
@@ -177,7 +155,7 @@ private:
   }
 
   template <typename U, typename F, typename Arg>
-  auto Invoke(F fn, Arg arg) -> typename std::enable_if<
+  static auto Invoke(F fn, Arg arg) -> typename std::enable_if<
       !IsTry<U>::value && !std::is_same<void, U>::value &&
           !std::is_void<typename function_traits<F>::return_type>::value,
       try_type_t<decltype(fn(arg.Value()))>>::type {
@@ -186,7 +164,7 @@ private:
   }
 
   template <typename U, typename F, typename Arg>
-  auto Invoke(F fn, Arg arg) -> typename std::enable_if<
+  static auto Invoke(F fn, Arg arg) -> typename std::enable_if<
       !IsTry<U>::value && !std::is_same<void, U>::value &&
           std::is_void<typename function_traits<F>::return_type>::value,
       try_type_t<decltype(fn(arg.Value()))>>::type {
@@ -196,7 +174,7 @@ private:
   }
 
   template <typename U, typename F, typename Arg>
-  auto Invoke(F fn, Arg arg) -> typename std::enable_if<
+  static auto Invoke(F fn, Arg arg) -> typename std::enable_if<
       IsTry<U>::value && !std::is_same<void, typename IsTry<U>::Inner>::value &&
           !std::is_void<typename function_traits<F>::return_type>::value,
       try_type_t<decltype(fn(std::move(arg)))>>::type {
@@ -205,7 +183,7 @@ private:
   }
 
   template <typename U, typename F, typename Arg>
-  auto Invoke(F fn, Arg arg) -> typename std::enable_if<
+  static auto Invoke(F fn, Arg arg) -> typename std::enable_if<
       IsTry<U>::value && !std::is_same<void, typename IsTry<U>::Inner>::value &&
           std::is_void<typename function_traits<F>::return_type>::value,
       try_type_t<decltype(fn(std::move(arg)))>>::type {
@@ -215,7 +193,7 @@ private:
   }
 
   template <typename U, typename F, typename Arg>
-  auto Invoke(F fn, Arg arg) -> typename std::enable_if<
+  static auto Invoke(F fn, Arg arg) -> typename std::enable_if<
       IsTry<U>::value && std::is_same<void, typename IsTry<U>::Inner>::value &&
           std::is_void<typename function_traits<F>::return_type>::value,
       try_type_t<decltype(fn(std::move(arg)))>>::type {
@@ -225,7 +203,7 @@ private:
   }
 
   template <typename U, typename F, typename Arg>
-  auto Invoke(F fn, Arg arg) -> typename std::enable_if<
+  static auto Invoke(F fn, Arg arg) -> typename std::enable_if<
       IsTry<U>::value && std::is_same<void, typename IsTry<U>::Inner>::value &&
           !std::is_void<typename function_traits<F>::return_type>::value,
       try_type_t<decltype(fn(std::move(arg)))>>::type {
@@ -234,7 +212,7 @@ private:
   }
 
   template <typename U, typename F, typename Arg>
-  auto Invoke(F fn, Arg arg) -> typename std::enable_if<
+  static auto Invoke(F fn, Arg arg) -> typename std::enable_if<
       IsFuture<U>::value &&
           !std::is_same<void, typename IsFuture<U>::Inner>::value,
       try_type_t<decltype(fn(std::move(arg)))>>::type {
@@ -293,7 +271,8 @@ template <typename F, typename... Args>
 inline Future<
     absl::result_of_t<typename std::decay<F>::type(absl::decay_t<Args>...)>>
 Async(F &&fn, Args &&... args) {
-  return future_internal::AsyncImpl(Lauch::Async, (EmptyExecutor*)nullptr, std::forward<F>(fn),
+  return future_internal::AsyncImpl(Lauch::Async, (EmptyExecutor *)nullptr,
+                                    std::forward<F>(fn),
                                     std::forward<Args>(args)...);
 }
 
@@ -449,5 +428,44 @@ WhenAll(F &&... futures) {
   ctx->for_each(std::forward_as_tuple(std::forward<F>(futures)...));
   return ctx->GetFuture();
 }
+
+template <typename T>
+template <typename FirstArg, typename F, typename Executor, typename U>
+void Future<T>::ExecuteTask(Lauch policy, Executor *executor,
+                            MoveWrapper<F> func,
+                            MoveWrapper<Promise<U>> next_prom,
+                            std::shared_ptr<SharedState<T>> const &state) {
+  auto task = [func, state, next_prom]() mutable {
+    try {
+      auto result = Invoke<FirstArg>(func.move(), state->value_);
+      next_prom->SetValue(std::move(result));
+    } catch (...) {
+      next_prom->SetException(std::current_exception());
+    }
+  };
+
+  if (executor) {
+    executor->submit(std::move(task));
+    return;
+  }
+
+  if (policy == Lauch::Async) {
+    Async(std::move(task));
+  } else if(policy == Lauch::Callback){
+    auto future = Async(std::move(task));
+
+    auto mv_future = MakeMoveWrapper(std::move(future));
+    Async([mv_future, this]() mutable {
+      auto&& f = mv_future.move();
+      f.WaitFor(std::chrono::minutes(60));//60 minutes is long enough
+      f.Get();
+    });
+  }else{
+    task();
+  }
 }
+}
+
+
+
 #endif //FUTURE_DEMO_FUTURE_H

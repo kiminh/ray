@@ -41,6 +41,12 @@ TEST(future_then, async_then)
   EXPECT_EQ(future.Get(), 6);
 }
 
+TEST(future_then, void_then) {
+  auto future = Async([] {});
+
+  future.Then(Lauch::Callback, [](Try<void> t) { EXPECT_TRUE(t.HasValue()); });
+}
+
 TEST(when_any, any)
 {
   std::vector<std::thread> threads;
@@ -528,6 +534,72 @@ TEST(future_wait, not_timeout){
     EXPECT_EQ(future.Get(), 3);
     EXPECT_EQ(status, FutureStatus::Done);
 
+  }
+}
+
+TEST(future_then, multiple_continuation) {
+  auto future = Async([] {
+    std::this_thread::sleep_for(std::chrono::milliseconds (10));
+    return 2;
+  });
+
+  auto future1 = future.Then([](int x) {
+    return x + 1;
+  });
+
+  auto future2 = future.Then([](int x) {
+    return x * 2;
+  });
+
+  auto result1 = future1.Get();
+  auto result2 = future2.Get();
+  EXPECT_EQ(result1, 3);
+  EXPECT_EQ(result2, 4);
+}
+
+TEST(future_then, callback){
+  auto future = Async([] {
+    std::this_thread::sleep_for(std::chrono::milliseconds (50));
+    return 2;
+  });
+
+  future.Then([](int i){
+    return i+2;
+  }).Then(Lauch::Callback, [](int i){
+    EXPECT_EQ(i, 4);
+  });
+}
+
+TEST(future_then, callback_void){
+  auto future = Async([] {
+    std::this_thread::sleep_for(std::chrono::milliseconds (50));
+    return 2;
+  });
+
+  future.Then(Lauch::Callback, [](int i){
+    EXPECT_EQ(i, 2);
+  });
+}
+
+TEST(future_then, finally){
+  auto future = Async([] {
+    std::this_thread::sleep_for(std::chrono::milliseconds (50));
+    return 2;
+  });
+
+  future.Finally([](int i){
+    EXPECT_EQ(i, 2);
+  });
+
+  {
+    auto future = Async([] {
+      std::this_thread::sleep_for(std::chrono::milliseconds (50));
+      return 2;
+    });
+
+    future.Finally([](int i){
+      EXPECT_EQ(i, 2);
+    });
   }
 }
 
